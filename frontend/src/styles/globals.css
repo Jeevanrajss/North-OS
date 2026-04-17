@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-ink-950 text-ink-100 antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    @apply bg-accent-muted text-ink-50;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-ink-900 border border-ink-800 rounded-card p-5;
+  }
+  .card-title {
+    @apply text-sm font-medium text-ink-400 uppercase tracking-wider mb-3;
+  }
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm text-ink-400
+           hover:text-ink-100 hover:bg-ink-900 transition-colors;
+  }
+  .nav-link-active {
+    @apply text-ink-50 bg-ink-900;
+  }
+}
