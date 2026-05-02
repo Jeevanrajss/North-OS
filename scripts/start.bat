@@ -24,9 +24,22 @@ if errorlevel 1 (
 echo [start] LM Studio OK at %LLM_HOST%
 
 REM ---- Backend ---------------------------------------------------------
+REM Find a Python >= 3.11. Prefer the "py" launcher with an explicit version.
+set PYCMD=
+py -3.12 --version >nul 2>&1 && set PYCMD=py -3.12
+if "%PYCMD%"=="" ( py -3.11 --version >nul 2>&1 && set PYCMD=py -3.11 )
+if "%PYCMD%"=="" ( py -3.13 --version >nul 2>&1 && set PYCMD=py -3.13 )
+if "%PYCMD%"=="" ( python --version 2>nul | findstr /r "3\.1[1-9]" >nul && set PYCMD=python )
+
+if "%PYCMD%"=="" (
+  echo [start] Need Python 3.11+. Install from https://www.python.org/downloads/windows/
+  echo [start] On the install screen, tick "Add to PATH".
+  exit /b 1
+)
+
 if not exist backend\.venv (
-  echo [start] Creating Python venv...
-  python -m venv backend\.venv
+  echo [start] Creating Python venv with %PYCMD% ...
+  %PYCMD% -m venv backend\.venv
   backend\.venv\Scripts\pip install -U pip
   backend\.venv\Scripts\pip install -e "backend[dev]"
 )

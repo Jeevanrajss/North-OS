@@ -30,9 +30,29 @@ fi
 echo "[start] LM Studio OK at ${LLM_HOST}"
 
 # ---- Backend ---------------------------------------------------------
+# Find a Python >= 3.11. macOS ships 3.9, which won't work.
+PYBIN=""
+for cand in python3.12 python3.11 python3.13 python3; do
+  if command -v "$cand" >/dev/null 2>&1; then
+    ver="$("$cand" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 0.0)"
+    major="${ver%%.*}"; minor="${ver#*.}"
+    if [[ "$major" == "3" && "$minor" -ge 11 ]]; then
+      PYBIN="$cand"
+      break
+    fi
+  fi
+done
+
+if [[ -z "$PYBIN" ]]; then
+  echo "[start] Need Python 3.11+. Install:"
+  echo "[start]   macOS:  brew install python@3.12"
+  echo "[start]   Linux:  use pyenv or your distro's python3.12 package"
+  exit 1
+fi
+
 if [[ ! -d "backend/.venv" ]]; then
-  echo "[start] Creating Python venv…"
-  python3 -m venv backend/.venv
+  echo "[start] Creating Python venv with $PYBIN …"
+  "$PYBIN" -m venv backend/.venv
   backend/.venv/bin/pip install -U pip
   backend/.venv/bin/pip install -e "backend[dev]"
 fi

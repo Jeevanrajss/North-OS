@@ -29,6 +29,7 @@ dist/
 build/
 .vite/
 *.tsbuildinfo
+vite.config.ts.timestamp-*.mjs
 
 # Editors
 .vscode/

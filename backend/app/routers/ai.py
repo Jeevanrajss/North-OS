@@ -1,21 +1,132 @@
-"""AI router — week 1 only exposes /ping to prove LLM integration."""
+"""AI router — LLM-powered endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from collections import defaultdict
+from datetime import date, timedelta
+from typing import Literal
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.db import get_db
 from app.services import llm_client
 from app.services.llm_client import LLMError
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
 
-class PingRequest(BaseModel):
-    prompt: str = Field(
-        default="Say hello to Jeevan in one short sentence.",
-        description="Prompt to send to the model.",
+# ---------------------------------------------------------------------------
+# Shared helper — builds a rich text snapshot of the user's data
+# ---------------------------------------------------------------------------
+def _build_data_context(db: Session) -> str:
+    from app.models.habit import Habit, HabitCheckin
+    from app.models.journal import JournalDay
+    from app.models.subscription import Subscription
+    from app.schemas.subscription import MONTHLY_MULT
+
+    today = date.today()
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    lines: list[str] = [f"Today: {today.isoformat()} ({day_names[today.weekday()]})"]
+
+    # --- Habits ---
+    habits = (
+        db.query(Habit)
+        .filter(Habit.archived_at.is_(None))
+        .order_by(Habit.sort_order)
+        .all()
     )
-    purpose: str = Field(default="chat", description="chat | categorize | embed")
+    window_start = today - timedelta(days=30)
+    checkins_30d = db.query(HabitCheckin).filter(
+        HabitCheckin.day_date >= window_start,
+        HabitCheckin.day_date <= today,
+    ).all()
+    checkin_dates: dict[str, list] = defaultdict(list)
+    today_done: set[str] = set()
+    for c in checkins_30d:
+        checkin_dates[c.habit_id].append(c.day_date)
+        if c.day_date == today:
+            today_done.add(c.habit_id)
+
+    if habits:
+        lines.append("\n## Habits (active, last 30 days)")
+        for h in habits:
+            status = "✓ done today" if h.id in today_done else "✗ not done today"
+            past_dates = [d for d in checkin_dates[h.id] if d != today]
+            days_done = len(past_dates)
+            if h.frequency_kind == "daily":
+                expected = 30
+            else:
+                wds = [int(x) for x in (h.weekdays or "").split(",") if x.strip()]
+                expected = sum(
+                    1 for i in range(1, 31)
+                    if (today - timedelta(days=i)).weekday() in wds
+                )
+            pct = round(days_done / max(expected, 1) * 100)
+            freq = "daily" if h.frequency_kind == "daily" else f"weekly (days: {h.weekdays})"
+            lines.append(
+                f"- {h.emoji} {h.name} ({freq}): {status}, "
+                f"last 30d completion: {days_done}/{expected} ({pct}%)"
+            )
+
+    # --- Journal ---
+    journal_days = (
+        db.query(JournalDay)
+        .filter(JournalDay.date >= today - timedelta(days=21))
+        .order_by(JournalDay.date.desc())
+        .all()
+    )
+    if journal_days:
+        lines.append("\n## Journal (last 21 days, newest first)")
+        for jd in journal_days:
+            moods = ", ".join(jd.mood_codes) if jd.mood_codes else "no mood"
+            tags = ", ".join(jd.tags) if jd.tags else "no tags"
+            parts = [f"\n### {jd.date} | mood: {moods} | tags: {tags}"]
+            summary_bits = []
+            if jd.summary_highlights:
+                summary_bits.append(f"highlights: {jd.summary_highlights}")
+            if jd.summary_wins:
+                summary_bits.append(f"wins: {jd.summary_wins}")
+            if jd.summary_learnings:
+                summary_bits.append(f"learnings: {jd.summary_learnings}")
+            if jd.summary_gratitude:
+                summary_bits.append(f"gratitude: {jd.summary_gratitude}")
+            if summary_bits:
+                parts.append("  Summary: " + " | ".join(summary_bits))
+            for i, e in enumerate(jd.entries[:2], 1):
+                snippet = (e.content_text or "").strip()[:250]
+                if snippet:
+                    parts.append(f"  Entry {i}: {snippet}")
+            lines.append("\n".join(parts))
+    else:
+        lines.append("\n## Journal\nNo entries in the last 21 days.")
+
+    # --- Subscriptions ---
+    subs = db.query(Subscription).filter(Subscription.cancelled_at.is_(None)).all()
+    if subs:
+        lines.append("\n## Subscriptions")
+        for s in subs:
+            monthly = s.amount * MONTHLY_MULT.get(s.billing_cycle, 1.0)
+            paused = " [PAUSED]" if s.paused_at else ""
+            days_left = (s.next_billing_date - today).days
+            lines.append(
+                f"- {s.emoji} {s.name}{paused}: {s.currency} {s.amount}/{s.billing_cycle}"
+                f" (~{s.currency} {monthly:.0f}/mo), category: {s.category or 'none'},"
+                f" next billing: {s.next_billing_date} ({days_left}d away)"
+            )
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# /ping — basic LLM test
+# ---------------------------------------------------------------------------
+class PingRequest(BaseModel):
+    prompt: str = Field(default="Say hello to Jeevan in one short sentence.")
+    purpose: str = Field(default="chat")
+    system: str | None = None
+    temperature: float = Field(default=0.3, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1024, ge=16, le=4096)
 
 
 class PingResponse(BaseModel):
@@ -26,7 +137,148 @@ class PingResponse(BaseModel):
 @router.post("/ping", response_model=PingResponse)
 async def ping(req: PingRequest):
     try:
-        text = await llm_client.generate(req.prompt, purpose=req.purpose)
+        text = await llm_client.generate(
+            req.prompt,
+            purpose=req.purpose,
+            system=req.system,
+            temperature=req.temperature,
+            max_tokens=req.max_tokens,
+        )
     except LLMError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     return PingResponse(model=req.purpose, response=text)
+
+
+# ---------------------------------------------------------------------------
+# /habit-insights — AI analysis of habit patterns
+# ---------------------------------------------------------------------------
+class HabitInsightsResponse(BaseModel):
+    insights: list[str]
+    model: str
+
+
+@router.post("/habit-insights", response_model=HabitInsightsResponse)
+async def habit_insights(db: Session = Depends(get_db)):
+    """Analyse the last 30 days of habit data and return 3–4 insight strings.
+    Returns an empty list (not an error) if LM Studio is offline or no habits exist."""
+    from app.services.habit_insights import generate_insights
+
+    insights = await generate_insights(db)
+    return HabitInsightsResponse(insights=insights, model="chat")
+
+
+# ---------------------------------------------------------------------------
+# /subscription-insights — AI analysis of spending patterns
+# ---------------------------------------------------------------------------
+class SubInsightsResponse(BaseModel):
+    insights: list[str]
+    model: str
+
+
+@router.post("/subscription-insights", response_model=SubInsightsResponse)
+async def subscription_insights(db: Session = Depends(get_db)):
+    """Analyse active subscriptions and return spending insights."""
+    from datetime import date
+    import re
+    from app.models.subscription import Subscription
+    from app.schemas.subscription import MONTHLY_MULT
+
+    subs = db.query(Subscription).filter(Subscription.cancelled_at.is_(None)).all()
+    if not subs:
+        return SubInsightsResponse(insights=[], model="chat")
+
+    lines = [f"Subscription data ({len(subs)} active):"]
+    by_category: dict[str, float] = {}
+    by_payment: dict[str, float] = {}
+    total_monthly = 0.0
+
+    for s in subs:
+        monthly = s.amount * MONTHLY_MULT.get(s.billing_cycle, 1.0)
+        total_monthly += monthly
+        cat = s.category or "Uncategorized"
+        by_category[cat] = by_category.get(cat, 0) + monthly
+        pt = s.payment_type or "unknown"
+        by_payment[pt] = by_payment.get(pt, 0) + monthly
+        days_left = (s.next_billing_date - date.today()).days
+        paused = " [PAUSED]" if s.paused_at else ""
+        lines.append(
+            f"- {s.emoji} {s.name}{paused}: {s.currency} {s.amount:.0f}/{s.billing_cycle}"
+            f"  (~{s.currency} {monthly:.0f}/mo)  category: {cat}  due in {days_left}d"
+        )
+
+    lines.append(f"\nTotal estimated monthly: ~{total_monthly:.0f} (mixed currencies)")
+    lines.append("Category totals: " + ", ".join(
+        f"{k}: {v:.0f}/mo" for k, v in sorted(by_category.items(), key=lambda x: -x[1])
+    ))
+
+    system = (
+        "You are analysing someone's subscription spending. "
+        "Give 3–4 short, specific insights: which categories dominate, any consolidation opportunities, "
+        "paused subs worth cancelling, renewals to watch. "
+        "Output ONLY a numbered list — no headers, no preamble."
+    )
+
+    try:
+        raw = await llm_client.generate(
+            "\n".join(lines),
+            purpose="insights",
+            system=system,
+            temperature=0.5,
+            max_tokens=300,
+        )
+    except LLMError:
+        return SubInsightsResponse(insights=[], model="chat")
+
+    insights = []
+    for line in (raw or "").splitlines():
+        line = re.sub(r"^\d+[\.\)]\s*", "", line.strip()).strip()
+        if len(line) > 10:
+            insights.append(line)
+        if len(insights) >= 5:
+            break
+
+    return SubInsightsResponse(insights=insights, model="chat")
+
+
+# ---------------------------------------------------------------------------
+# /chat — conversational AI with full access to user data
+# ---------------------------------------------------------------------------
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(..., min_length=1)
+
+class ChatResponse(BaseModel):
+    response: str
+
+
+CHAT_SYSTEM = """You are Jeevan's personal AI assistant. You have complete access to his productivity data — habits, journal entries, and subscriptions — shown below.
+
+Answer his questions directly and specifically. Reference actual data: dates, percentages, habit names, moods, tags. Be honest and concise. If the data doesn't contain enough to answer, say so clearly. Never make up data.
+
+{context}"""
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def data_chat(req: ChatRequest, db: Session = Depends(get_db)):
+    """Conversational AI that answers questions about the user's personal data."""
+    context = _build_data_context(db)
+    system = CHAT_SYSTEM.format(context=context)
+
+    # Keep last 12 turns to avoid blowing the context window.
+    recent = req.messages[-12:]
+    messages = [{"role": m.role, "content": m.content} for m in recent]
+
+    try:
+        response = await llm_client.chat(
+            messages,
+            system=system,
+            temperature=0.4,
+            max_tokens=800,
+        )
+    except LLMError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    return ChatResponse(response=response or "I couldn't generate a response. Please try again.")

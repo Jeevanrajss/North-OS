@@ -31,6 +31,78 @@ def _purpose_to_model(purpose: str) -> str:
     return mapping.get(purpose, settings.llm_chat_model)
 
 
+async def _complete(
+    payload: dict[str, Any],
+    *,
+    messages_no_system: list[dict[str, str]],
+    system: str | None,
+    max_tokens: int,
+) -> str:
+    """Post to /v1/chat/completions, retrying once when Gemma returns empty content.
+
+    Gemma 4 is a reasoning model: it spends tokens on internal reasoning_content
+    before producing content. Two failure modes handled here:
+
+    1. finish_reason="length" — all tokens consumed by reasoning, no room left
+       for the actual reply. Fix: retry with 5x tokens (capped at 4096).
+    2. Empty content without a length hit — system-prompt aversion. Fix: merge
+       the system content into the first user message so the model sees it as
+       a single turn.
+    """
+    async with httpx.AsyncClient(timeout=300) as client:
+        try:
+            r = await client.post(
+                f"{settings.llm_host}/v1/chat/completions", json=payload
+            )
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            raise LLMError(f"LLM request failed: {e}") from e
+
+    data = r.json()
+    try:
+        choice = data["choices"][0]
+        content = choice["message"]["content"].strip()
+        finish_reason = choice.get("finish_reason", "")
+    except (KeyError, IndexError) as e:
+        raise LLMError(f"Unexpected LLM response shape: {data}") from e
+
+    if content == "":
+        # Build retry messages: merge system into first user turn.
+        if system:
+            retry_messages: list[dict[str, str]] = []
+            merged = False
+            for msg in messages_no_system:
+                if msg["role"] == "user" and not merged:
+                    retry_messages.append(
+                        {"role": "user", "content": f"{system}\n\n{msg['content']}"}
+                    )
+                    merged = True
+                else:
+                    retry_messages.append(msg)
+        else:
+            retry_messages = messages_no_system
+
+        boosted = min(max_tokens * 5, 4096) if finish_reason == "length" else max_tokens
+        retry_payload = {**payload, "messages": retry_messages, "max_tokens": boosted}
+
+        async with httpx.AsyncClient(timeout=300) as client:
+            try:
+                r2 = await client.post(
+                    f"{settings.llm_host}/v1/chat/completions", json=retry_payload
+                )
+                r2.raise_for_status()
+            except httpx.HTTPError as e:
+                raise LLMError(f"LLM retry failed: {e}") from e
+
+        data2 = r2.json()
+        try:
+            content = data2["choices"][0]["message"]["content"].strip()
+        except (KeyError, IndexError):
+            pass
+
+    return content
+
+
 async def generate(
     prompt: str,
     *,
@@ -42,33 +114,57 @@ async def generate(
     """One-shot text generation via /v1/chat/completions. Returns the text."""
     model = _purpose_to_model(purpose)
 
-    messages: list[dict[str, str]] = []
+    messages_no_system: list[dict[str, str]] = [{"role": "user", "content": prompt}]
+    full_messages: list[dict[str, str]] = []
     if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
+        full_messages.append({"role": "system", "content": system})
+    full_messages.extend(messages_no_system)
 
     payload: dict[str, Any] = {
         "model": model,
-        "messages": messages,
+        "messages": full_messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
     }
 
-    async with httpx.AsyncClient(timeout=180) as client:
-        try:
-            r = await client.post(
-                f"{settings.llm_host}/v1/chat/completions", json=payload
-            )
-            r.raise_for_status()
-        except httpx.HTTPError as e:
-            raise LLMError(f"LLM request failed: {e}") from e
+    return await _complete(
+        payload,
+        messages_no_system=messages_no_system,
+        system=system,
+        max_tokens=max_tokens,
+    )
 
-    data = r.json()
-    try:
-        return data["choices"][0]["message"]["content"].strip()
-    except (KeyError, IndexError) as e:
-        raise LLMError(f"Unexpected LLM response shape: {data}") from e
+
+async def chat(
+    messages: list[dict[str, str]],
+    *,
+    system: str | None = None,
+    temperature: float = 0.5,
+    max_tokens: int = 800,
+) -> str:
+    """Multi-turn chat. messages = [{role, content}, ...]. Returns assistant reply."""
+    model = _purpose_to_model("chat")
+
+    full_messages: list[dict[str, str]] = []
+    if system:
+        full_messages.append({"role": "system", "content": system})
+    full_messages.extend(messages)
+
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": full_messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+    return await _complete(
+        payload,
+        messages_no_system=messages,
+        system=system,
+        max_tokens=max_tokens,
+    )
 
 
 async def embed(texts: list[str]) -> list[list[float]]:

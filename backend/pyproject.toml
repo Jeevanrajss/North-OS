@@ -15,10 +15,18 @@ dependencies = [
     "python-multipart>=0.0.12",
     "apscheduler>=3.10.4",
     "pandas>=2.2.3",
-    "sqlcipher3-binary>=0.5.4; sys_platform != 'win32'",
+    "sqlite-vec>=0.1.6",
 ]
 
 [project.optional-dependencies]
+# Install with: pip install -e "backend[encryption]"
+# On Mac ARM you may also need: brew install sqlcipher
+# sqlcipher3-binary ships prebuilt wheels only for specific Python versions —
+# if pip can't find one, either pin Python to 3.11 or install sqlcipher3
+# (source) against brew's sqlcipher lib.
+encryption = [
+    "sqlcipher3-binary>=0.5.4; sys_platform != 'win32'",
+]
 dev = [
     "pytest>=8.3.3",
     "pytest-asyncio>=0.24.0",
