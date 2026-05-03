@@ -107,9 +107,11 @@ export type AccountType = 'savings' | 'credit_card' | 'debit_card' | 'wallet' | 
 
 export type Account = {
   id: string;
-  name: string;
+  name: string;          // auto-generated: "{bank} {variant}" or "{bank} {type}"
+  nickname: string | null; // optional user label
   type: AccountType;
   bank: string | null;
+  card_variant: string | null;
   last4: string | null;
   credit_limit: number | null;
   benefits_json: string | null;
@@ -120,24 +122,37 @@ export type Account = {
 };
 
 export type AccountIn = {
-  name: string;
-  type?: AccountType;
+  type: AccountType;
   bank?: string | null;
+  card_variant?: string | null;
+  nickname?: string | null;
   last4?: string | null;
   credit_limit?: number | null;
   benefits_json?: string | null;
   color?: string | null;
 };
 
-export type AccountPatch = Partial<AccountIn> & { is_active?: boolean };
+export type AccountPatch = {
+  nickname?: string | null;
+  bank?: string | null;
+  card_variant?: string | null;
+  last4?: string | null;
+  credit_limit?: number | null;
+  benefits_json?: string | null;
+  color?: string | null;
+  is_active?: boolean;
+};
 
-export type CardBenefits = {
-  card_name: string;
+export type CardVariant = {
+  variant: string;
+  full_name: string;
+  annual_fee: number;
+  highlights: string[];
   perks: string[];
   cashback: Record<string, number>;
-  annual_fee?: number;
-  source: 'static' | 'unknown';
 };
+
+export type BankCatalog = Record<string, { credit: CardVariant[]; debit: CardVariant[] }>;
 
 export type CardTipResponse = {
   tip: string | null;
@@ -607,8 +622,12 @@ export const api = {
     update: (id: string, patch: AccountPatch) =>
       request<Account>(`/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
     delete: (id: string) => request<void>(`/accounts/${id}`, { method: 'DELETE' }),
-    cardBenefits: (cardName: string) =>
-      request<CardBenefits>(`/accounts/card-benefits/${encodeURIComponent(cardName)}`),
+    banks: () => request<{ banks: string[]; wallets: string[] }>('/accounts/banks'),
+    catalog: () => request<BankCatalog>('/accounts/catalog'),
+    bankCatalog: (bank: string) =>
+      request<{ credit: CardVariant[]; debit: CardVariant[] }>(
+        `/accounts/catalog/${encodeURIComponent(bank)}`,
+      ),
     cardTip: (payload: { category: string; account: string; amount: number }) =>
       request<CardTipResponse>('/accounts/card-tip', {
         method: 'POST',

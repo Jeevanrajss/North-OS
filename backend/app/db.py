@@ -145,6 +145,27 @@ def _dev_migrate_habits(conn) -> None:
             log.warning("Could not add habits.weekdays: %s", e)
 
 
+def _dev_migrate_accounts(conn) -> None:
+    """Add nickname + card_variant columns to accounts table if they don't exist."""
+    try:
+        rows = conn.execute(text("PRAGMA table_info(accounts)")).all()
+    except Exception as e:
+        log.debug("accounts PRAGMA failed (table may not exist yet): %s", e)
+        return
+    existing_cols = {r[1] for r in rows}
+    new_cols = [
+        ("nickname", "VARCHAR(100)"),
+        ("card_variant", "VARCHAR(100)"),
+    ]
+    for col, col_type in new_cols:
+        if col not in existing_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE accounts ADD COLUMN {col} {col_type}"))
+                log.info("Dev migration: added accounts.%s column", col)
+            except Exception as e:
+                log.warning("Could not add accounts.%s: %s", col, e)
+
+
 def _dev_migrate_subscriptions(conn) -> None:
     """Add payment_type and account_name to subscriptions if missing."""
     try:
@@ -185,6 +206,7 @@ def init_db() -> None:
         _ensure_vec_table(conn)
         _dev_migrate_habits(conn)
         _dev_migrate_subscriptions(conn)
+        _dev_migrate_accounts(conn)
 
     with SessionLocal() as session:
         seed_all(session)
