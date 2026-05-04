@@ -2,6 +2,53 @@
 
 ---
 
+## Session 4 · 2026-05-05
+
+### Completed
+
+**Account Management**
+- `backend/app/models/account.py` — Account model with type, bank, card_variant, nickname (optional), last4, credit_limit, benefits_json, color, is_active
+- `backend/app/schemas/account.py` — BANKS_LIST (38 banks), WALLET_UPI_LIST (12 providers), CARD_CATALOG (43 variants across 12 banks with annual_fee, highlights, perks, cashback rates), CARD_BENEFITS_DB lookup, AccountIn/AccountOut, CardTipRequest/CardTipResponse
+- `backend/app/routers/accounts.py` — CRUD + `GET /accounts/banks`, `GET /accounts/catalog`, `GET /accounts/catalog/{bank}`, `POST /accounts/card-tip` (compares cashback rates across registered credit cards)
+- `backend/app/db.py` — `_dev_migrate_accounts()` adds nickname + card_variant columns; wired into `init_db()`
+- `frontend/src/components/finance/AccountForm.tsx` — 4-step wizard: type tile → searchable bank grid → card variant cards (annual fee, highlights, cashback preview) → optional details (nickname, last4, credit limit, color)
+- `frontend/src/components/finance/AccountsCard.tsx` — shows nickname || name; credit cards expandable with highlights, cashback by category, perks list
+
+**Budgets**
+- `backend/app/models/budget.py` — Budget model with year/month (null = recurring), category (null = overall), amount
+- `backend/app/schemas/budget.py` — BudgetIn, BudgetPatch, BudgetOut, BudgetProgress (category, budget, spent, pct)
+- `backend/app/routers/finance.py` — budget CRUD (GET/POST `/finance/budgets`, PATCH/DELETE `/finance/budgets/{id}`), upsert semantics, `_budget_for()` helper, monthly_summary extended with budget_overall + budget_by_category
+- `frontend/src/components/finance/BudgetCard.tsx` — inline budget editing, per-category rows, progress bars (green/amber/red)
+- `frontend/src/components/finance/CategoryBreakdownCard.tsx` — budget marker line on bars, over-budget red highlight
+- `frontend/src/routes/Finance.tsx` — 3 tabs (Overview / Accounts / Budgets), card-tip banner with 12s auto-dismiss
+
+**Multi-Provider AI Settings**
+- `backend/app/models/setting.py` — key-value Setting model for runtime config
+- `backend/app/schemas/setting.py` — PROVIDER_PRESETS dict (8 providers: local, openai, anthropic, google, groq, together, mistral, custom) with api_base, suggested models, embed support flags; SettingsBulkUpdate, LLMTestResult schemas
+- `backend/app/routers/settings.py` — `GET /settings` (api_key masked), `GET /settings/providers`, `PUT /settings` (bulk upsert, skips masked key), `POST /settings/test-llm`, `GET /settings/models`
+- `backend/app/services/llm_client.py` — full rewrite: Anthropic adapter (`/v1/messages` format), OpenAI-compat for all others, DB-driven config with 60s TTL cache + env fallback, `_get_headers()` (x-api-key vs Bearer), `list_models()` returns preset list for Anthropic
+- `frontend/src/routes/Settings.tsx` — full Settings page: 8-provider emoji tile picker, API base URL + API key (show/hide toggle, "Get key ↗" link), model fields with dropdown suggestions, embed-not-supported warning, Test Connection button (saves then fires test-llm), result banner, privacy info cards
+- `frontend/src/lib/api.ts` — added ProviderPreset, LLMTestResult types; `api.settings.*` namespace (getAll, getProviders, update, testLLM, listModels); BudgetProgress, BudgetOut, BudgetIn types; extended MonthlySummary; Account/AccountIn updated with nickname, card_variant
+
+**Bug Fixes**
+- `backend/app/routers/ai.py` — added missing `from sqlalchemy import extract` (caused 500 on every `/ai/chat` call)
+- `backend/app/main.py` — renamed `settings = get_settings()` → `cfg = get_settings()` inside `create_app()` to fix critical boot crash where the local variable shadowed the imported `settings` router module; `app.include_router(settings.router)` was failing with AttributeError
+
+**Documentation**
+- `README.md` — complete rewrite: feature table, architecture diagram, prerequisites, 6-step Quick Start, LM Studio + Ollama setup, update instructions, encryption notes, full config reference, supported AI servers table, project structure tree, troubleshooting section
+- `.env.example` — changed DB_ENCRYPTION default to false with explanatory comments
+
+### Files Created
+`backend/app/models/account.py`, `backend/app/models/budget.py`, `backend/app/models/finance.py`, `backend/app/models/setting.py`, `backend/app/routers/accounts.py`, `backend/app/routers/settings.py`, `backend/app/schemas/account.py`, `backend/app/schemas/budget.py`, `backend/app/schemas/setting.py`, `frontend/src/components/finance/AccountForm.tsx`, `frontend/src/components/finance/AccountsCard.tsx`, `frontend/src/components/finance/BudgetCard.tsx`, `frontend/src/components/finance/FinanceInsightsCard.tsx`, `frontend/src/components/finance/TransactionForm.tsx`, `frontend/src/components/finance/TransactionList.tsx`, `frontend/src/routes/Settings.tsx` (rewritten)
+
+### Verification
+- `tsc --noEmit` ✅
+- All backend imports verified clean ✅
+- Key endpoints tested: `/health`, `/finance/meta`, `/habits`, `/journal/days/*`, `/settings/providers`, `/accounts/banks` ✅
+- Committed `c48e644` and pushed to `origin/main` ✅
+
+---
+
 ## Session 3 · 2026-04-28
 
 ### Completed

@@ -37,6 +37,9 @@ class Transaction(Base):
     payee: Mapped[str | None] = mapped_column(String(80), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Set when the row was created via CSV import (groups rows from same upload)
+    import_batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import init_db
 from app.routers import accounts, ai, finance, habit, health, journal, settings, subscription
+from app.routers import import_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(finance.router)
     app.include_router(accounts.router)
     app.include_router(settings.router)
+    app.include_router(import_router.router)
 
     @app.get("/")
     def root():

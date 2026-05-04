@@ -145,6 +145,22 @@ def _dev_migrate_habits(conn) -> None:
             log.warning("Could not add habits.weekdays: %s", e)
 
 
+def _dev_migrate_transactions(conn) -> None:
+    """Add import_batch_id column to transactions table if missing."""
+    try:
+        rows = conn.execute(text("PRAGMA table_info(transactions)")).all()
+    except Exception as e:
+        log.debug("transactions PRAGMA failed (table may not exist yet): %s", e)
+        return
+    existing_cols = {r[1] for r in rows}
+    if "import_batch_id" not in existing_cols:
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN import_batch_id VARCHAR(36)"))
+            log.info("Dev migration: added transactions.import_batch_id column")
+        except Exception as e:
+            log.warning("Could not add transactions.import_batch_id: %s", e)
+
+
 def _dev_migrate_accounts(conn) -> None:
     """Add nickname + card_variant columns to accounts table if they don't exist."""
     try:
@@ -207,6 +223,7 @@ def init_db() -> None:
         _dev_migrate_habits(conn)
         _dev_migrate_subscriptions(conn)
         _dev_migrate_accounts(conn)
+        _dev_migrate_transactions(conn)
 
     with SessionLocal() as session:
         seed_all(session)

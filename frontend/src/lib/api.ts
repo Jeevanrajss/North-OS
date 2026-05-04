@@ -473,6 +473,96 @@ export type SubscriptionStatsResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Import / Report types
+// ---------------------------------------------------------------------------
+export type ImportPreviewRow = {
+  row_index: number;
+  date: string;
+  description: string;
+  amount: number;
+  tx_type: 'income' | 'expense';
+  suggested_category: string;
+  is_duplicate: boolean;
+  duplicate_txn_id: string | null;
+};
+
+export type ImportPreviewResponse = {
+  bank_detected: string | null;
+  bank_key: string | null;
+  needs_column_mapping: boolean;
+  available_columns: string[];
+  rows: ImportPreviewRow[];
+  total_rows: number;
+  duplicate_count: number;
+};
+
+export type ColumnMapping = {
+  date: string;
+  description: string;
+  debit?: string;
+  credit?: string;
+  amount?: string;
+};
+
+export type ConfirmRow = {
+  row_index: number;
+  date: string;
+  description: string;
+  amount: number;
+  tx_type: string;
+  category: string;
+  notes?: string;
+  include: boolean;
+};
+
+export type ImportConfirmRequest = {
+  account_id: string;
+  account_name: string;
+  rows: ConfirmRow[];
+};
+
+export type ImportConfirmResponse = {
+  imported: number;
+  skipped: number;
+};
+
+export type ReportCategoryStat = {
+  category: string;
+  total: number;
+  count: number;
+};
+
+export type ReportBudgetRow = {
+  category: string | null;
+  budget: number;
+  spent: number;
+  pct: number;
+};
+
+export type MonthlyReport = {
+  year: number;
+  month: number;
+  total_income: number;
+  total_expense: number;
+  net: number;
+  savings_rate: number;
+  transaction_count: number;
+  by_category: ReportCategoryStat[];
+  budget_overall: ReportBudgetRow | null;
+  budget_by_category: ReportBudgetRow[];
+  transactions: {
+    id: string;
+    date: string;
+    type: string;
+    amount: number;
+    category: string | null;
+    account: string | null;
+    payee: string | null;
+    notes: string | null;
+  }[];
+};
+
+// ---------------------------------------------------------------------------
 // API surface
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -642,6 +732,26 @@ export const api = {
       request<BudgetOut>('/finance/budgets', { method: 'POST', body: JSON.stringify(payload) }),
     deleteBudget: (id: string) =>
       request<void>(`/finance/budgets/${id}`, { method: 'DELETE' }),
+
+    // --- Import ---
+    importBanks: () =>
+      request<{ banks: { key: string; name: string }[] }>('/finance/import/banks'),
+    importPreview: (form: FormData) =>
+      fetch('/api/v1/finance/import/preview', { method: 'POST', body: form }).then(async (r) => {
+        if (!r.ok) { const b = await r.text(); throw new Error(`API ${r.status}: ${b}`); }
+        return r.json() as Promise<ImportPreviewResponse>;
+      }),
+    importConfirm: (payload: ImportConfirmRequest) =>
+      request<ImportConfirmResponse>('/finance/import/confirm', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    // --- Reports ---
+    report: (year: number, month: number) =>
+      request<MonthlyReport>(`/finance/report/${year}/${month}`),
+    reportExportUrl: (year: number, month: number, format: 'csv' | 'pdf') =>
+      `/api/v1/finance/report/${year}/${month}/export?format=${format}`,
   },
 
   accounts: {

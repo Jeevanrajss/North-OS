@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CreditCard, LayoutDashboard, Plus, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CreditCard, FileBarChart2, LayoutDashboard, Plus, TrendingDown, TrendingUp, Upload, Wallet, X } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { AccountsCard } from '@/components/finance/AccountsCard';
 import { BudgetCard } from '@/components/finance/BudgetCard';
 import { CategoryBreakdownCard } from '@/components/finance/CategoryBreakdownCard';
 import { FinanceInsightsCard } from '@/components/finance/FinanceInsightsCard';
+import { ImportModal } from '@/components/finance/ImportModal';
+import { MonthlyReportView } from '@/components/finance/MonthlyReportView';
 import { TransactionForm } from '@/components/finance/TransactionForm';
 import { TransactionList } from '@/components/finance/TransactionList';
-import { api, type FinanceMeta, type MonthlySummary, type Transaction, type TransactionIn } from '@/lib/api';
+import { api, type Account, type FinanceMeta, type MonthlySummary, type Transaction, type TransactionIn } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 const MONTH_NAMES = [
@@ -16,12 +18,13 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-type Tab = 'overview' | 'accounts' | 'budgets';
+type Tab = 'overview' | 'accounts' | 'budgets' | 'report';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',  label: 'Overview',  icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
   { id: 'accounts',  label: 'Accounts',  icon: <CreditCard className="w-3.5 h-3.5" /> },
   { id: 'budgets',   label: 'Budgets',   icon: <Wallet className="w-3.5 h-3.5" /> },
+  { id: 'report',    label: 'Report',    icon: <FileBarChart2 className="w-3.5 h-3.5" /> },
 ];
 
 function fmtMoney(n: number, currency = 'INR') {
@@ -40,6 +43,7 @@ export function Finance() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-based
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   const [cardTip, setCardTip] = useState<string | null>(null);
 
@@ -61,6 +65,12 @@ export function Finance() {
     queryKey: ['finance-meta'],
     queryFn: () => api.finance.meta(),
     staleTime: Infinity,
+  });
+
+  const accountsQ = useQuery<Account[]>({
+    queryKey: ['accounts'],
+    queryFn: () => api.accounts.list(),
+    staleTime: 60_000,
   });
 
   const txnQ = useQuery<Transaction[]>({
@@ -161,6 +171,18 @@ export function Finance() {
             </button>
           ))}
         </div>
+
+        {/* Import button — overview only */}
+        {tab === 'overview' && (
+          <button
+            type="button"
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-ink-700 bg-ink-900 text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </button>
+        )}
 
         {/* Add transaction button — overview only */}
         {tab === 'overview' && (
@@ -299,6 +321,25 @@ export function Finance() {
             currency={currency}
           />
         </div>
+      )}
+
+      {/* ── Report tab ─────────────────────────────────────── */}
+      {tab === 'report' && (
+        <MonthlyReportView year={year} month={month} />
+      )}
+
+      {/* ── Import modal ──────────────────────────────────── */}
+      {showImport && (
+        <ImportModal
+          accounts={accountsQ.data ?? []}
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            qc.invalidateQueries({ queryKey: txnKey });
+            qc.invalidateQueries({ queryKey: ['finance-summary'] });
+            qc.invalidateQueries({ queryKey: ['finance-report'] });
+            setShowImport(false);
+          }}
+        />
       )}
     </>
   );
