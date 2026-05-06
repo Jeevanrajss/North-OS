@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const GITHUB_URL = 'https://github.com/Jeevanrajss/Personal-OS';
+const DOWNLOAD_URL = 'https://github.com/Jeevanrajss/Personal-OS/archive/refs/heads/main.zip';
 
 const FEATURES = [
   {
@@ -44,53 +44,89 @@ const PHILOSOPHY = [
 ];
 
 const PROVIDERS = [
-  { name: 'LM Studio', label: 'Local · Free', highlight: true },
-  { name: 'Ollama', label: 'Local · Free', highlight: true },
-  { name: 'OpenAI', label: 'GPT-4o', highlight: false },
-  { name: 'Anthropic', label: 'Claude', highlight: false },
-  { name: 'Gemini', label: 'Google', highlight: false },
-  { name: 'Groq', label: 'Fast inference', highlight: false },
-  { name: 'Mistral', label: 'Open weights', highlight: false },
-  { name: 'Custom', label: 'Any OpenAI-compat', highlight: false },
+  { name: 'LM Studio', label: 'Local · Free' },
+  { name: 'Ollama', label: 'Local · Free' },
+  { name: 'OpenAI', label: 'GPT-4o' },
+  { name: 'Anthropic', label: 'Claude' },
+  { name: 'Gemini', label: 'Google' },
+  { name: 'Groq', label: 'Fast inference' },
+  { name: 'Mistral', label: 'Open weights' },
+  { name: 'Custom', label: 'Any OpenAI-compat' },
 ];
 
-/* ─── Email capture modal ─────────────────────────────────────────── */
-function EmailModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
-  const [error, setError] = useState('');
+const COMPAT = {
+  os: [
+    { icon: '🍎', name: 'macOS', detail: '12 Monterey or later · Apple Silicon & Intel' },
+    { icon: '🪟', name: 'Windows', detail: 'Windows 10 / 11 (x64)' },
+    { icon: '🐧', name: 'Linux', detail: 'Ubuntu 20.04+ · Debian · Arch · most x64 distros' },
+  ],
+  tiers: [
+    {
+      title: 'App only',
+      subtitle: 'Use any cloud AI provider',
+      color: 'rgba(107,124,230,0.12)',
+      border: 'rgba(107,124,230,0.2)',
+      specs: [
+        { label: 'RAM', value: '4 GB' },
+        { label: 'Storage', value: '500 MB' },
+        { label: 'Python', value: '3.11+' },
+        { label: 'Node.js', value: '18 LTS+' },
+        { label: 'GPU', value: 'Not required' },
+      ],
+    },
+    {
+      title: 'Local AI',
+      subtitle: 'Run models on your own machine',
+      color: 'rgba(155,140,255,0.08)',
+      border: 'rgba(155,140,255,0.25)',
+      specs: [
+        { label: 'RAM', value: '16 GB+' },
+        { label: 'Storage', value: '5–20 GB per model' },
+        { label: 'Python', value: '3.11+' },
+        { label: 'Node.js', value: '18 LTS+' },
+        { label: 'GPU', value: 'Optional — speeds up inference' },
+      ],
+      note: 'Apple Silicon (M-series) runs local AI extremely well via Metal. NVIDIA / AMD GPUs supported on Windows & Linux via CUDA / ROCm.',
+    },
+  ],
+};
 
-  function goToGitHub() {
-    window.open(GITHUB_URL, '_blank', 'noopener,noreferrer');
-    onClose();
+/* ─── Email capture modal — mandatory, no skip ────────────────────── */
+function EmailModal() {
+  const [email, setEmail] = useState('');
+  const [touched, setTouched] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
+
+  const invalid = touched && !email.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+
+  function triggerDownload() {
+    const a = document.createElement('a');
+    a.href = DOWNLOAD_URL;
+    a.download = 'north-os.zip';
+    a.click();
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) { goToGitHub(); return; }
+    setTouched(true);
+    if (!email.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return;
 
     setStatus('submitting');
-    setError('');
-
     try {
-      // Netlify Forms — posts form data to the current page origin
       const body = new URLSearchParams({
         'form-name': 'north-os-download',
         email: email.trim(),
       });
-      const res = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
-      if (!res.ok) throw new Error('Network error');
-      setStatus('done');
-      setTimeout(goToGitHub, 1200);
-    } catch {
-      // Even on error, still let them download
-      goToGitHub();
-    }
+      await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+    } catch { /* silent — still download */ }
+
+    setStatus('done');
+    setTimeout(triggerDownload, 600);
   }
 
   const overlay: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 200,
-    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+    background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '24px',
   };
@@ -98,44 +134,31 @@ function EmailModal({ onClose }: { onClose: () => void }) {
     width: '100%', maxWidth: '440px',
     borderRadius: '20px', padding: '40px',
     background: '#13131a',
-    border: '1px solid rgba(107,124,230,0.25)',
-    boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-    position: 'relative',
+    border: '1px solid rgba(107,124,230,0.3)',
+    boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
   };
 
   return (
-    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      {/* Netlify form detection — hidden, required for Netlify to register the form */}
+    /* Intentionally no onClick on overlay — modal is mandatory */
+    <div style={overlay}>
+      {/* Netlify bot detection — hidden form required */}
       <form name="north-os-download" data-netlify="true" hidden>
         <input type="email" name="email" />
       </form>
 
       <div style={card}>
-        {/* Close */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: '16px', right: '16px',
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.3)', fontSize: '18px', lineHeight: 1,
-            padding: '4px 8px',
-          }}
-          aria-label="Close"
-        >×</button>
-
         {status === 'done' ? (
-          <div style={{ textAlign: 'center', paddingTop: '8px' }}>
-            <div style={{ fontSize: '36px', marginBottom: '16px' }}>🎉</div>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'white', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎉</div>
+            <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'white', marginBottom: '10px', letterSpacing: '-0.02em' }}>
               You're in!
             </h3>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
-              We'll notify you when North OS updates.<br />Opening GitHub now…
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.65' }}>
+              We'll notify you when North OS updates.<br />Your download is starting…
             </p>
           </div>
         ) : (
           <>
-            {/* Icon */}
             <div style={{
               width: '44px', height: '44px', borderRadius: '12px', marginBottom: '20px',
               background: 'linear-gradient(135deg, #6b7ce6, #9b8cff)',
@@ -144,57 +167,56 @@ function EmailModal({ onClose }: { onClose: () => void }) {
             }}>N</div>
 
             <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'white', marginBottom: '8px', letterSpacing: '-0.02em', lineHeight: '1.2' }}>
-              Get notified of updates
+              One last step
             </h3>
             <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)', lineHeight: '1.65', marginBottom: '28px' }}>
-              Drop your email and we'll let you know when new features, fixes, or major releases land. No spam — only meaningful updates.
+              Enter your email and we'll notify you when new features or updates land. No spam — only things worth knowing about.
             </p>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoFocus
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(107,124,230,0.5)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
-              />
-              {error && <p style={{ fontSize: '12px', color: '#f87171', margin: 0 }}>{error}</p>}
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); if (touched) setTouched(true); }}
+                  onBlur={() => setTouched(true)}
+                  autoFocus
+                  style={{
+                    width: '100%', padding: '13px 16px', borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${invalid ? '#f87171' : 'rgba(255,255,255,0.1)'}`,
+                    color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onFocus={e => { if (!invalid) e.currentTarget.style.borderColor = 'rgba(107,124,230,0.55)'; }}
+                  onBlurCapture={e => { if (!invalid) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                />
+                {invalid && (
+                  <p style={{ fontSize: '12px', color: '#f87171', marginTop: '6px', marginBottom: 0 }}>
+                    Please enter a valid email address.
+                  </p>
+                )}
+              </div>
 
               <button
                 type="submit"
                 disabled={status === 'submitting'}
                 style={{
-                  padding: '12px', borderRadius: '10px',
+                  padding: '13px', borderRadius: '10px',
                   background: 'linear-gradient(135deg, #6b7ce6, #9b8cff)',
-                  border: 'none', color: 'white', fontWeight: '600', fontSize: '14px',
+                  border: 'none', color: 'white', fontWeight: '600', fontSize: '15px',
                   cursor: status === 'submitting' ? 'not-allowed' : 'pointer',
                   opacity: status === 'submitting' ? 0.7 : 1,
+                  letterSpacing: '-0.01em',
                 }}
               >
-                {status === 'submitting' ? 'Saving…' : 'Notify me & Download →'}
+                {status === 'submitting' ? 'Just a moment…' : 'Notify me & Download →'}
               </button>
 
-              <button
-                type="button"
-                onClick={goToGitHub}
-                style={{
-                  padding: '10px', borderRadius: '10px',
-                  background: 'none', border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.35)', fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
-              >
-                Skip — just take me to GitHub
-              </button>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', margin: 0, marginTop: '4px' }}>
+                No spam. Unsubscribe any time.
+              </p>
             </form>
           </>
         )}
@@ -211,8 +233,8 @@ function DownloadButton({
   style?: React.CSSProperties;
   size?: 'md' | 'lg';
 }) {
-  const pad = size === 'lg' ? '13px 28px' : '10px 22px';
-  const fs = size === 'lg' ? '15px' : '14px';
+  const pad = size === 'lg' ? '13px 32px' : '8px 18px';
+  const fs = size === 'lg' ? '15px' : '13px';
   return (
     <button
       onClick={onDownload}
@@ -234,13 +256,11 @@ function DownloadButton({
 export function Landing() {
   const [showModal, setShowModal] = useState(false);
 
-  function openDownload() { setShowModal(true); }
-
   return (
     <div style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
       className="min-h-screen bg-[#0a0a0f] text-white overflow-x-hidden">
 
-      {showModal && <EmailModal onClose={() => setShowModal(false)} />}
+      {showModal && <EmailModal />}
 
       {/* ── Ambient glow ── */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -261,7 +281,6 @@ export function Landing() {
         backgroundColor: 'rgba(10,10,15,0.8)',
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '30px', height: '30px', borderRadius: '8px',
@@ -272,25 +291,15 @@ export function Landing() {
             <span style={{ fontSize: '15px', fontWeight: '600', letterSpacing: '-0.01em' }}>North OS</span>
           </div>
 
-          {/* Nav links */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-            <a href="#features" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'white')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-              Features
-            </a>
-            <a href="#privacy" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'white')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-              Privacy
-            </a>
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'white')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-              GitHub
-            </a>
-            <DownloadButton onDownload={openDownload} style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '8px' }} />
+            {([['#features', 'Features'], ['#privacy', 'Privacy'], ['#compatibility', 'Compatibility'], ['#ai-providers', 'AI']] as [string, string][]).map(([href, label]) => (
+              <a key={href} href={href} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                {label}
+              </a>
+            ))}
+            <DownloadButton onDownload={() => setShowModal(true)} style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '8px' }} />
           </div>
         </div>
       </nav>
@@ -298,10 +307,9 @@ export function Landing() {
       {/* ════════════════════════════════════════
           HERO
       ════════════════════════════════════════ */}
-      <section style={{ paddingTop: '160px', paddingBottom: '120px', textAlign: 'center', position: 'relative', maxWidth: '800px', margin: '0 auto', padding: '160px 24px 120px' }}>
+      <section style={{ maxWidth: '800px', margin: '0 auto', padding: '160px 24px 120px', textAlign: 'center', position: 'relative' }}>
 
-        {/* Badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '32px' }}>
+        <div style={{ display: 'inline-flex', marginBottom: '32px' }}>
           <span style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '4px 14px', borderRadius: '100px',
@@ -314,44 +322,23 @@ export function Landing() {
           </span>
         </div>
 
-        {/* H1 */}
-        <h1 style={{
-          fontSize: 'clamp(42px, 7vw, 72px)', fontWeight: '700',
-          lineHeight: '1.05', letterSpacing: '-0.03em',
-          color: 'white', marginBottom: '16px',
-        }}>
+        <h1 style={{ fontSize: 'clamp(42px, 7vw, 72px)', fontWeight: '700', lineHeight: '1.05', letterSpacing: '-0.03em', color: 'white', marginBottom: '16px' }}>
           Your life has patterns.
         </h1>
         <h1 style={{
-          fontSize: 'clamp(42px, 7vw, 72px)', fontWeight: '700',
-          lineHeight: '1.05', letterSpacing: '-0.03em', marginBottom: '28px',
+          fontSize: 'clamp(42px, 7vw, 72px)', fontWeight: '700', lineHeight: '1.05',
+          letterSpacing: '-0.03em', marginBottom: '28px',
           background: 'linear-gradient(135deg, #6b7ce6 0%, #9b8cff 50%, #c084fc 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>
           North OS helps you understand them.
         </h1>
 
-        {/* Subtext */}
         <p style={{ fontSize: '18px', lineHeight: '1.65', color: 'rgba(255,255,255,0.45)', maxWidth: '540px', margin: '0 auto 48px', letterSpacing: '-0.01em' }}>
           A private, AI-powered personal operating system that brings your journal, habits, finances, and routines into one calm, connected experience.
         </p>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <DownloadButton onDownload={openDownload} size="lg" />
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              padding: '13px 28px', borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.04)',
-              color: 'rgba(255,255,255,0.7)', fontWeight: '500', fontSize: '15px',
-              textDecoration: 'none',
-            }}>
-            View on GitHub
-          </a>
-        </div>
+        <DownloadButton onDownload={() => setShowModal(true)} size="lg" />
 
         <p style={{ marginTop: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
           Runs 100% on your machine · No account required · MIT License
@@ -368,13 +355,11 @@ export function Landing() {
             Everything that matters. Nothing that doesn't.
           </h2>
         </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
           {FEATURES.map((f, i) => (
             <div key={i} style={{
               padding: '28px', borderRadius: '14px',
-              border: '1px solid rgba(255,255,255,0.07)',
-              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)',
               transition: 'border-color 0.2s',
             }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(107,124,230,0.25)')}
@@ -402,10 +387,8 @@ export function Landing() {
           background: 'linear-gradient(135deg, rgba(107,124,230,0.06) 0%, rgba(10,10,15,0) 60%)',
           position: 'relative', overflow: 'hidden',
         }}>
-          {/* Glow blob */}
           <div style={{
-            position: 'absolute', top: '-60px', right: '-60px',
-            width: '300px', height: '300px',
+            position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px',
             background: 'radial-gradient(circle, rgba(107,124,230,0.12) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
@@ -418,12 +401,7 @@ export function Landing() {
               North OS runs locally on your own device. Your personal thoughts, emotions, routines, and finances never leave your machine. No tracking. No telemetry. No cloud dependency unless you choose it.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[
-                'Runs entirely on your machine',
-                'No accounts, no sign-up required',
-                'Zero telemetry or analytics',
-                'Open source — inspect every line',
-              ].map((item, i) => (
+              {['Runs entirely on your machine', 'No accounts, no sign-up required', 'Zero telemetry or analytics', 'Open source — inspect every line'].map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>
                   <span style={{ color: '#6b7ce6', fontSize: '16px' }}>✓</span>
                   {item}
@@ -431,6 +409,79 @@ export function Landing() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════
+          SYSTEM COMPATIBILITY
+      ════════════════════════════════════════ */}
+      <section id="compatibility" style={{ maxWidth: '1100px', margin: '0 auto', padding: '80px 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+          <p style={{ fontSize: '12px', letterSpacing: '0.12em', color: '#6b7ce6', textTransform: 'uppercase', marginBottom: '12px' }}>System requirements</p>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: '700', letterSpacing: '-0.02em', color: 'white', marginBottom: '12px' }}>
+            Runs on your hardware.
+          </h2>
+          <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)', maxWidth: '500px', margin: '0 auto' }}>
+            The app itself is lightweight. Local AI adds higher requirements — but you can always start with a cloud provider and switch later.
+          </p>
+        </div>
+
+        {/* OS Support row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', marginBottom: '32px' }}>
+          {COMPAT.os.map((os, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: '16px',
+              padding: '20px 24px', borderRadius: '14px',
+              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+              <span style={{ fontSize: '28px', lineHeight: 1 }}>{os.icon}</span>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '3px' }}>{os.name}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', lineHeight: '1.4' }}>{os.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Spec tiers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
+          {COMPAT.tiers.map((tier, ti) => (
+            <div key={ti} style={{
+              borderRadius: '16px', padding: '32px',
+              border: `1px solid ${tier.border}`,
+              background: tier.color,
+            }}>
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'white', marginBottom: '4px', letterSpacing: '-0.01em' }}>{tier.title}</h3>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>{tier.subtitle}</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                {tier.specs.map((spec, si) => (
+                  <div key={si} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '11px 0',
+                    borderBottom: si < tier.specs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  }}>
+                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>{spec.label}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.8)' }}>{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {tier.note && (
+                <div style={{
+                  marginTop: '20px', padding: '14px 16px', borderRadius: '10px',
+                  background: 'rgba(107,124,230,0.08)', border: '1px solid rgba(107,124,230,0.15)',
+                }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(155,140,255,0.75)', lineHeight: '1.6', margin: 0 }}>
+                    💡 {tier.note}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -462,7 +513,7 @@ export function Landing() {
       {/* ════════════════════════════════════════
           AI PROVIDERS
       ════════════════════════════════════════ */}
-      <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '80px 24px' }}>
+      <section id="ai-providers" style={{ maxWidth: '1100px', margin: '0 auto', padding: '80px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', letterSpacing: '0.12em', color: '#6b7ce6', textTransform: 'uppercase', marginBottom: '12px' }}>AI providers</p>
           <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: '700', letterSpacing: '-0.02em', color: 'white', marginBottom: '12px' }}>
@@ -476,13 +527,13 @@ export function Landing() {
           {PROVIDERS.map((p, i) => (
             <div key={i} style={{
               padding: '10px 20px', borderRadius: '100px',
-              border: p.highlight ? '1px solid rgba(107,124,230,0.4)' : '1px solid rgba(255,255,255,0.08)',
-              background: p.highlight ? 'rgba(107,124,230,0.1)' : 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(107,124,230,0.25)',
+              background: 'rgba(107,124,230,0.07)',
               display: 'flex', alignItems: 'center', gap: '8px',
             }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: p.highlight ? '#9b8cff' : 'rgba(255,255,255,0.7)' }}>{p.name}</span>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>·</span>
-              <span style={{ fontSize: '11px', color: p.highlight ? 'rgba(155,140,255,0.6)' : 'rgba(255,255,255,0.3)' }}>{p.label}</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.75)' }}>{p.name}</span>
+              <span style={{ fontSize: '11px', color: 'rgba(107,124,230,0.5)' }}>·</span>
+              <span style={{ fontSize: '11px', color: 'rgba(155,140,255,0.55)' }}>{p.label}</span>
             </div>
           ))}
         </div>
@@ -499,7 +550,7 @@ export function Landing() {
           background: 'rgba(255,255,255,0.02)',
         }}>
           <div style={{
-            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
             width: '600px', height: '400px',
             background: 'radial-gradient(ellipse, rgba(107,124,230,0.08) 0%, transparent 70%)',
             pointerEvents: 'none',
@@ -508,7 +559,7 @@ export function Landing() {
           <h2 style={{ fontSize: 'clamp(30px, 5vw, 52px)', fontWeight: '700', letterSpacing: '-0.03em', lineHeight: '1.1', color: 'white', marginBottom: '20px' }}>
             Start understanding yourself.
           </h2>
-          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.4)', marginBottom: '40px', maxWidth: '440px', margin: '0 auto 40px', lineHeight: '1.65' }}>
+          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.4)', maxWidth: '440px', margin: '0 auto 40px', lineHeight: '1.65' }}>
             Free, open source, and runs entirely on your machine. One command to install.
           </p>
           <div style={{ display: 'inline-block', padding: '16px 24px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '32px' }}>
@@ -516,20 +567,8 @@ export function Landing() {
               git clone https://github.com/Jeevanrajss/Personal-OS.git && bash setup.sh
             </code>
           </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <DownloadButton onDownload={openDownload} size="lg" />
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                padding: '13px 28px', borderRadius: '10px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(255,255,255,0.7)', fontWeight: '500', fontSize: '15px',
-                textDecoration: 'none',
-              }}>
-              View on GitHub
-            </a>
-          </div>
+          <br />
+          <DownloadButton onDownload={() => setShowModal(true)} size="lg" />
         </div>
       </section>
 
@@ -555,14 +594,13 @@ export function Landing() {
           <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>MIT License</span>
         </div>
         <div style={{ display: 'flex', gap: '24px' }}>
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>
-            GitHub
-          </a>
-          <a href={`${GITHUB_URL}/blob/main/README.md`} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>
-            Docs
-          </a>
+          {[['#features', 'Features'], ['#privacy', 'Privacy'], ['#compatibility', 'Compatibility']].map(([href, label]) => (
+            <a key={href} href={href} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}>
+              {label}
+            </a>
+          ))}
         </div>
       </footer>
 
