@@ -562,12 +562,6 @@ export function Landing() {
           <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.4)', maxWidth: '440px', margin: '0 auto 40px', lineHeight: '1.65' }}>
             Free, open source, and runs entirely on your machine. One command to install.
           </p>
-          <div style={{ display: 'inline-block', padding: '16px 24px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '32px' }}>
-            <code style={{ fontSize: '13px', fontFamily: 'monospace', color: 'rgba(155,140,255,0.9)', letterSpacing: '0.02em' }}>
-              git clone https://github.com/Jeevanrajss/Personal-OS.git && bash setup.sh
-            </code>
-          </div>
-          <br />
           <DownloadButton onDownload={() => setShowModal(true)} size="lg" />
         </div>
       </section>
