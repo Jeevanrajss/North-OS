@@ -49,6 +49,52 @@
 
 ---
 
+## Session 5 · 2026-05-07
+
+### Completed
+
+**Finance — CSV Bank Statement Import**
+- `backend/app/services/csv_parser.py` — 8 Indian bank format definitions (HDFC, ICICI, SBI, Axis, Kotak, Yes Bank, IDFC, generic); auto-detect by column header signatures; manual column-mapper fallback when format unrecognised; handles comma-separated and parenthesis-negative amounts
+- `backend/app/services/transaction_categorizer.py` — 2-pass categorisation: heuristic keyword map (~14 rules covering Swiggy, Uber, Amazon etc.) + LLM batch fallback for unknowns; "Splits" keyword added
+- `backend/app/services/report_generator.py` — fpdf2 PDF (header/footer, alternating rows, 4 sections) + CSV with BOM (Excel-compatible); both in-memory, no temp files
+- `backend/app/schemas/import_schema.py` — ImportPreviewResponse (with needs_column_mapping, available_columns, duplicate_count), ConfirmRow, ImportConfirmRequest/Response, MonthlyReportResponse
+- `backend/app/routers/import_router.py` — `GET /finance/import/banks`, `POST /finance/import/preview`, `POST /finance/import/confirm`, `GET /finance/report/{year}/{month}`, `GET /finance/report/{year}/{month}/export?format=csv|pdf`
+- `backend/app/models/finance.py` — added `import_batch_id` column with `_dev_migrate_transactions()` auto-migration
+- `backend/pyproject.toml` — added `fpdf2>=2.7.9`
+- `frontend/src/components/finance/ImportModal.tsx` — 4-step wizard (upload → optional column mapper → review/edit → done); AI-suggested categories; duplicate warnings; bulk select/skip
+- `frontend/src/components/finance/MonthlyReportView.tsx` — summary cards, category bars, budget vs actual table, filterable transaction table, CSV/PDF download via fetch + blob URL
+- `frontend/src/routes/Finance.tsx` — Import button, Report tab, ImportModal wired with cache invalidation
+- `frontend/src/lib/api.ts` — import/report types + API calls (importBanks, importPreview, importConfirm, report, reportExportUrl)
+
+**Finance — Splits Income Category**
+- `backend/app/schemas/finance.py` — added `"Splits"` to INCOME_CATEGORIES with `"🤝"` emoji
+- `backend/app/services/transaction_categorizer.py` — added splitwise/settle/reimbursement keywords → Splits
+
+**Multi-Provider AI Settings**
+- `frontend/src/routes/Settings.tsx` — full rewrite: 8-provider tile picker, API key field with show/hide + "Get key ↗" link, live model dropdown from `/settings/models`, Test Connection button, result banner
+- `backend/app/main.py` — critical boot fix: renamed `settings = get_settings()` → `cfg = get_settings()` to prevent shadowing of imported `settings` router module
+
+**One-Command Install**
+- `setup.sh` — detects Python 3.11+ / Node 18+, creates venv, pip install, npm install, copies .env.example, health-check loop, opens browser; supports `--setup` / `--start` flags
+- `setup.bat` — Windows equivalent with separate terminal windows
+- `scripts/start.sh` — added sanity checks, non-fatal LM Studio warning, Settings page hint
+- `README.md` — complete rewrite: one-command install at top, prerequisites table, AI setup guide (3 options), script reference, project structure, troubleshooting, tech stack
+
+**North OS Landing Page + Netlify Deploy**
+- `frontend/src/routes/Landing.tsx` — full marketing page: fixed navbar, hero with gradient headline, 6-feature grid, privacy card, 5-pillar philosophy, AI provider pills, final CTA, footer; inline styles for precise dark theme
+- `frontend/src/App.tsx` — restructured: `/` → Landing (no sidebar), `/app/*` → AppShell, legacy route redirects
+- `frontend/src/components/Sidebar.tsx` — logo letter "P" → "N", label "Personal OS" → "North OS"
+- `frontend/vite.config.ts` — PWA manifest name → "North OS", short_name → "NorthOS"
+- `netlify.toml` — build config (base=frontend, publish=dist) + SPA redirect rule
+- `frontend/public/_redirects` — `/* /index.html 200` for client-side routing
+
+### Verification
+- `tsc --noEmit` ✅
+- Committed `af44c80` and pushed to `origin/main` ✅
+- Netlify auto-deploy triggered from push ✅
+
+---
+
 ## Session 3 · 2026-04-28
 
 ### Completed
