@@ -121,7 +121,10 @@ function EmailModal() {
     } catch { /* silent — still download */ }
 
     setStatus('done');
-    setTimeout(triggerDownload, 600);
+    setTimeout(() => {
+      triggerDownload();
+      setTimeout(() => window.location.reload(), 1500);
+    }, 600);
   }
 
   const overlay: React.CSSProperties = {
