@@ -32,6 +32,12 @@ That's it. The script:
 
 > **Next time** you just run `bash setup.sh --start` (or `setup.bat --start`) — it skips the install and goes straight to launching.
 
+### Windows notes
+
+> **"Unknown Publisher" warning** — Windows shows a security prompt when you run any `.bat` file downloaded from the internet. This is normal. Click **Run** to proceed.
+
+> **Python not found even though it's installed** — Windows sometimes routes `python` to the Microsoft Store instead of your real installation. Fix: go to **Settings → Apps → Advanced app settings → App execution aliases** and turn off both Python entries. Then re-run `setup.bat`.
+
 ---
 
 ## Prerequisites
