@@ -1,4 +1,4 @@
-# Personal OS
+# North OS
 
 A **local-first, AI-powered personal productivity app** that runs entirely on your own machine.  
 Track habits, write a daily journal, manage finances, monitor subscriptions, and chat with an AI that has full context of your data — with zero cloud dependency.
