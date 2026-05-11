@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, BookText, Wallet, Repeat, CheckSquare,
-  Settings, ChevronLeft, ChevronRight,
+  Settings, ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -11,6 +11,7 @@ const nav = [
   { to: '/app/finance', label: 'Finance', icon: Wallet },
   { to: '/app/subscriptions', label: 'Subscriptions', icon: Repeat },
   { to: '/app/habits', label: 'Habits', icon: CheckSquare },
+  { to: '/app/chat', label: 'AI Chat', icon: MessageSquare },
 ];
 
 type Props = { collapsed: boolean; onToggle: () => void };

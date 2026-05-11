@@ -9,6 +9,7 @@ import { Subscriptions } from '@/routes/Subscriptions';
 import { Habits } from '@/routes/Habits';
 import { HabitDetail } from '@/routes/HabitDetail';
 import { Settings } from '@/routes/Settings';
+import { Chat } from '@/routes/Chat';
 
 function AppShell() {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -25,8 +26,9 @@ function AppShell() {
   return (
     <div className="flex h-full">
       <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
-      <main className="flex-1 overflow-y-auto min-w-0">
-        <div className="max-w-6xl mx-auto px-8 py-8">
+      <main className="flex-1 overflow-hidden min-w-0 flex flex-col">
+        <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-8 py-8 h-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/journal" element={<Journal />} />
@@ -35,7 +37,9 @@ function AppShell() {
             <Route path="/habits" element={<Habits />} />
             <Route path="/habits/:id" element={<HabitDetail />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/chat" element={<Chat />} />
           </Routes>
+        </div>
         </div>
       </main>
     </div>
