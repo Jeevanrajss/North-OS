@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, AlertCircle, Flame, BookText, CreditCard, CalendarClock } from 'lucide-react';
-import { api, type HabitStatsResponse, type StatsResponse, type Subscription } from '@/lib/api';
-import { daysUntil } from '@/components/subscriptions/subUtils';
+import { CheckCircle2, AlertCircle, Flame, BookText, Wallet, CalendarClock } from 'lucide-react';
+import { api, type HabitStatsResponse, type StatsResponse, type MonthlySummary } from '@/lib/api';
 import { DashHabitsCard } from '@/components/dashboard/DashHabitsCard';
 import { DashJournalCard } from '@/components/dashboard/DashJournalCard';
 import { DashSubsCard } from '@/components/dashboard/DashSubsCard';
+import { DashFinanceCard } from '@/components/dashboard/DashFinanceCard';
 import { DashAIBriefing } from '@/components/dashboard/DashAIBriefing';
 import { DashAIChat } from '@/components/dashboard/DashAIChat';
 
@@ -28,10 +28,9 @@ function formatDate(): string {
   });
 }
 
-function fmtCurrency(amount: number): string {
+function fmtCurrency(amount: number, currency = 'INR'): string {
   try {
-    const currency = localStorage.getItem('sub_display_currency') ?? 'INR';
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency', currency, maximumFractionDigits: 0,
     }).format(amount);
   } catch {
@@ -43,7 +42,12 @@ function fmtCurrency(amount: number): string {
 // Dashboard
 // ---------------------------------------------------------------------------
 export function Dashboard() {
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const now = useMemo(() => new Date(), []);
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+
+  // Resolve user name from localStorage (user can set via Settings when built)
+  const userName = localStorage.getItem('user_name')?.trim() || '';
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -63,18 +67,30 @@ export function Dashboard() {
     staleTime: 1000 * 60,
   });
 
-  const { data: activeSubs = [] } = useQuery<Subscription[]>({
-    queryKey: ['subscriptions', 'active'],
-    queryFn: () => api.subscriptions.list(false),
-    staleTime: 1000 * 60,
+  // Finance: this month's summary for the expense chip
+  const { data: finSummary } = useQuery<MonthlySummary>({
+    queryKey: ['finance-summary', y, m],
+    queryFn: () => api.finance.summary(y, m),
+    staleTime: 1000 * 60 * 5,
   });
 
-  const monthlyTotal = activeSubs.reduce((s, sub) => s + sub.monthly_equivalent, 0);
-  const dueThisWeek = activeSubs.filter((s) => {
-    const d = daysUntil(s.next_billing_date);
-    return d >= 0 && d <= 7;
+  // Subscription stats (used for "Due this week" chip — reuses the same
+  // query that DashSubsCard already fires, so no extra fetch)
+  const { data: subStats } = useQuery({
+    queryKey: ['subscription-stats'],
+    queryFn: () => api.subscriptions.stats(),
+    staleTime: 1000 * 30,
+  });
+
+  const dueThisWeek = (subStats?.upcoming_30d ?? []).filter((u) => {
+    return u.days_until >= 0 && u.days_until <= 7 && u.subscription.amount > 0;
   }).length;
 
+  const trialsEndingSoon = (subStats?.upcoming_30d ?? []).filter((u) => {
+    return u.subscription.amount === 0 && u.days_until >= 0 && u.days_until <= 30;
+  }).length;
+
+  const displayCurrency = localStorage.getItem('sub_display_currency') ?? 'INR';
   const backendOk = health?.db.ok && !health?.llm.error;
 
   return (
@@ -82,7 +98,7 @@ export function Dashboard() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-50">
-          {getGreeting()}, Jeevan
+          {getGreeting()}{userName ? `, ${userName}` : ''}
         </h1>
         <p className="text-sm text-ink-500 mt-0.5">{formatDate()}</p>
       </div>
@@ -102,35 +118,45 @@ export function Dashboard() {
           to="/journal"
         />
         <StatChip
-          icon={<CreditCard className="w-3.5 h-3.5 text-violet-400" />}
-          label="Monthly spend"
-          value={fmtCurrency(monthlyTotal)}
-          to="/subscriptions"
+          icon={<Wallet className="w-3.5 h-3.5 text-violet-400" />}
+          label="This month"
+          value={finSummary
+            ? fmtCurrency(finSummary.total_expense, displayCurrency)
+            : '—'}
+          to="/finance"
         />
         <StatChip
           icon={<CalendarClock className="w-3.5 h-3.5 text-amber-400" />}
-          label="Due this week"
-          value={dueThisWeek === 0 ? 'None' : `${dueThisWeek} renewal${dueThisWeek !== 1 ? 's' : ''}`}
-          highlight={dueThisWeek > 0}
+          label={trialsEndingSoon > 0 ? 'Due + trials' : 'Due this week'}
+          value={
+            dueThisWeek === 0 && trialsEndingSoon === 0
+              ? 'All clear'
+              : [
+                  dueThisWeek > 0 && `${dueThisWeek} renewal${dueThisWeek !== 1 ? 's' : ''}`,
+                  trialsEndingSoon > 0 && `${trialsEndingSoon} trial${trialsEndingSoon !== 1 ? 's' : ''}`,
+                ].filter(Boolean).join(' · ')
+          }
+          highlight={dueThisWeek > 0 || trialsEndingSoon > 0}
           to="/subscriptions"
         />
       </div>
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
-        {/* Left — analytics only, no interactive controls */}
+        {/* Left — analytics cards */}
         <div className="lg:col-span-6 space-y-5">
           <DashHabitsCard />
           <DashJournalCard />
+          <DashFinanceCard />
           <DashSubsCard />
         </div>
 
-        {/* Right — AI briefing + chat */}
+        {/* Right — AI briefing + chat + system */}
         <div className="lg:col-span-4 space-y-5">
           <DashAIBriefing />
           <DashAIChat />
 
-          {/* System status — compact */}
+          {/* System status */}
           <div className="card">
             <div className="card-title">System</div>
             <div className="space-y-1.5">
