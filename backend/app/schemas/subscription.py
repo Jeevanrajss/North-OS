@@ -23,11 +23,12 @@ MONTHLY_MULT: dict[str, float] = {
 class SubscriptionIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
     emoji: str = Field(default="💳", max_length=8)
-    amount: float = Field(..., gt=0)
+    amount: float = Field(..., ge=0)           # 0 = currently free
     currency: str = Field(default="USD", max_length=8)
     billing_cycle: BillingCycle = "monthly"
     next_billing_date: date_cls
     trial_end_date: date_cls | None = None
+    post_trial_amount: float | None = Field(default=None, ge=0)  # price after free period
     payment_type: PaymentType | None = None
     account_name: str | None = Field(default=None, max_length=60)
     category: str | None = Field(default=None, max_length=40)
@@ -48,11 +49,12 @@ class SubscriptionIn(BaseModel):
 class SubscriptionPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     emoji: str | None = Field(default=None, max_length=8)
-    amount: float | None = Field(default=None, gt=0)
+    amount: float | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, max_length=8)
     billing_cycle: BillingCycle | None = None
     next_billing_date: date_cls | None = None
     trial_end_date: date_cls | None = None
+    post_trial_amount: float | None = Field(default=None, ge=0)
     payment_type: PaymentType | None = None
     account_name: str | None = Field(default=None, max_length=60)
     category: str | None = None
@@ -76,6 +78,7 @@ class SubscriptionOut(BaseModel):
     billing_cycle: str
     next_billing_date: date_cls
     trial_end_date: date_cls | None
+    post_trial_amount: float | None
     payment_type: str | None
     account_name: str | None
     category: str | None

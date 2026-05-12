@@ -48,6 +48,10 @@ class Subscription(Base):
     # Optional free-trial end date. When set, the sub appears in the trial tracker.
     trial_end_date: Mapped[date_cls | None] = mapped_column(Date, nullable=True)
 
+    # Price that kicks in after the free trial ends. Only meaningful when
+    # amount == 0 (currently free) and trial_end_date is set.
+    post_trial_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Soft-pause — subscription is still active but billing is on hold.
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

@@ -184,6 +184,9 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
   const [cycle, setCycle] = useState<BillingCycle>(sub.billing_cycle);
   const [nextDate, setNextDate] = useState(sub.next_billing_date);
   const [trialEndDate, setTrialEndDate] = useState(sub.trial_end_date ?? '');
+  const [postTrialAmount, setPostTrialAmount] = useState(
+    sub.post_trial_amount != null ? String(sub.post_trial_amount) : '',
+  );
   const [paymentType, setPaymentType] = useState<PaymentType | ''>(sub.payment_type ?? '');
   const [accountName, setAccountName] = useState(sub.account_name ?? '');
   const [category, setCategory] = useState(sub.category ?? '');
@@ -198,6 +201,7 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
     setEmoji(sub.emoji); setName(sub.name); setAmount(String(sub.amount));
     setCurrency(sub.currency); setCycle(sub.billing_cycle); setNextDate(sub.next_billing_date);
     setTrialEndDate(sub.trial_end_date ?? '');
+    setPostTrialAmount(sub.post_trial_amount != null ? String(sub.post_trial_amount) : '');
     setPaymentType(sub.payment_type ?? ''); setAccountName(sub.account_name ?? '');
     setCategory(sub.category ?? ''); setError(null); setEditing(true);
   }
@@ -205,8 +209,12 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
   async function save() {
     const trimmed = name.trim();
     const parsedAmount = parseFloat(amount);
+    const parsedPTA = postTrialAmount ? parseFloat(postTrialAmount) : null;
     if (!trimmed) return;
-    if (isNaN(parsedAmount) || parsedAmount <= 0) { setError('Enter a valid amount.'); return; }
+    if (isNaN(parsedAmount) || parsedAmount < 0) { setError('Enter a valid amount (0 for free).'); return; }
+    if (parsedPTA !== null && (isNaN(parsedPTA) || parsedPTA < 0)) {
+      setError('Enter a valid post-trial price.'); return;
+    }
 
     const patch: SubscriptionPatch = {};
     if (trimmed !== sub.name) patch.name = trimmed;
@@ -217,6 +225,7 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
     if (nextDate !== sub.next_billing_date) patch.next_billing_date = nextDate;
     const ted = trialEndDate || null;
     if (ted !== sub.trial_end_date) patch.trial_end_date = ted;
+    if (parsedPTA !== sub.post_trial_amount) patch.post_trial_amount = parsedPTA;
     const pt = paymentType || null;
     if (pt !== sub.payment_type) patch.payment_type = pt;
     const an = accountName.trim() || null;
@@ -254,7 +263,7 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0.01" step="0.01"
+          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" step="0.01"
             className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
           <select value={currency} onChange={(e) => setCurrency(e.target.value)}
             className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
@@ -289,9 +298,17 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
           </datalist>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-ink-600 shrink-0">Trial end:</label>
+          <label className="text-[10px] text-ink-600 shrink-0 w-16">Trial end:</label>
           <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)}
             className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
+          {trialEndDate && (
+            <>
+              <label className="text-[10px] text-ink-600 shrink-0">Then:</label>
+              <input type="number" value={postTrialAmount} onChange={(e) => setPostTrialAmount(e.target.value)}
+                placeholder="price after" min="0" step="0.01"
+                className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-700" />
+            </>
+          )}
         </div>
         {error && <div className="text-[11px] text-red-400 pl-1">{error}</div>}
       </li>
@@ -307,6 +324,11 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-ink-100 truncate">{sub.name}</span>
+          {sub.amount === 0 && (
+            <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+              FREE
+            </span>
+          )}
           {isPaused && (
             <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">
               Paused
@@ -328,7 +350,12 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
           )}
           {!sub.payment_type && sub.account_name && <span className="mr-1.5">{sub.account_name}</span>}
           {sub.category && <span className="mr-1.5 text-ink-600">{sub.category}</span>}
-          {formatAmount(sub.amount, sub.currency)} {CYCLE_LABELS[sub.billing_cycle]}
+          {sub.amount === 0
+            ? (sub.post_trial_amount
+                ? <span>Free → {formatAmount(sub.post_trial_amount, sub.currency)} {CYCLE_LABELS[sub.billing_cycle]}</span>
+                : <span>Free</span>)
+            : <>{formatAmount(sub.amount, sub.currency)} {CYCLE_LABELS[sub.billing_cycle]}</>
+          }
         </div>
       </div>
       {!isPaused && (

@@ -459,6 +459,7 @@ export type Subscription = {
   billing_cycle: BillingCycle;
   next_billing_date: string; // YYYY-MM-DD
   trial_end_date: string | null; // YYYY-MM-DD
+  post_trial_amount: number | null; // price after free trial ends
   monthly_equivalent: number;
   payment_type: PaymentType | null;
   account_name: string | null;
@@ -479,6 +480,7 @@ export type SubscriptionIn = {
   billing_cycle?: BillingCycle;
   next_billing_date: string;
   trial_end_date?: string | null;
+  post_trial_amount?: number | null;
   payment_type?: PaymentType | null;
   account_name?: string | null;
   category?: string | null;

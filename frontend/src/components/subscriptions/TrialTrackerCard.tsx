@@ -44,8 +44,8 @@ export function TrialTrackerCard() {
           const warn = daysLeft <= 7 && !urgent;
 
           return (
-            <li key={sub.id} className="flex items-center gap-2.5">
-              <span className="text-base w-6 text-center leading-none shrink-0">
+            <li key={sub.id} className="flex items-start gap-2.5">
+              <span className="text-base w-6 text-center leading-none shrink-0 mt-0.5">
                 {sub.emoji}
               </span>
               <div className="flex-1 min-w-0">
@@ -53,9 +53,21 @@ export function TrialTrackerCard() {
                 <div className="text-[10px] text-ink-500">
                   Trial ends {sub.trial_end_date}
                 </div>
+                {sub.post_trial_amount != null && sub.post_trial_amount > 0 && (
+                  <div className="text-[10px] text-ink-600 mt-0.5">
+                    Then {sub.currency} {sub.post_trial_amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {' '}
+                    <span className="text-ink-700">
+                      {sub.billing_cycle === 'monthly' ? '/ mo'
+                        : sub.billing_cycle === 'yearly' ? '/ yr'
+                        : sub.billing_cycle === 'quarterly' ? '/ qtr'
+                        : '/ wk'}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className={cn(
-                'flex items-center gap-1 shrink-0 text-[11px] font-medium tabular-nums',
+                'flex items-center gap-1 shrink-0 text-[11px] font-medium tabular-nums mt-0.5',
                 expired ? 'text-ink-600' : urgent ? 'text-red-400' : warn ? 'text-amber-400' : 'text-emerald-400',
               )}>
                 {!expired && (urgent || warn) && (
@@ -70,7 +82,7 @@ export function TrialTrackerCard() {
                     ? 'Today!'
                     : daysLeft === 1
                       ? '1 day left'
-                      : `${daysLeft} days left`}
+                      : `${daysLeft}d left`}
               </div>
             </li>
           );

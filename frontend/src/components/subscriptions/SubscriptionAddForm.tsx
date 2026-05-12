@@ -26,6 +26,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [nextDate, setNextDate] = useState(today);
   const [trialEndDate, setTrialEndDate] = useState('');
+  const [postTrialAmount, setPostTrialAmount] = useState('');
   const [paymentType, setPaymentType] = useState<PaymentType | ''>('');
   const [accountName, setAccountName] = useState('');
   const [category, setCategory] = useState('');
@@ -37,6 +38,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
   function reset() {
     setEmoji('💳'); setName(''); setAmount(''); setCurrency('INR');
     setCycle('monthly'); setNextDate(today); setTrialEndDate('');
+    setPostTrialAmount('');
     setPaymentType(''); setAccountName(''); setCategory('');
     setNotes(''); setUrl(''); setError(null);
   }
@@ -45,8 +47,12 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
     e.preventDefault();
     const trimmedName = name.trim();
     const parsedAmount = parseFloat(amount);
+    const parsedPostTrialAmount = postTrialAmount ? parseFloat(postTrialAmount) : null;
     if (!trimmedName) { setError('Name is required.'); return; }
-    if (isNaN(parsedAmount) || parsedAmount <= 0) { setError('Enter a valid amount.'); return; }
+    if (isNaN(parsedAmount) || parsedAmount < 0) { setError('Enter a valid amount (0 for free).'); return; }
+    if (parsedPostTrialAmount !== null && (isNaN(parsedPostTrialAmount) || parsedPostTrialAmount < 0)) {
+      setError('Enter a valid post-trial price.'); return;
+    }
     if (!nextDate) { setError('Next billing date is required.'); return; }
 
     setSaving(true);
@@ -59,6 +65,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
         billing_cycle: cycle,
         next_billing_date: nextDate,
         trial_end_date: trialEndDate || null,
+        post_trial_amount: parsedPostTrialAmount,
         payment_type: paymentType || null,
         account_name: accountName.trim() || null,
         category: category.trim() || null,
@@ -96,7 +103,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
-          min="0.01"
+          min="0"
           step="0.01"
           className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600"
         />
@@ -174,17 +181,35 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
         </div>
       </div>
 
-      {/* Trial end date (optional) */}
-      <div>
-        <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5 block">
-          Free trial end date <span className="normal-case text-ink-700">(optional)</span>
-        </label>
-        <input
-          type="date"
-          value={trialEndDate}
-          onChange={(e) => setTrialEndDate(e.target.value)}
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]"
-        />
+      {/* Trial end date + post-trial price */}
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5 block">
+            Trial / free period ends <span className="normal-case text-ink-700">(optional)</span>
+          </label>
+          <input
+            type="date"
+            value={trialEndDate}
+            onChange={(e) => setTrialEndDate(e.target.value)}
+            className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]"
+          />
+        </div>
+        {trialEndDate && (
+          <div className="flex-1">
+            <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5 block">
+              Price after trial
+            </label>
+            <input
+              type="number"
+              value={postTrialAmount}
+              onChange={(e) => setPostTrialAmount(e.target.value)}
+              placeholder="e.g. 399"
+              min="0"
+              step="0.01"
+              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600"
+            />
+          </div>
+        )}
       </div>
 
       {/* URL + notes */}
@@ -211,7 +236,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          disabled={saving || disabled || !name.trim() || !amount}
+          disabled={saving || disabled || !name.trim() || amount === ''}
           className="px-3 py-1.5 rounded-md bg-accent/20 border border-accent/40 text-xs text-accent hover:bg-accent/30 disabled:opacity-40"
         >
           {saving ? 'Saving…' : 'Add'}
