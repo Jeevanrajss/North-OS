@@ -176,20 +176,32 @@ type RowProps = {
 };
 
 function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps) {
+  const isTrial = sub.amount === 0 && sub.trial_end_date !== null;
+
   const [editing, setEditing] = useState(false);
+  const [editMode, setEditMode] = useState<'subscription' | 'trial'>(isTrial ? 'trial' : 'subscription');
+
+  // Shared edit fields
   const [emoji, setEmoji] = useState(sub.emoji);
   const [name, setName] = useState(sub.name);
-  const [amount, setAmount] = useState(String(sub.amount));
   const [currency, setCurrency] = useState(sub.currency);
   const [cycle, setCycle] = useState<BillingCycle>(sub.billing_cycle);
-  const [nextDate, setNextDate] = useState(sub.next_billing_date);
-  const [trialEndDate, setTrialEndDate] = useState(sub.trial_end_date ?? '');
-  const [postTrialAmount, setPostTrialAmount] = useState(
-    sub.post_trial_amount != null ? String(sub.post_trial_amount) : '',
-  );
   const [paymentType, setPaymentType] = useState<PaymentType | ''>(sub.payment_type ?? '');
   const [accountName, setAccountName] = useState(sub.account_name ?? '');
   const [category, setCategory] = useState(sub.category ?? '');
+
+  // Subscription-mode fields
+  const [amount, setAmount] = useState(String(sub.amount));
+  const [nextDate, setNextDate] = useState(sub.next_billing_date);
+
+  // Trial-mode fields
+  const [billingStartDate, setBillingStartDate] = useState(
+    sub.trial_end_date ?? sub.next_billing_date,
+  );
+  const [postTrialAmount, setPostTrialAmount] = useState(
+    sub.post_trial_amount != null ? String(sub.post_trial_amount) : '',
+  );
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -198,40 +210,50 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
   const days = daysUntil(sub.next_billing_date);
 
   function beginEdit() {
-    setEmoji(sub.emoji); setName(sub.name); setAmount(String(sub.amount));
-    setCurrency(sub.currency); setCycle(sub.billing_cycle); setNextDate(sub.next_billing_date);
-    setTrialEndDate(sub.trial_end_date ?? '');
-    setPostTrialAmount(sub.post_trial_amount != null ? String(sub.post_trial_amount) : '');
+    const trialMode = sub.amount === 0 && sub.trial_end_date !== null;
+    setEditMode(trialMode ? 'trial' : 'subscription');
+    setEmoji(sub.emoji); setName(sub.name);
+    setCurrency(sub.currency); setCycle(sub.billing_cycle);
     setPaymentType(sub.payment_type ?? ''); setAccountName(sub.account_name ?? '');
-    setCategory(sub.category ?? ''); setError(null); setEditing(true);
+    setCategory(sub.category ?? '');
+    setAmount(String(sub.amount)); setNextDate(sub.next_billing_date);
+    setBillingStartDate(sub.trial_end_date ?? sub.next_billing_date);
+    setPostTrialAmount(sub.post_trial_amount != null ? String(sub.post_trial_amount) : '');
+    setError(null); setEditing(true);
   }
 
   async function save() {
     const trimmed = name.trim();
-    const parsedAmount = parseFloat(amount);
-    const parsedPTA = postTrialAmount ? parseFloat(postTrialAmount) : null;
-    if (!trimmed) return;
-    if (isNaN(parsedAmount) || parsedAmount < 0) { setError('Enter a valid amount (0 for free).'); return; }
-    if (parsedPTA !== null && (isNaN(parsedPTA) || parsedPTA < 0)) {
-      setError('Enter a valid post-trial price.'); return;
-    }
+    if (!trimmed) { setError('Name is required.'); return; }
 
     const patch: SubscriptionPatch = {};
     if (trimmed !== sub.name) patch.name = trimmed;
     if (emoji !== sub.emoji) patch.emoji = emoji;
-    if (parsedAmount !== sub.amount) patch.amount = parsedAmount;
     if (currency !== sub.currency) patch.currency = currency;
     if (cycle !== sub.billing_cycle) patch.billing_cycle = cycle;
-    if (nextDate !== sub.next_billing_date) patch.next_billing_date = nextDate;
-    const ted = trialEndDate || null;
-    if (ted !== sub.trial_end_date) patch.trial_end_date = ted;
-    if (parsedPTA !== sub.post_trial_amount) patch.post_trial_amount = parsedPTA;
     const pt = paymentType || null;
     if (pt !== sub.payment_type) patch.payment_type = pt;
     const an = accountName.trim() || null;
     if (an !== sub.account_name) patch.account_name = an;
     const cat = category.trim() || null;
     if (cat !== sub.category) patch.category = cat;
+
+    if (editMode === 'trial') {
+      if (!billingStartDate) { setError('Billing start date is required.'); return; }
+      const pta = postTrialAmount ? parseFloat(postTrialAmount) : null;
+      if (pta !== null && (isNaN(pta) || pta < 0)) { setError('Enter a valid post-trial price.'); return; }
+      if (0 !== sub.amount) patch.amount = 0;
+      if (billingStartDate !== sub.next_billing_date) patch.next_billing_date = billingStartDate;
+      if (billingStartDate !== sub.trial_end_date) patch.trial_end_date = billingStartDate;
+      if (pta !== sub.post_trial_amount) patch.post_trial_amount = pta;
+    } else {
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) { setError('Enter a valid amount.'); return; }
+      if (parsedAmount !== sub.amount) patch.amount = parsedAmount;
+      if (nextDate !== sub.next_billing_date) patch.next_billing_date = nextDate;
+      if (sub.trial_end_date !== null) patch.trial_end_date = null;
+      if (sub.post_trial_amount !== null) patch.post_trial_amount = null;
+    }
 
     if (Object.keys(patch).length === 0) { setEditing(false); return; }
 
@@ -246,71 +268,171 @@ function SubscriptionRow({ sub, onSave, onPause, onResume, onCancel }: RowProps)
     }
   }
 
+  const L = ({ children }: { children: React.ReactNode }) => (
+    <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5 block">{children}</label>
+  );
+
   if (editing) {
     return (
-      <li className="rounded-md bg-ink-950 border border-ink-800 px-2 py-2 space-y-2">
+      <li className="rounded-md bg-ink-950 border border-ink-800 px-3 py-2.5 space-y-2.5">
+
+        {/* Mode toggle */}
+        <div className="flex rounded-md border border-ink-800 overflow-hidden w-fit text-xs">
+          <button
+            type="button"
+            onClick={() => setEditMode('subscription')}
+            className={cn(
+              'px-3 py-1 transition-colors border-r border-ink-800',
+              editMode === 'subscription'
+                ? 'bg-accent/20 text-accent'
+                : 'bg-ink-900 text-ink-500 hover:text-ink-300',
+            )}
+          >
+            Subscription
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditMode('trial')}
+            className={cn(
+              'px-3 py-1 transition-colors',
+              editMode === 'trial'
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'bg-ink-900 text-ink-500 hover:text-ink-300',
+            )}
+          >
+            Free / Trial
+          </button>
+        </div>
+
+        {/* Name row */}
         <div className="flex items-center gap-2">
           <EmojiPickerPopover value={emoji} onChange={setEmoji} size="sm" />
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
-            className="flex-1 min-w-0 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
-          <button type="button" onClick={() => void save()} disabled={saving || !name.trim()}
-            className="p-1.5 rounded-md bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 disabled:opacity-40">
-            <Check className="w-3.5 h-3.5" />
-          </button>
-          <button type="button" onClick={() => setEditing(false)}
-            className="p-1.5 rounded-md border border-ink-800 bg-ink-900 text-ink-400 hover:text-ink-200">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex-1 min-w-0">
+            <L>Name</L>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
+              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
+          </div>
+          <div className="flex items-center gap-1 self-end pb-0.5">
+            <button type="button" onClick={() => void save()} disabled={saving || !name.trim()}
+              className="p-1.5 rounded-md bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 disabled:opacity-40">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => setEditing(false)}
+              className="p-1.5 rounded-md border border-ink-800 bg-ink-900 text-ink-400 hover:text-ink-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" step="0.01"
-            className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)}
-            className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
-            {CURRENCY_OPTS.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
-          </select>
-          <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
-            {CYCLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+
+        {/* ── SUBSCRIPTION MODE ── */}
+        {editMode === 'subscription' && (
+          <>
+            <div className="flex items-end gap-2">
+              <div>
+                <L>Amount</L>
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0.01" step="0.01"
+                  className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
+              </div>
+              <div>
+                <L>Currency</L>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)}
+                  className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  {CURRENCY_OPTS.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <L>Billing cycle</L>
+                <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)}
+                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  {CYCLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <L>Next billing</L>
+                <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)}
+                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
+              </div>
+              <div className="flex-1">
+                <L>Category</L>
+                <input list="sub-categories-edit" value={category} onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Streaming" maxLength={40}
+                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600" />
+                <datalist id="sub-categories-edit">
+                  {CATEGORIES.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── FREE TRIAL MODE ── */}
+        {editMode === 'trial' && (
+          <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2.5 space-y-2.5">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="text-[10px] text-emerald-500/80 uppercase tracking-wide mb-0.5 block">Billing starts on</label>
+                <input type="date" value={billingStartDate} onChange={(e) => setBillingStartDate(e.target.value)}
+                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 text-ink-200 [color-scheme:dark]" />
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-emerald-500/80 uppercase tracking-wide mb-0.5 block">Price after trial</label>
+                <input type="number" value={postTrialAmount} onChange={(e) => setPostTrialAmount(e.target.value)}
+                  placeholder="e.g. 399" min="0" step="0.01"
+                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 placeholder:text-ink-700" />
+              </div>
+            </div>
+            <div className="flex items-end gap-2">
+              <div>
+                <L>Currency</L>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)}
+                  className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  {CURRENCY_OPTS.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <L>Billing cycle</L>
+                <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)}
+                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  {CYCLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <L>Category</L>
+                <input list="sub-categories-edit-trial" value={category} onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. AI Tools" maxLength={40}
+                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600" />
+                <datalist id="sub-categories-edit-trial">
+                  {CATEGORIES.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment + account (shared) */}
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <L>Payment type</L>
+            <select value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType | '')}
+              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+              <option value="">— none —</option>
+              {PAYMENT_TYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="flex-1">
+            <L>Account</L>
+            <input list="account-suggestions-edit" value={accountName} onChange={(e) => setAccountName(e.target.value)}
+              placeholder="e.g. HDFC" maxLength={60}
+              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600" />
+            <datalist id="account-suggestions-edit">
+              {ACCOUNT_SUGGESTIONS.map((a) => <option key={a} value={a} />)}
+            </datalist>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <select value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType | '')}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
-            <option value="">Payment type</option>
-            {PAYMENT_TYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <input list="account-suggestions-edit" value={accountName} onChange={(e) => setAccountName(e.target.value)}
-            placeholder="Account (e.g. HDFC)" maxLength={60}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600" />
-          <datalist id="account-suggestions-edit">
-            {ACCOUNT_SUGGESTIONS.map((a) => <option key={a} value={a} />)}
-          </datalist>
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
-          <input list="sub-categories-edit" value={category} onChange={(e) => setCategory(e.target.value)}
-            placeholder="Category" maxLength={40}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-600" />
-          <datalist id="sub-categories-edit">
-            {CATEGORIES.map((c) => <option key={c} value={c} />)}
-          </datalist>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-ink-600 shrink-0 w-16">Trial end:</label>
-          <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)}
-            className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
-          {trialEndDate && (
-            <>
-              <label className="text-[10px] text-ink-600 shrink-0">Then:</label>
-              <input type="number" value={postTrialAmount} onChange={(e) => setPostTrialAmount(e.target.value)}
-                placeholder="price after" min="0" step="0.01"
-                className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-700" />
-            </>
-          )}
-        </div>
-        {error && <div className="text-[11px] text-red-400 pl-1">{error}</div>}
+
+        {error && <div className="text-[11px] text-red-400">{error}</div>}
       </li>
     );
   }
