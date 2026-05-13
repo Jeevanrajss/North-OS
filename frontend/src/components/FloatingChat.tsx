@@ -10,7 +10,7 @@ const SUGGESTIONS = [
   'Where am I lagging this week?',
   'Which habit has the worst completion rate?',
   'How much am I spending on entertainment?',
-  'What was the last time I felt sick?',
+  'Give me a tip to improve my productivity.',
 ];
 
 export function FloatingChat() {
@@ -91,7 +91,7 @@ export function FloatingChat() {
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-ink-800 shrink-0">
           <MessageSquare className="w-3.5 h-3.5 text-accent" />
-          <span className="text-sm font-medium text-ink-200 flex-1">Ask your data</span>
+          <span className="text-sm font-medium text-ink-200 flex-1">AI Chat</span>
           {messages.length > 0 && (
             <button
               type="button"
@@ -115,7 +115,7 @@ export function FloatingChat() {
           {messages.length === 0 && !mut.isPending && (
             <div className="space-y-2 pt-1">
               <p className="text-[11px] text-ink-600">
-                Ask anything about your habits, journal, or spending.
+                Ask me anything — your data, productivity, advice, or just chat.
               </p>
               <div className="flex flex-col gap-1.5">
                 {SUGGESTIONS.map((s) => (
@@ -171,7 +171,7 @@ export function FloatingChat() {
             value={input}
             onChange={onInput}
             onKeyDown={onKeyDown}
-            placeholder="Ask about your data…"
+            placeholder="Ask me anything…"
             rows={1}
             className="flex-1 resize-none overflow-hidden bg-ink-900 border border-ink-800 rounded-md px-2.5 py-1.5 text-xs text-ink-100 placeholder:text-ink-600 outline-none focus:border-accent/60 leading-relaxed"
             style={{ minHeight: '34px' }}
