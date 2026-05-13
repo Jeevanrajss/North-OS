@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Sidebar } from '@/components/Sidebar';
+import { FloatingChat } from '@/components/FloatingChat';
 import { Landing } from '@/routes/Landing';
 import { Dashboard } from '@/routes/Dashboard';
 import { Journal } from '@/routes/Journal';
@@ -28,20 +29,21 @@ function AppShell() {
       <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
       <main className="flex-1 overflow-hidden min-w-0 flex flex-col">
         <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-8 py-8 h-full">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/journal" element={<Journal />} />
-            <Route path="/finance" element={<Finance />} />
-            <Route path="/subscriptions" element={<Subscriptions />} />
-            <Route path="/habits" element={<Habits />} />
-            <Route path="/habits/:id" element={<HabitDetail />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/chat" element={<Chat />} />
-          </Routes>
-        </div>
+          <div className="max-w-6xl mx-auto px-8 py-8 h-full">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/journal" element={<Journal />} />
+              <Route path="/finance" element={<Finance />} />
+              <Route path="/subscriptions" element={<Subscriptions />} />
+              <Route path="/habits" element={<Habits />} />
+              <Route path="/habits/:id" element={<HabitDetail />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/chat" element={<Chat />} />
+            </Routes>
+          </div>
         </div>
       </main>
+      <FloatingChat />
     </div>
   );
 }

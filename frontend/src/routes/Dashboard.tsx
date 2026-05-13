@@ -8,7 +8,6 @@ import { DashJournalCard } from '@/components/dashboard/DashJournalCard';
 import { DashSubsCard } from '@/components/dashboard/DashSubsCard';
 import { DashFinanceCard } from '@/components/dashboard/DashFinanceCard';
 import { DashAIBriefing } from '@/components/dashboard/DashAIBriefing';
-import { DashAIChat } from '@/components/dashboard/DashAIChat';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -148,13 +147,12 @@ export function Dashboard() {
           <DashHabitsCard />
           <DashJournalCard />
           <DashFinanceCard />
-          <DashSubsCard />
         </div>
 
-        {/* Right — AI briefing + chat + system */}
+        {/* Right — AI briefing + subscriptions + system */}
         <div className="lg:col-span-4 space-y-5">
           <DashAIBriefing />
-          <DashAIChat />
+          <DashSubsCard />
 
           {/* System status */}
           <div className="card">
