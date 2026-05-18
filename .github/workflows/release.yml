@@ -18,6 +18,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ── Node + frontend (must build BEFORE PyInstaller — spec bundles frontend/dist) ──
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
       # ── Python backend ────────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -33,18 +45,6 @@ jobs:
         run: |
           cd backend
           pyinstaller backend.spec
-
-      # ── React frontend ────────────────────────────────────────────────────
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm ci
-          npm run build
 
       # ── Electron + electron-builder ───────────────────────────────────────
       - name: Build macOS DMG (arm64)
@@ -74,6 +74,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ── Node + frontend (must build BEFORE PyInstaller — spec bundles frontend/dist) ──
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
       # ── Python backend ────────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -89,18 +101,6 @@ jobs:
         run: |
           cd backend
           pyinstaller backend.spec
-
-      # ── React frontend ────────────────────────────────────────────────────
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm ci
-          npm run build
 
       # ── Electron + electron-builder ───────────────────────────────────────
       - name: Build Windows NSIS installer
