@@ -26,6 +26,9 @@ function requestBrowserPermission() {
   }
 }
 
+// Auto-request on first load so the OS dialog appears without needing Settings
+requestBrowserPermission();
+
 function fireBrowserNotification(title: string, body: string, type: string) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const icon = '/icon-192.png';

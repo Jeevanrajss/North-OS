@@ -1363,6 +1363,8 @@ function NotificationSettingsPanel() {
   );
 
   const initialised = useRef(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!settings || initialised.current) return;
     initialised.current = true;
@@ -1375,6 +1377,14 @@ function NotificationSettingsPanel() {
     setQuietStart((settings['notif.quiet_start'] as string) || '22:00');
     setQuietEnd((settings['notif.quiet_end'] as string) || '07:00');
   }, [settings]);
+
+  // Auto-save 600ms after any toggle/time change (skip the initial load)
+  useEffect(() => {
+    if (!initialised.current) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { handleSave(); }, 600);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [briefingEnabled, briefingTime, habitEnabled, subEnabled, subDays, budgetEnabled, quietStart, quietEnd]);
 
   async function handleSave() {
     await api.settings.update({
