@@ -1,5 +1,4 @@
 import { useLocation } from 'react-router-dom';
-import { Search } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationPanel';
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -59,32 +58,6 @@ export function Topbar() {
 
         {/* Spacer */}
         <div className="flex-1" />
-
-        {/* Search bar */}
-        <div
-          className="hidden sm:flex items-center gap-2 px-3 text-[13px] rounded-[10px] transition-all"
-          style={{
-            height: 36,
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            color: 'var(--fg-3)',
-            minWidth: 220,
-          }}
-        >
-          <Search className="w-3.5 h-3.5 shrink-0" />
-          <span className="flex-1">Search anything…</span>
-          <kbd
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-            style={{
-              background: 'var(--surface-elev)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--fg-4)',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            ⌘K
-          </kbd>
-        </div>
 
         {/* Bell */}
         <NotificationBell />
