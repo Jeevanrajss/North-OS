@@ -334,6 +334,9 @@ function updaterLog(level, msg) {
   } catch { /* never crash because of logging */ }
 }
 
+// Unsigned build — skip both JS-level and Squirrel-level signature checks
+autoUpdater.verifyUpdateCodeSignature = () => Promise.resolve(null);
+
 // Wire electron-updater's internal logger to our file
 autoUpdater.logger = {
   info:  (m) => updaterLog('info',  typeof m === 'object' ? JSON.stringify(m) : m),
