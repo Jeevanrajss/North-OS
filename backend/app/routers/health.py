@@ -13,6 +13,12 @@ from app.services import llm_client
 router = APIRouter(prefix="/api/v1", tags=["health"])
 
 
+@router.get("/ping")
+async def ping():
+    """Lightweight liveness check used by the Electron shell."""
+    return {"ok": True}
+
+
 @router.get("/health")
 async def health(db: Session = Depends(get_db)):
     settings = get_settings()

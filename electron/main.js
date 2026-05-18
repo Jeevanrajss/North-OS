@@ -11,7 +11,7 @@ const { machineIdSync } = require('node-machine-id');
 const LICENSE_SERVER  = 'https://north-os-production.up.railway.app';
 const APP_PORT        = 9847;
 const GRACE_DAYS      = 7;
-const HEALTH_URL      = `http://127.0.0.1:${APP_PORT}/api/v1/health`;
+const HEALTH_URL      = `http://127.0.0.1:${APP_PORT}/api/v1/ping`;
 const APP_URL         = `http://127.0.0.1:${APP_PORT}`;
 const IS_DEV          = !!process.env.ELECTRON_DEV;
 const IS_WIN          = process.platform === 'win32';
@@ -137,7 +137,7 @@ function startBackend() {
       }
 
       try {
-        const res = await fetch(HEALTH_URL, { signal: AbortSignal.timeout(800) });
+        const res = await fetch(HEALTH_URL, { signal: AbortSignal.timeout(3000) });
         if (res.ok) {
           clearInterval(poll);
           console.log('[electron] Backend ready');
