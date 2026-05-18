@@ -8,6 +8,7 @@ import { TagCloud } from '@/components/journal/TagCloud';
 import { JournalAnnualCard } from '@/components/journal/JournalAnnualCard';
 import { MoodHabitCard } from '@/components/journal/MoodHabitCard';
 import { JournalExportButton } from '@/components/journal/JournalExportButton';
+import { NotificationBell } from '@/components/NotificationPanel';
 import { JournalDayContent } from '@/components/journal/JournalDayContent';
 import { startOfMonth } from '@/lib/date';
 
@@ -164,6 +165,9 @@ export function Journal() {
 
           {/* Spacer */}
           <div style={{ flex: 1 }} />
+
+          {/* Notifications */}
+          <NotificationBell />
 
           {/* Export */}
           <JournalExportButton />

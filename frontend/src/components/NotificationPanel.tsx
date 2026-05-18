@@ -163,7 +163,7 @@ export function NotificationBell() {
       {/* Panel */}
       {open && (
         <div
-          className="absolute right-0 z-50 flex flex-col"
+          className="absolute right-0 z-[9999] flex flex-col"
           style={{
             top: 'calc(100% + 8px)',
             width: 360,
