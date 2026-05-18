@@ -706,6 +706,7 @@ export const api = {
   },
 
   health: () => request<HealthResponse>('/health'),
+  appVersion: () => request<{ version: string }>('/app-version'),
   aiPing: (
     prompt: string,
     opts?: { system?: string; purpose?: string; temperature?: number; max_tokens?: number },

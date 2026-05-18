@@ -1602,6 +1602,14 @@ function NotificationSettingsPanel() {
 export function Settings() {
   const qc = useQueryClient();
 
+  // ── App version ────────────────────────────────────────────────────
+  const { data: versionData } = useQuery({
+    queryKey: ['app-version'],
+    queryFn: api.appVersion,
+    staleTime: Infinity,
+  });
+  const appVersion = versionData?.version ?? '—';
+
   // ── Remote data ────────────────────────────────────────────────────
   const { data: providers = {} } = useQuery({
     queryKey: ['settings-providers'],
@@ -2206,6 +2214,29 @@ export function Settings() {
                 Cloud providers (OpenAI, Anthropic…) send prompts to their servers.
                 Local (LM Studio, Ollama) runs entirely on your device.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── App version ─────────────────────────────────────────────────── */}
+        <section style={{ marginTop: 32 }}>
+          <div
+            className="flex items-center gap-3 px-1"
+            style={{
+              padding: '12px 16px',
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
+            <span style={{ fontSize: 16 }}>🏷️</span>
+            <div style={{ flex: 1 }}>
+              <span style={{ font: '500 13px/1.2 var(--font-sans)', color: 'var(--fg-2)' }}>
+                North OS
+              </span>
+              <span style={{ color: 'var(--fg-4)', fontSize: 12.5, marginLeft: 8 }}>
+                v{appVersion}
+              </span>
             </div>
           </div>
         </section>

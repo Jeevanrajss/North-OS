@@ -87,6 +87,7 @@ function startBackend() {
         APP_PORT:               String(APP_PORT),
         APP_HOST:               '127.0.0.1',
         APP_ENV:                'production',
+        APP_VERSION:            app.getVersion(),
         DB_ENCRYPTION:          'false',
         PERSONAL_OS_DATA_DIR:   dataDir,
       },
