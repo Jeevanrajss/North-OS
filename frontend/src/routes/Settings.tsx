@@ -663,7 +663,7 @@ function SmsSetupPanel() {
         ? `✓ ${res.new_transactions} new transaction${res.new_transactions > 1 ? 's' : ''} found (${checked} messages scanned).`
         : `✓ Scanned ${checked} messages — no new transactions.`);
       qc.invalidateQueries({ queryKey: ['sms-pending'] });
-      qc.invalidateQueries({ queryKey: ['sms-status'] });
+      await qc.refetchQueries({ queryKey: ['sms-status'] }); // force immediate refetch, bypass stale time
     } catch (e: unknown) {
       setSyncMsg(e instanceof Error ? e.message : 'Sync failed.');
     } finally {
