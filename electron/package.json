@@ -1,0 +1,67 @@
+{
+  "name": "personal-os",
+  "version": "1.0.0",
+  "description": "Personal OS — your private life dashboard",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "ELECTRON_DEV=1 electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:all": "electron-builder --mac --win"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.4",
+    "node-machine-id": "^1.1.12"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jeevanraj.personalos",
+    "productName": "Personal OS",
+    "copyright": "Copyright © 2025 Jeevan Raj",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "activation.html"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/personal-os-backend",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Jeevanrajss",
+      "repo": "North-OS"
+    }
+  }
+}

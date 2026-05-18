@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal OS — Activate</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d0f;
+      --surface:  #141417;
+      --border:   rgba(255,255,255,0.08);
+      --fg-1:     #f0f0f5;
+      --fg-2:     #b8b8c8;
+      --fg-3:     #7a7a90;
+      --primary:  #8b7cff;
+      --red:      #ff5b6e;
+      --green:    #3dff98;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg-1);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    /* macOS traffic lights drag region */
+    .titlebar {
+      height: 28px;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: calc(100% - 28px);
+      padding: 0 40px 24px;
+    }
+
+    .logo {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: rgba(139,124,255,0.12);
+      border: 1px solid rgba(139,124,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--fg-3);
+      text-align: center;
+      line-height: 1.5;
+      margin-bottom: 32px;
+      max-width: 300px;
+    }
+
+    .input-wrap {
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: 12px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg-1);
+      font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-align: center;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    input[type="text"]::placeholder {
+      letter-spacing: 0.06em;
+      font-weight: 400;
+      color: var(--fg-3);
+      text-transform: none;
+      font-size: 13px;
+    }
+
+    input[type="text"]:focus {
+      border-color: rgba(139,124,255,0.55);
+    }
+
+    input[type="text"].error {
+      border-color: rgba(255,91,110,0.55);
+    }
+
+    .btn {
+      width: 100%;
+      max-width: 340px;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+
+    .msg {
+      margin-top: 12px;
+      font-size: 12.5px;
+      text-align: center;
+      min-height: 18px;
+      max-width: 320px;
+    }
+
+    .msg.error  { color: var(--red); }
+    .msg.success { color: var(--green); }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: var(--fg-3);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <!-- macOS title bar drag area -->
+  <div class="titlebar"></div>
+
+  <div class="container">
+    <div class="logo">⬡</div>
+    <h1>Personal OS</h1>
+    <p class="subtitle">Enter your registration key to get started.</p>
+
+    <div class="input-wrap">
+      <input
+        type="text"
+        id="key-input"
+        placeholder="PERS-XXXX-XXXX-XXXX"
+        maxlength="19"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <button class="btn" id="activate-btn" onclick="doActivate()">
+      Activate
+    </button>
+
+    <p class="msg" id="msg"></p>
+
+    <div class="footer">
+      Don't have a key? Contact the app owner.<br />
+      <span id="version" style="color:#50505f"></span>
+    </div>
+  </div>
+
+  <script>
+    // ── Auto-format key as PERS-XXXX-XXXX-XXXX while typing ──────────────────
+    const input = document.getElementById('key-input');
+
+    input.addEventListener('input', () => {
+      let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let formatted = '';
+      if (val.length > 0)  formatted = val.slice(0, 4);
+      if (val.length > 4)  formatted += '-' + val.slice(4, 8);
+      if (val.length > 8)  formatted += '-' + val.slice(8, 12);
+      if (val.length > 12) formatted += '-' + val.slice(12, 16);
+      input.value = formatted;
+      input.classList.remove('error');
+      setMsg('', '');
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doActivate();
+    });
+
+    // ── Activate ──────────────────────────────────────────────────────────────
+    async function doActivate() {
+      const key = input.value.trim();
+
+      if (key.length < 19) {
+        input.classList.add('error');
+        setMsg('Please enter a complete key (PERS-XXXX-XXXX-XXXX)', 'error');
+        return;
+      }
+
+      setLoading(true);
+      setMsg('', '');
+
+      try {
+        const result = await window.electronAPI.activate(key);
+
+        if (result.ok) {
+          setMsg('Activated! Opening Personal OS…', 'success');
+        } else {
+          input.classList.add('error');
+          setMsg(humanError(result.error), 'error');
+          setLoading(false);
+        }
+      } catch (err) {
+        setMsg('Something went wrong. Please try again.', 'error');
+        setLoading(false);
+      }
+    }
+
+    function humanError(msg) {
+      if (!msg) return 'Activation failed. Please try again.';
+      if (msg.includes('already registered to another device'))
+        return 'This key is registered to another device. Contact the app owner to reset it.';
+      if (msg.includes('revoked'))
+        return 'This key has been revoked. Contact the app owner.';
+      if (msg.includes('Invalid'))
+        return 'Invalid key. Double-check and try again.';
+      if (msg.includes('Network') || msg.includes('fetch'))
+        return 'No internet connection. Please connect and try again.';
+      return msg;
+    }
+
+    function setMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg' + (type ? ' ' + type : '');
+    }
+
+    function setLoading(loading) {
+      const btn = document.getElementById('activate-btn');
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<span class="spinner"></span>Activating…'
+        : 'Activate';
+    }
+
+    // ── Show version ──────────────────────────────────────────────────────────
+    window.electronAPI.getVersion().then((v) => {
+      document.getElementById('version').textContent = `v${v}`;
+    });
+  </script>
+</body>
+</html>
