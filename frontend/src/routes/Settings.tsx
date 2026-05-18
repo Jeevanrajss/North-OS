@@ -147,66 +147,20 @@ function tzOffsetLabel(tz: string): string {
 }
 
 function TimezoneField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? ALL_TIMEZONES.filter((tz) => tz.toLowerCase().includes(q))
-      : ALL_TIMEZONES;
-    return list.slice(0, 60);
-  }, [query]);
-
-  // Display: when closed show "Region/City (UTC±X)", when open show search query
-  const displayValue = open ? query : value ? `${value}  ${tzOffsetLabel(value)}`.trim() : '';
-
   return (
-    <div ref={ref}>
+    <div>
       <Label>Timezone</Label>
-      <div className="relative">
-        <input
-          className={inputCls}
-          value={displayValue}
-          placeholder="Search timezone…"
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => { setQuery(''); setOpen(true); }}
-        />
-        {open && (
-          <ul className="absolute z-20 mt-1 w-full bg-ink-900 border border-ink-700 rounded-md shadow-xl max-h-52 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-ink-400">No matches</li>
-            ) : (
-              filtered.map((tz) => (
-                <li key={tz}>
-                  <button
-                    type="button"
-                    className={cn(
-                      'w-full text-left px-3 py-1.5 text-xs transition-colors',
-                      tz === value
-                        ? 'text-accent bg-accent/10'
-                        : 'text-ink-300 hover:bg-ink-800 hover:text-ink-100',
-                    )}
-                    onClick={() => { onChange(tz); setOpen(false); setQuery(''); }}
-                  >
-                    <span className="font-medium">{tz}</span>
-                    <span className="ml-1.5 text-ink-500">{tzOffsetLabel(tz)}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        )}
-      </div>
+      <select
+        className={inputCls}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {ALL_TIMEZONES.map((tz) => (
+          <option key={tz} value={tz}>
+            {tz}  {tzOffsetLabel(tz)}
+          </option>
+        ))}
+      </select>
       <p className="text-[10px] text-ink-400 mt-0.5">
         Used for date display and time-aware greetings.
       </p>

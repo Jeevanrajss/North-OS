@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Check, ChevronRight, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { api, type Account, type AccountIn, type AccountType, type CardVariant } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
@@ -49,7 +49,6 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
   const [bank, setBank] = useState<string>(initial?.bank ?? '');
   const [cardVariant, setCardVariant] = useState<string>(initial?.card_variant ?? '');
   const [selectedVariantData, setSelectedVariantData] = useState<CardVariant | null>(null);
-  const [bankSearch, setBankSearch] = useState('');
   const [nickname, setNickname] = useState(initial?.nickname ?? '');
   const [last4, setLast4] = useState(initial?.last4 ?? '');
   const [creditLimit, setCreditLimit] = useState(
@@ -75,12 +74,10 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
 
   // ── derived ───────────────────────────────────────────────────────────────
   const bankList = useMemo(() => {
-    const raw = type === 'upi'
+    return type === 'upi'
       ? (banksQ.data?.wallets ?? [])
       : (banksQ.data?.banks ?? []);
-    if (!bankSearch.trim()) return raw;
-    return raw.filter((b) => b.toLowerCase().includes(bankSearch.toLowerCase()));
-  }, [banksQ.data, bankSearch, type]);
+  }, [banksQ.data, type]);
 
   const cardVariants: CardVariant[] = useMemo(() => {
     if (!bankCatalogQ.data) return [];
@@ -204,22 +201,12 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
     return (
       <div className="space-y-3">
         <StepHeader title={type === 'upi' ? 'Select UPI / Wallet' : 'Select your bank'} step={2} total={3} />
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
-          <input
-            autoFocus
-            value={bankSearch}
-            onChange={(e) => setBankSearch(e.target.value)}
-            placeholder="Search…"
-            className="w-full pl-9 pr-3 py-2 bg-ink-900 border border-ink-800 rounded-md text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
-          />
-        </div>
         <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
           {bankList.map((b) => (
             <button
               key={b}
               type="button"
-              onClick={() => { setBank(b); setBankSearch(''); }}
+              onClick={() => { setBank(b); }}
               className={cn(
                 'text-left px-3 py-2 rounded-lg border text-sm transition-all',
                 bank === b
