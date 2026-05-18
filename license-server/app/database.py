@@ -4,9 +4,18 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# On Railway with a volume mounted at /data, the DB lives at /data/license.db
-# Locally it falls back to ./license.db
-_default_db = "sqlite:////data/license.db" if os.path.isdir("/data") else "sqlite:///./license.db"
+# Use DATABASE_URL env var if set (Railway explicit config), otherwise
+# create /data dir (Railway volume) and use it, falling back to local file.
+if not os.getenv("DATABASE_URL"):
+    _data_dir = "/data"
+    try:
+        os.makedirs(_data_dir, exist_ok=True)
+        _default_db = f"sqlite:///{_data_dir}/license.db"
+    except OSError:
+        _default_db = "sqlite:///./license.db"
+else:
+    _default_db = os.getenv("DATABASE_URL", "sqlite:///./license.db")
+
 DATABASE_URL = os.getenv("DATABASE_URL", _default_db)
 
 # SQLite needs check_same_thread=False for FastAPI's async handling

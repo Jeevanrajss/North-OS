@@ -1,5 +1,7 @@
 [build]
 builder = "nixpacks"
+# Only redeploy when license-server files change, not on frontend/electron pushes
+watchPatterns = ["license-server/**"]
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
