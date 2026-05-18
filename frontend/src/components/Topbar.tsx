@@ -22,15 +22,6 @@ function getRouteLabel(pathname: string): string {
 export function Topbar() {
   const { pathname } = useLocation();
   const label = getRouteLabel(pathname);
-  const userName = localStorage.getItem('user_name')?.trim() || 'Jeevan';
-
-  const firstName = userName.split(' ')[0];
-  const initials = userName
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 
   return (
     <header
@@ -61,34 +52,6 @@ export function Topbar() {
 
         {/* Bell */}
         <NotificationBell />
-
-        {/* Avatar pill */}
-        <div
-          className="inline-flex items-center gap-2"
-          style={{
-            height: 36,
-            padding: '3px 12px 3px 3px',
-            borderRadius: 999,
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--border-default)',
-          }}
-        >
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #FF7AD9, #8B7CFF)',
-              font: '500 11px/1 var(--font-display)',
-            }}
-          >
-            {initials}
-          </div>
-          <span
-            className="text-[12.5px] font-medium hidden sm:block"
-            style={{ color: 'var(--fg-2)' }}
-          >
-            {firstName}
-          </span>
-        </div>
       </div>
     </header>
   );
