@@ -1,6 +1,6 @@
 {
   "name": "personal-os",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Personal OS — your private life dashboard",
   "main": "main.js",
   "private": true,
