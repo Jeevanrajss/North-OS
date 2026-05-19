@@ -65,17 +65,39 @@ BANK_FORMATS: dict[str, BankFormat] = {
         date_formats=["%d/%m/%y", "%d/%m/%Y", "%d-%m-%Y"],
         signature=["Narration", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"],
     ),
+    # ICICI Bank netbanking CSV — "Transaction Remarks" is the correct 2025 column name.
+    # Columns: S No. | Value Date | Transaction Date | Cheque Number |
+    #          Transaction Remarks | Withdrawal Amount (INR ) | Deposit Amount (INR ) | Balance (INR )
+    # Note: ICICI exports a literal space before the closing paren → "INR )" not "INR)".
     "icici": BankFormat(
         name="ICICI Bank",
         date_col="Transaction Date",
-        description_col="Details",
+        description_col="Transaction Remarks",
         debit_col="Withdrawal Amount (INR )",
         credit_col="Deposit Amount (INR )",
         amount_col=None,
         balance_col="Balance (INR )",
         date_formats=["%d-%m-%Y", "%d/%m/%Y"],
-        signature=["Transaction Date", "Withdrawal Amount (INR )"],
+        signature=["Transaction Date", "Transaction Remarks", "Withdrawal Amount (INR )"],
     ),
+    # ICICI Bank newer netbanking format (2024+): simpler header row using
+    # "Date" / "Narration" / "Cheque No." / "Debit" / "Credit" / "Balance"
+    "icici_narration": BankFormat(
+        name="ICICI Bank",
+        date_col="Date",
+        description_col="Narration",
+        debit_col="Debit",
+        credit_col="Credit",
+        amount_col=None,
+        balance_col="Balance",
+        date_formats=["%d/%m/%Y", "%d-%m-%Y"],
+        # "Date" (not "Transaction Date") + "Cheque No." prevents collision with
+        # IDFC format which also has Narration/Debit/Credit but uses "Transaction Date".
+        # 6-item signature → threshold = 5, so an IDFC file missing "Date"/"Cheque No."
+        # cannot reach the threshold and won't be misdetected.
+        signature=["Date", "Narration", "Cheque No.", "Debit", "Credit", "Balance"],
+    ),
+    # ICICI Bank legacy / corporate format with "Description", "Debit", "Credit"
     "icici_alt": BankFormat(
         name="ICICI Bank",
         date_col="Transaction Date",
@@ -154,7 +176,9 @@ BANK_FORMATS: dict[str, BankFormat] = {
         amount_col=None,
         balance_col="Balance",
         date_formats=["%d-%m-%Y", "%d/%m/%Y"],
-        signature=["Transaction Date", "Narration", "Debit", "Credit"],
+        # 5-item signature (threshold=4) beats icici_alt (4/5) when IDFC file
+        # has "Narration" instead of "Description".
+        signature=["Transaction Date", "Narration", "Debit", "Credit", "Balance"],
     ),
     # IDFC PDF statement — uses "Particulars" instead of "Narration" and
     # "dd-Mon-YYYY" date format (e.g. 01-Feb-2026).
