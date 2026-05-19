@@ -361,10 +361,42 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 700px) {
+    /* ── Responsive ── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    @media (max-width: 768px) {
+      .topbar { padding: 10px 16px; }
+      .topbar-sub { display: none; }
+
+      /* Hide Machine / Last Seen / Created — keep Owner, Key, Status, Actions */
+      table th:nth-child(4), table td:nth-child(4),
+      table th:nth-child(5), table td:nth-child(5),
+      table th:nth-child(6), table td:nth-child(6) { display: none; }
+
+      td.key-cell { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
       .stats-row { grid-template-columns: repeat(2, 1fr); }
-      .action-btns { flex-direction: column; }
       .main-content { padding: 16px 12px; }
+      .action-btns { flex-direction: column; }
+
+      .login-card { width: min(360px, calc(100vw - 32px)); padding: 28px 24px; }
+      .modal { width: min(420px, calc(100vw - 24px)); padding: 24px 20px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-row { gap: 10px; margin-bottom: 16px; }
+      .stat-card { padding: 12px 14px; }
+      .stat-card .stat-value { font-size: 20px; }
+
+      .toolbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .btn-create { width: 100%; justify-content: center; }
+
+      /* Also hide Key column — Owner + Status + Actions fits well on 375px */
+      table th:nth-child(2), table td:nth-child(2) { display: none; }
+
+      .btn-sm { font-size: 11px; padding: 4px 8px; }
+
+      .toast { bottom: 16px; right: 12px; left: 12px; text-align: center; }
     }
   </style>
 </head>
