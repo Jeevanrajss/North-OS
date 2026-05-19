@@ -35,5 +35,8 @@ def get_db():
 
 
 def init_db() -> None:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger(__name__).info("DATABASE_URL in use: %s", DATABASE_URL)
     from app import models  # noqa: F401 — registers models with Base
     Base.metadata.create_all(bind=engine)
