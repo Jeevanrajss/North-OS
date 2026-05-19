@@ -91,11 +91,17 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
 
   const onDragLeave = useCallback(() => setDragging(false), []);
 
+  const ACCEPTED_EXTS = ['.csv', '.xls', '.xlsx', '.pdf'];
+
+  function isAcceptedFile(f: File) {
+    return ACCEPTED_EXTS.some((ext) => f.name.toLowerCase().endsWith(ext));
+  }
+
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped && (dropped.name.endsWith('.csv') || dropped.type === 'text/csv')) {
+    if (dropped && isAcceptedFile(dropped)) {
       setFile(dropped);
     }
   }, []);
@@ -193,7 +199,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               Import Statement
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--fg-4)' }}>
-              {step === 'upload' && 'Upload a CSV from your bank or credit card'}
+              {step === 'upload' && 'Upload a CSV, Excel, or PDF statement from your bank'}
               {step === 'map' && 'Map CSV columns to the right fields'}
               {step === 'review' && `Review ${rows.length} transactions — AI has suggested categories`}
               {step === 'done' && 'Import complete'}
@@ -278,11 +284,11 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
 
               {/* Drag-and-drop file zone */}
               <div>
-                <FieldLabel>CSV File *</FieldLabel>
+                <FieldLabel>Statement File *</FieldLabel>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.xls,.xlsx,.pdf"
                   style={{ display: 'none' }}
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
@@ -314,10 +320,10 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                       <Upload style={{ width: 28, height: 28, color: 'var(--fg-4)' }} />
                       <div style={{ textAlign: 'center' }}>
                         <p style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: 'var(--fg-2)' }}>
-                          Drop your CSV here, or <span style={{ color: 'var(--primary-300)', textDecoration: 'underline' }}>browse</span>
+                          Drop your statement here, or <span style={{ color: 'var(--primary-300)', textDecoration: 'underline' }}>browse</span>
                         </p>
                         <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fg-4)' }}>
-                          .csv files only
+                          CSV · Excel (.xls, .xlsx) · PDF
                         </p>
                       </div>
                     </>
@@ -348,7 +354,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               </div>
               <p style={{ margin: 0, fontSize: 11.5, color: 'var(--fg-4)', lineHeight: '17px' }}>
                 Don't see your bank? Upload anyway — you'll map columns manually.
-                Export CSV from your bank's NetBanking or mobile app.
+                Export CSV, XLS, or PDF from your bank's NetBanking or mobile app.
               </p>
 
               {previewMut.isError && (

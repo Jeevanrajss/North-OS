@@ -36,6 +36,8 @@ class BankFormat:
     skip_rows: int = 0
     # Credit-card mode: single amount column where "Cr" suffix = income (payment)
     cc_format: bool = False
+    # Separate column whose value indicates CR/DR (e.g. IDFC mini-statement)
+    txtype_col: str | None = None
 
 
 BANK_FORMATS: dict[str, BankFormat] = {
@@ -129,6 +131,20 @@ BANK_FORMATS: dict[str, BankFormat] = {
         date_formats=["%d-%m-%Y", "%d/%m/%Y"],
         signature=["Transaction Details", "Withdrawal (Dr)", "Deposit (Cr)"],
     ),
+    # Axis Bank newer internet-banking export — uses "Transaction Date" / "Description"
+    # instead of the older "Tran Date" / "PARTICULARS". The "Cheque No" column
+    # differentiates this from ICICI Bank's similar layout.
+    "axis_alt": BankFormat(
+        name="Axis Bank",
+        date_col="Transaction Date",
+        description_col="Description",
+        debit_col="Debit",
+        credit_col="Credit",
+        amount_col=None,
+        balance_col="Balance",
+        date_formats=["%d-%m-%Y", "%d/%m/%Y", "%d %b %Y"],
+        signature=["Transaction Date", "Cheque No", "Description", "Debit", "Credit", "Balance"],
+    ),
     "idfc": BankFormat(
         name="IDFC First Bank",
         date_col="Transaction Date",
@@ -139,6 +155,32 @@ BANK_FORMATS: dict[str, BankFormat] = {
         balance_col="Balance",
         date_formats=["%d-%m-%Y", "%d/%m/%Y"],
         signature=["Transaction Date", "Narration", "Debit", "Credit"],
+    ),
+    # IDFC PDF statement — uses "Particulars" instead of "Narration" and
+    # "dd-Mon-YYYY" date format (e.g. 01-Feb-2026).
+    "idfc_pdf": BankFormat(
+        name="IDFC First Bank",
+        date_col="Transaction Date",
+        description_col="Particulars",
+        debit_col="Debit",
+        credit_col="Credit",
+        amount_col=None,
+        balance_col="Balance",
+        date_formats=["%d-%b-%Y", "%d-%m-%Y", "%d/%m/%Y"],
+        signature=["Transaction Date", "Particulars", "Debit", "Credit", "Balance"],
+    ),
+    # IDFC mini-statement XLS — single Amount(INR) column + separate CR/DR column.
+    "idfc_mini": BankFormat(
+        name="IDFC First Bank (Mini Statement)",
+        date_col="Transaction Date",
+        description_col="Transaction Remark",
+        debit_col=None,
+        credit_col=None,
+        amount_col="Amount(INR)",
+        txtype_col="CR/DR",
+        balance_col=None,
+        date_formats=["%d/%m/%Y", "%d-%m-%Y"],
+        signature=["Transaction Remark", "CR/DR", "Amount(INR)"],
     ),
     "generic_signed": BankFormat(
         name="Generic (signed amount)",
@@ -251,12 +293,15 @@ def detect_bank(columns: list[str]) -> str | None:
 # Amount parsing helpers
 # ---------------------------------------------------------------------------
 def _clean_amount(val: Any) -> float:
-    """Parse amount strings like '1,23,456.78', '(500.00)', '450 Cr', '450 Dr' → float."""
+    """Parse amount strings like '1,23,456.78', '(500.00)', '450 Cr', 'INR 2,000.00' → float."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return 0.0
     s = str(val).strip()
     # Strip trailing Cr / Dr / CR / DR labels (credit-card statement notation)
-    s = re.sub(r"\s*(Cr|Dr|CR|DR)\s*$", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s*(Cr|Dr|CR|DR)\.?\s*$", "", s, flags=re.IGNORECASE)
+    # Strip leading currency prefix: "INR ", "₹", "$", "€", "USD " etc.
+    s = re.sub(r"^[A-Z]{1,3}\s+", "", s, flags=re.IGNORECASE)   # e.g. "INR "
+    s = re.sub(r"^[^\d\(\-]+", "", s)                            # any remaining symbol
     s = s.replace(",", "").replace(" ", "")
     # Handle parenthesis as negative: (500) → -500
     if s.startswith("(") and s.endswith(")"):
@@ -454,7 +499,11 @@ def parse_csv(
             if raw == 0:
                 continue
             amount = abs(raw)
-            if fmt and fmt.cc_format:
+            if fmt and fmt.txtype_col:
+                # Separate CR/DR indicator column (e.g. IDFC mini-statement)
+                txtype_val = str(row.get(fmt.txtype_col, "")).strip()
+                tx_type = "income" if re.search(r"\bCr\.?\b", txtype_val, re.IGNORECASE) else "expense"
+            elif fmt and fmt.cc_format:
                 # Credit-card: use Cr/Dr suffix to determine type; negative = expense
                 tx_type = _cc_tx_type(raw_val) if raw >= 0 else "expense"
             else:

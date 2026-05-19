@@ -1,6 +1,8 @@
-"""CSV import + monthly report endpoints."""
+"""CSV / Excel / PDF import + monthly report endpoints."""
 from __future__ import annotations
 
+import csv as _csv
+import io
 import json
 import uuid
 from calendar import month_name
@@ -30,6 +32,94 @@ from app.services.csv_parser import BANK_KEYS, get_bank_display_name, parse_csv
 from app.services.report_generator import generate_csv, generate_pdf
 
 router = APIRouter(prefix="/api/v1/finance", tags=["finance-import"])
+
+
+# ---------------------------------------------------------------------------
+# File-type conversion helpers
+# ---------------------------------------------------------------------------
+
+def _xlsx_to_csv_bytes(content: bytes, engine: str = "openpyxl") -> bytes:
+    """Convert an XLS or XLSX workbook to CSV bytes (first sheet only)."""
+    import pandas as pd
+
+    df = pd.read_excel(io.BytesIO(content), header=None, dtype=str, engine=engine)
+    df = df.fillna("")
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, header=False)
+    return buf.getvalue().encode()
+
+
+# Keywords that identify a summary/balance table rather than a transaction table
+_PDF_SUMMARY_KEYWORDS = {"Opening Balance", "Closing Balance", "Total Debit", "Total Credit"}
+
+
+def _pdf_to_csv_bytes(content: bytes) -> bytes:
+    """Extract transaction tables from a PDF bank statement and return as CSV bytes.
+
+    Handles:
+    - Multi-page statements where the header row repeats on every page
+    - Summary/balance tables mixed in alongside transaction tables
+    - Newlines embedded inside cells (common in PDFs)
+    """
+    import pdfplumber
+
+    all_rows: list[list[str]] = []
+    seen_header: list[str] | None = None
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            for table in tables:
+                if not table:
+                    continue
+
+                # Normalise every cell: replace embedded newlines with a space, strip
+                clean_table = [
+                    [str(c or "").replace("\n", " ").strip() for c in row]
+                    for row in table
+                    if row and any(c for c in row if c)
+                ]
+                if not clean_table:
+                    continue
+
+                # Skip summary / balance tables (first row cells overlap known keywords)
+                first_row_cells = {c for c in clean_table[0] if c}
+                if first_row_cells & _PDF_SUMMARY_KEYWORDS:
+                    continue
+
+                for row in clean_table:
+                    # Deduplicate the repeating header row that banks put on every page
+                    if seen_header is None:
+                        seen_header = row
+                        all_rows.append(row)
+                    elif row == seen_header:
+                        continue
+                    else:
+                        all_rows.append(row)
+
+    if not all_rows:
+        raise ValueError(
+            "No transaction tables found in the PDF. "
+            "Make sure it's a bank statement with a transaction table."
+        )
+
+    buf = io.StringIO()
+    writer = _csv.writer(buf)
+    for row in all_rows:
+        writer.writerow(row)
+    return buf.getvalue().encode()
+
+
+def _normalise_to_csv_bytes(content: bytes, filename: str) -> bytes:
+    """Route to the right parser based on file extension; CSV passes through."""
+    lower = filename.lower()
+    if lower.endswith(".xlsx"):
+        return _xlsx_to_csv_bytes(content, engine="openpyxl")
+    if lower.endswith(".xls"):
+        return _xlsx_to_csv_bytes(content, engine="xlrd")
+    if lower.endswith(".pdf"):
+        return _pdf_to_csv_bytes(content)
+    return content  # already CSV
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +187,15 @@ async def import_preview(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
+    # Convert XLS / XLSX / PDF → CSV bytes so the rest of the pipeline is unchanged
+    filename = file.filename or ""
+    try:
+        csv_bytes = _normalise_to_csv_bytes(content, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not parse file: {exc}")
+
     # Parse column_mapping JSON if provided
     col_map: dict | None = None
     if column_mapping:
@@ -106,7 +205,7 @@ async def import_preview(
             raise HTTPException(status_code=400, detail="column_mapping is not valid JSON.")
 
     # Parse the CSV
-    rows, detected_key, all_columns = parse_csv(content, bank_key=bank_key, column_mapping=col_map)
+    rows, detected_key, all_columns = parse_csv(csv_bytes, bank_key=bank_key, column_mapping=col_map)
 
     needs_mapping = len(rows) == 0 and not detected_key and not col_map
     if needs_mapping:

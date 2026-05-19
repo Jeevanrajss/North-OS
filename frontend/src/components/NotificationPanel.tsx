@@ -35,6 +35,22 @@ function fireBrowserNotification(title: string, body: string, type: string) {
   new Notification(title, { body, icon, tag: type });
 }
 
+let _notifAudio: HTMLAudioElement | null = null;
+
+function playNotificationSound() {
+  if (localStorage.getItem('notif.sound_enabled') === 'false') return;
+  try {
+    if (!_notifAudio) {
+      _notifAudio = new Audio('/notification.mp3');
+      _notifAudio.volume = 0.6;
+    }
+    _notifAudio.currentTime = 0;
+    _notifAudio.play().catch(() => {/* autoplay blocked — ignore */});
+  } catch {
+    // audio not supported
+  }
+}
+
 export function NotificationBell() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -59,10 +75,11 @@ export function NotificationBell() {
 
   const unread = countData?.count ?? 0;
 
-  // Fire browser notification when count increases
+  // Fire browser notification + sound when count increases
   useEffect(() => {
     if (unread > prevCountRef.current && prevCountRef.current >= 0) {
-      // Fetch latest to get titles
+      playNotificationSound();
+      // Fetch latest to get titles for browser popups
       api.notifications.list().then((notifs) => {
         const newOnes = notifs.filter((n) => !n.read).slice(0, 3);
         newOnes.forEach((n) => fireBrowserNotification(n.title, n.body, n.type));

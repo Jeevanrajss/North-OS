@@ -1307,6 +1307,10 @@ function NotificationSettingsPanel() {
   const [budgetEnabled,   setBudgetEnabled]   = useState(false);
   const [quietStart,      setQuietStart]      = useState('22:00');
   const [quietEnd,        setQuietEnd]        = useState('07:00');
+  // Sound is a local device preference — stored in localStorage, not synced to backend
+  const [soundEnabled,    setSoundEnabled]    = useState(() =>
+    localStorage.getItem('notif.sound_enabled') !== 'false',
+  );
 
   const [saved,      setSaved]      = useState(false);
   const [testing,    setTesting]    = useState<string | null>(null);
@@ -1355,6 +1359,11 @@ function NotificationSettingsPanel() {
     qc.invalidateQueries({ queryKey: ['settings'] });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  }
+
+  function handleSoundToggle(v: boolean) {
+    setSoundEnabled(v);
+    localStorage.setItem('notif.sound_enabled', v ? 'true' : 'false');
   }
 
   async function requestPermission() {
@@ -1510,6 +1519,21 @@ function NotificationSettingsPanel() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 24, flexShrink: 0 }}>
             <NotifToggle on={budgetEnabled} onChange={setBudgetEnabled} />
+          </div>
+        </div>
+
+        {/* ── Notification sound ── */}
+        <div style={rowStyle}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--fg-1)', marginBottom: 4 }}>
+              Notification sound
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--fg-4)' }}>
+              Play a sound when a new notification arrives.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 24, flexShrink: 0 }}>
+            <NotifToggle on={soundEnabled} onChange={handleSoundToggle} />
           </div>
         </div>
 
@@ -2211,10 +2235,10 @@ export function Settings() {
           </div>{/* end AI card */}
         </section>
 
-        {/* ── Finance Categories ──────────────────────────────── */}
-        <section id="sec-finance" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
-          <SectionHead title="Finance Categories" desc="Manage the categories used to tag your transactions." />
-          <FinanceCategoriesPanel />
+        {/* ── Notifications ─────────────────────────────────────── */}
+        <section id="sec-notifications" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
+          <SectionHead title="Notifications" desc="Gentle nudges, not a fire-hose." />
+          <NotificationSettingsPanel />
         </section>
 
         {/* ── SMS Import ────────────────────────────────────────── */}
@@ -2229,10 +2253,10 @@ export function Settings() {
           <ModulesPanel />
         </section>
 
-        {/* ── Notifications ─────────────────────────────────────── */}
-        <section id="sec-notifications" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
-          <SectionHead title="Notifications" desc="Gentle nudges, not a fire-hose." />
-          <NotificationSettingsPanel />
+        {/* ── Finance Categories ──────────────────────────────── */}
+        <section id="sec-finance" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
+          <SectionHead title="Finance Categories" desc="Manage the categories used to tag your transactions." />
+          <FinanceCategoriesPanel />
         </section>
 
         {/* ── Privacy notes ─────────────────────────────────────── */}
