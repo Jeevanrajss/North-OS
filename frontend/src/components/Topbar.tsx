@@ -25,7 +25,7 @@ export function Topbar() {
 
   return (
     <header
-      className="shrink-0 sticky top-0 z-20 border-b"
+      className="drag-region shrink-0 sticky top-0 z-20 border-b"
       style={{
         background: 'rgba(14,16,24,0.72)',
         backdropFilter: 'var(--glass-blur)',
@@ -50,8 +50,10 @@ export function Topbar() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Bell */}
-        <NotificationBell />
+        {/* Bell — must opt out of drag so clicks register */}
+        <div className="no-drag">
+          <NotificationBell />
+        </div>
       </div>
     </header>
   );

@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Electron window drag regions */
+.drag-region { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
 /* ── Clash Grotesk display font ──────────────────────────────────────────── */
 @font-face {
   font-family: "Clash Grotesk";
