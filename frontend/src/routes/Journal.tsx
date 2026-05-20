@@ -182,13 +182,30 @@ export function Journal() {
 
         {/* ── Day header ──────────────────────────────────────────────────── */}
         <div className="mb-6">
-          <div
-            className="flex items-center gap-2.5 mb-2"
-            style={{ color: '#7B8498', fontSize: 12, fontWeight: 500 }}
-          >
-            <span>Day {dayOfYear} of {selectedDate.getFullYear()}</span>
-            <span style={{ opacity: 0.4 }}>·</span>
-            <span>Week {weekNum}</span>
+          <div className="flex items-center gap-2.5 mb-2">
+            <span
+              className="inline-flex items-center"
+              style={{
+                height: 22, padding: '0 10px', borderRadius: 999,
+                background: 'rgba(139,124,255,0.12)',
+                border: '1px solid rgba(139,124,255,0.24)',
+                color: 'var(--primary-300)',
+                font: '500 10.5px/1 var(--font-mono)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              DAY {dayOfYear} / {selectedDate.getFullYear()}
+            </span>
+            <span style={{ color: 'var(--fg-4)', opacity: 0.4 }}>·</span>
+            <span
+              style={{
+                font: '500 10.5px/1 var(--font-mono)',
+                letterSpacing: '0.04em',
+                color: 'var(--fg-4)',
+              }}
+            >
+              WEEK {weekNum}
+            </span>
           </div>
           <h1
             style={{
@@ -198,12 +215,12 @@ export function Journal() {
               color: 'white',
             }}
           >
-            <span style={{ color: '#A0A9BC', fontWeight: 300 }}>
+            <span style={{ color: 'var(--fg-3)', fontWeight: 300 }}>
               {format(selectedDate, 'EEEE')},{' '}
             </span>
             <span
               style={{
-                background: 'linear-gradient(135deg, #B8A5FF 0%, #8B7CFF 100%)',
+                background: 'linear-gradient(135deg, var(--primary-300) 0%, var(--primary-500) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
