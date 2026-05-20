@@ -443,7 +443,7 @@ export function SmsInbox({ queryKey }: Props) {
   if (pending.length === 0 && !imessageAvailable && !httpsmsConfigured) return null;
 
   return (
-    <div className="card" style={{ padding: 22 }}>
+    <div className="card" style={{ padding: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

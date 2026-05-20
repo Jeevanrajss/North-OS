@@ -53,7 +53,7 @@ function fmt(n: number, currency: string) {
 export function CategoryBreakdownCard({ stats, meta, currency, budgetByCategory = [] }: Props) {
   if (stats.length === 0) {
     return (
-      <div className="card" style={{ padding: 22 }}>
+      <div className="card" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h3 style={{ margin: 0, font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
             Top Categories
@@ -70,7 +70,7 @@ export function CategoryBreakdownCard({ stats, meta, currency, budgetByCategory 
   const top = stats.slice(0, 7);
 
   return (
-    <div className="card" style={{ padding: 22 }}>
+    <div className="card" style={{ padding: 20 }}>
       {/* Card head */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h3 style={{ margin: 0, font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>

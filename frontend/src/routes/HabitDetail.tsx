@@ -89,7 +89,7 @@ function DetailBody({
           <div>
             <h1
               className="text-[28px] font-semibold leading-tight tracking-tight text-ink-50"
-              style={{ fontFamily: '"Clash Grotesk", Inter, system-ui, sans-serif' }}
+              style={{ fontFamily: 'var(--font-display)' }}
             >
               {habit.name}
             </h1>

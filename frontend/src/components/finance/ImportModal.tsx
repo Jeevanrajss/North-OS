@@ -299,7 +299,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                   onDrop={onDrop}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    gap: 10, borderRadius: 14, padding: '32px 20px',
+                    gap: 10, borderRadius: 12, padding: '32px 20px',
                     border: `2px dashed ${dragging ? 'var(--primary-400)' : file ? 'var(--accent-green)' : 'var(--border-default)'}`,
                     background: dragging ? 'rgba(139,124,255,0.06)' : file ? 'rgba(61,255,152,0.04)' : 'var(--surface-elev)',
                     cursor: 'pointer', transition: 'all 200ms',

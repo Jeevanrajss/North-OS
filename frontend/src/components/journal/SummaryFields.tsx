@@ -58,7 +58,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
         gridTemplateColumns: '1fr 1fr',
         gap: 1,
         background: 'rgba(255,255,255,0.04)',
-        borderRadius: 14,
+        borderRadius: 12,
         overflow: 'hidden',
       }}
     >

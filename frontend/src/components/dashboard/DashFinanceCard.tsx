@@ -25,8 +25,8 @@ const CAT_COLORS: Record<string, string> = {
   travel:         'var(--accent-yellow)',
   shopping:       'var(--accent-green)',
   entertainment:  'var(--accent-pink)',
-  health:         '#FF7AD9',
-  utilities:      '#7FDBFF',
+  health:         'var(--accent-pink)',
+  utilities:      'var(--secondary-500)',
 };
 
 function catColor(name: string): string {
@@ -75,7 +75,7 @@ export function DashFinanceCard() {
   const budget     = curr?.budget_overall;
 
   return (
-    <div className="card" style={{ padding: 22 }}>
+    <div className="card" style={{ padding: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h3 style={{ margin: 0, font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>

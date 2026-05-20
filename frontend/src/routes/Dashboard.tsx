@@ -207,7 +207,7 @@ export function Dashboard() {
               <KpiTile
                 key="habits"
                 iconBg="rgba(255,184,107,0.12)"
-                iconColor="#FFB86B"
+                iconColor="var(--accent-yellow)"
                 icon={<Flame className="w-[18px] h-[18px]" />}
                 label="Habit Streak"
                 value={`${habitStats?.overall_current_streak ?? '—'}`}
@@ -220,7 +220,7 @@ export function Dashboard() {
               <KpiTile
                 key="journal"
                 iconBg="rgba(139,124,255,0.14)"
-                iconColor="#B8A5FF"
+                iconColor="var(--primary-300)"
                 icon={<BookText className="w-[18px] h-[18px]" />}
                 label="Journal Streak"
                 value={`${journalStats?.current_streak ?? '—'}`}
@@ -233,7 +233,7 @@ export function Dashboard() {
               <KpiTile
                 key="finance"
                 iconBg="rgba(184,165,255,0.10)"
-                iconColor="#B8A5FF"
+                iconColor="var(--primary-300)"
                 icon={<Wallet className="w-[18px] h-[18px]" />}
                 label="Subs this month"
                 value={finSummary ? fmtCurrency(finSummary.total_expense, displayCurrency) : '—'}
@@ -245,7 +245,7 @@ export function Dashboard() {
               <KpiTile
                 key="subscriptions"
                 iconBg="rgba(255,215,106,0.12)"
-                iconColor="#FFD76A"
+                iconColor="var(--accent-yellow)"
                 icon={<CalendarClock className="w-[18px] h-[18px]" />}
                 label="Due this week"
                 value={dueThisWeek === 0 && trialsEndingSoon === 0 ? '0' : `${dueThisWeek + trialsEndingSoon}`}
@@ -363,7 +363,7 @@ function KpiTile({
           style={{
             font: '500 22px/1.1 var(--font-display)',
             letterSpacing: '-0.01em',
-            color: highlight ? '#FFD76A' : 'var(--fg-1)',
+            color: highlight ? 'var(--accent-yellow)' : 'var(--fg-1)',
           }}
         >
           {value}

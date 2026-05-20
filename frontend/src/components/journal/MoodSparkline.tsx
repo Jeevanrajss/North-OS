@@ -141,9 +141,9 @@ export function MoodSparkline() {
         >
           <defs>
             <linearGradient id={LINE_GRAD} x1="0" y1="0" x2={W} y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#3EBEFF" />
-              <stop offset="50%"  stopColor="#8B7CFF" />
-              <stop offset="100%" stopColor="#FF7AD9" />
+              <stop offset="0%"   stopColor="var(--secondary-500)" />
+              <stop offset="50%"  stopColor="var(--primary-500)" />
+              <stop offset="100%" stopColor="var(--accent-pink)" />
             </linearGradient>
             <linearGradient id={AREA_GRAD} x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="rgba(139,124,255,0.45)" />
@@ -174,7 +174,7 @@ export function MoodSparkline() {
           {/* Endpoint dot */}
           {chart.lastPt && (
             <>
-              <circle cx={chart.lastPt.x} cy={chart.lastPt.y} r={6} fill="#8B7CFF" fillOpacity={0.3} />
+              <circle cx={chart.lastPt.x} cy={chart.lastPt.y} r={6} fill="var(--primary-500)" fillOpacity={0.3} />
               <circle cx={chart.lastPt.x} cy={chart.lastPt.y} r={3.5} fill="white" />
             </>
           )}

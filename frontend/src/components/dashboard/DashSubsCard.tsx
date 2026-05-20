@@ -43,7 +43,7 @@ export function DashSubsCard() {
   const soonCount    = allUpcoming.filter((u) => u.days_until >= 0 && u.days_until <= 7 && u.subscription.amount > 0).length;
 
   return (
-    <div className="card" style={{ padding: 22 }}>
+    <div className="card" style={{ padding: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
         <h3 style={{ margin: 0, font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>

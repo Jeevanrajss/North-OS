@@ -94,6 +94,7 @@
     --dur-fast: 120ms;
     --transition: all var(--dur) var(--ease);
     --font-display: "Clash Grotesk", "Inter", system-ui, sans-serif;
+    --font-sans:    "Inter var", Inter, system-ui, -apple-system, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
     --radius-sm: 8px;
     --radius-md: 12px;

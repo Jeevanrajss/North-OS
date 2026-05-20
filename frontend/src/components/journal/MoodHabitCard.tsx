@@ -16,7 +16,7 @@ export function MoodHabitCard() {
   const maxLift = Math.max(0.01, ...meaningful.map((c) => Math.abs(c.mood_lift ?? 0)));
 
   return (
-    <div className="card" style={{ padding: 22, marginBottom: 0 }}>
+    <div className="card" style={{ padding: 20, marginBottom: 0 }}>
       {/* Head */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 22 }}>
         <div>

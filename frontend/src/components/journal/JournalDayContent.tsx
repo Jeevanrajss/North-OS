@@ -462,7 +462,7 @@ function EntriesEmptyState({ onStart }: { onStart: () => void }) {
       style={{
         width: '100%', textAlign: 'center',
         border: '1px dashed var(--border-default)',
-        borderRadius: 14,
+        borderRadius: 12,
         padding: 32,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
         background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)',

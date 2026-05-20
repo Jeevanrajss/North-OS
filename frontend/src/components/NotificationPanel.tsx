@@ -212,7 +212,7 @@ export function NotificationBell() {
             maxHeight: 480,
             background: 'var(--surface)',
             border: '1px solid var(--border-default)',
-            borderRadius: 14,
+            borderRadius: 12,
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
             overflow: 'hidden',
           }}

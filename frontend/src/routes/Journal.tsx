@@ -7,8 +7,8 @@ import { MoodSparkline } from '@/components/journal/MoodSparkline';
 import { TagCloud } from '@/components/journal/TagCloud';
 import { JournalAnnualCard } from '@/components/journal/JournalAnnualCard';
 import { MoodHabitCard } from '@/components/journal/MoodHabitCard';
-import { JournalExportButton } from '@/components/journal/JournalExportButton';
 import { NotificationBell } from '@/components/NotificationPanel';
+import { JournalExportButton } from '@/components/journal/JournalExportButton';
 import { JournalDayContent } from '@/components/journal/JournalDayContent';
 import { startOfMonth } from '@/lib/date';
 
@@ -67,9 +67,9 @@ export function Journal() {
           style={{ maxWidth: 1200, margin: '0 auto', padding: '10px 48px' }}
         >
           {/* Breadcrumb */}
-          <span style={{ color: '#7B8498', fontSize: 13, fontWeight: 500 }}>
+          <span style={{ color: 'var(--fg-4)', fontSize: 13, fontWeight: 500 }}>
             North OS{' '}
-            <span style={{ color: '#C9D0E0' }}>/ Journal</span>
+            <span style={{ color: 'var(--fg-2)' }}>/ Journal</span>
           </span>
 
           {/* Date stepper */}
@@ -77,8 +77,8 @@ export function Journal() {
             className="flex items-center gap-0.5"
             style={{
               marginLeft: 8,
-              background: '#151827',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border-default)',
               borderRadius: 12,
               padding: 4,
             }}
@@ -89,15 +89,15 @@ export function Journal() {
               className="flex items-center justify-center transition-colors"
               style={{
                 width: 32, height: 32, borderRadius: 8,
-                color: '#A0A9BC',
+                color: 'var(--fg-3)',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#232734';
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
                 (e.currentTarget as HTMLButtonElement).style.color = 'white';
               }}
               onMouseLeave={e => {
                 (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                (e.currentTarget as HTMLButtonElement).style.color = '#A0A9BC';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-3)';
               }}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -111,8 +111,8 @@ export function Journal() {
               <span
                 style={{
                   width: 6, height: 6, borderRadius: 999,
-                  background: '#9D8DFF',
-                  boxShadow: '0 0 8px #8B7CFF',
+                  background: 'var(--primary-400)',
+                  boxShadow: '0 0 8px var(--primary-500)',
                   flexShrink: 0,
                 }}
               />
@@ -125,15 +125,15 @@ export function Journal() {
               className="flex items-center justify-center transition-colors"
               style={{
                 width: 32, height: 32, borderRadius: 8,
-                color: '#A0A9BC',
+                color: 'var(--fg-3)',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = '#232734';
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
                 (e.currentTarget as HTMLButtonElement).style.color = 'white';
               }}
               onMouseLeave={e => {
                 (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                (e.currentTarget as HTMLButtonElement).style.color = '#A0A9BC';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-3)';
               }}
             >
               <ChevronRight className="w-4 h-4" />
@@ -146,20 +146,20 @@ export function Journal() {
               type="button"
               onClick={() => handleSelect(new Date())}
               style={{
-                height: 32, padding: '0 12px', borderRadius: 10,
+                height: 32, padding: '0 12px', borderRadius: 8,
                 fontSize: 12, fontWeight: 500,
-                color: '#A0A9BC',
-                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'var(--fg-3)',
+                border: '1px solid var(--border-default)',
                 background: 'transparent',
                 transition: 'all 250ms ease',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.color = 'white';
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-1)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-strong)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.color = '#A0A9BC';
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-3)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)';
               }}
             >
               Today
@@ -192,7 +192,7 @@ export function Journal() {
           </div>
           <h1
             style={{
-              font: '500 56px/1.05 "Clash Grotesk", Inter, sans-serif',
+              font: '500 56px/1.05 var(--font-display)',
               letterSpacing: '-0.025em',
               margin: '8px 0 4px',
               color: 'white',
