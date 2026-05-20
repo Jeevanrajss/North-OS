@@ -30,10 +30,15 @@
 @layer utilities {
   /* ink-500 / ink-700 shims */
   .bg-ink-700    { background-color: #232734; }
-  .border-ink-700 { border-color: #232734; }
   .text-ink-500  { color: #5A6275; }
   .text-ink-700  { color: #232734; }
   .text-ink-300  { color: #A0A9BC; }
+
+  /* Remap ink border utilities to match the white-tinted border design tokens.
+     ink-800/ink-700 are surface colours in the palette; using them as border
+     colours produces dark, near-invisible edges inconsistent with --border-default. */
+  .border-ink-800 { border-color: rgba(255,255,255,0.08); }  /* = --border-default */
+  .border-ink-700 { border-color: rgba(255,255,255,0.16); }  /* = --border-strong  */
   /* Aurora ambient layer — sits behind app content */
   .aurora-bg::before {
     content: "";
