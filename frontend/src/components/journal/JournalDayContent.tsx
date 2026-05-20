@@ -323,7 +323,78 @@ export function JournalDayContent({ date }: Props) {
         <ReflectCard iso={iso} day={day} />
       </div>
 
-      {/* ── Row 2: Daily Summary ──────────────────────────────────────────── */}
+      {/* ── Row 2: Entries ───────────────────────────────────────────────── */}
+      <div
+        style={{
+          borderRadius: 20,
+          background: 'var(--surface)',
+          border: '1px solid var(--border-default)',
+          padding: 24,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3
+              style={{
+                margin: 0,
+                font: '500 16px/1.2 var(--font-display)',
+                letterSpacing: '-0.01em',
+                color: 'var(--fg-1)',
+              }}
+            >
+              Entries
+            </h3>
+            <span
+              style={{
+                fontSize: 11, fontWeight: 500,
+                color: 'var(--fg-4)',
+                background: 'var(--surface-hover)',
+                padding: '2px 7px', borderRadius: 6,
+                fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {day.entries.length}
+            </span>
+          </div>
+          {!composingEntry && (
+            <button
+              type="button"
+              onClick={() => setComposingEntry(true)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 26, padding: '0 10px', borderRadius: 8,
+                font: '500 11.5px/1 var(--font-sans)',
+                color: 'var(--primary-300)',
+                background: 'rgba(139,124,255,0.10)',
+                border: '1px solid rgba(139,124,255,0.22)',
+                cursor: 'pointer',
+              }}
+            >
+              <Plus className="w-3 h-3" /> Add entry
+            </button>
+          )}
+        </div>
+
+        {day.entries.length === 0 && !composingEntry ? (
+          <EntriesEmptyState onStart={() => setComposingEntry(true)} />
+        ) : null}
+
+        <EntryList
+          entries={day.entries}
+          composing={composingEntry}
+          onSetComposing={setComposingEntry}
+          onCreate={(json, text) =>
+            createEntryMut.mutateAsync({ content_json: json, content_text: text }).then(() => undefined)
+          }
+          onUpdate={(id, json, text) =>
+            updateEntryMut.mutateAsync({ entryId: id, content_json: json, content_text: text }).then(() => undefined)
+          }
+          onDelete={(id) => deleteEntryMut.mutateAsync(id).then(() => undefined)}
+        />
+      </div>
+
+      {/* ── Row 3: Daily Summary ──────────────────────────────────────────── */}
       <div
         style={{
           borderRadius: 20,
@@ -379,92 +450,35 @@ export function JournalDayContent({ date }: Props) {
           disabled={summarizeMut.isPending}
         />
       </div>
-
-      {/* ── Row 3: Entries ───────────────────────────────────────────────── */}
-      <div
-        style={{
-          borderRadius: 20,
-          background: 'var(--surface)',
-          border: '1px solid var(--border-default)',
-          padding: 24,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h3
-              style={{
-                margin: 0,
-                font: '500 16px/1.2 var(--font-display)',
-                letterSpacing: '-0.01em',
-                color: 'var(--fg-1)',
-              }}
-            >
-              Entries
-            </h3>
-            <span
-              style={{
-                fontSize: 11, fontWeight: 500,
-                color: 'var(--fg-4)',
-                background: 'var(--surface-hover)',
-                padding: '2px 7px', borderRadius: 6,
-                fontVariantNumeric: 'tabular-nums',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
-              {day.entries.length}
-            </span>
-          </div>
-          {!composingEntry && (
-            <button
-              type="button"
-              onClick={() => setComposingEntry(true)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                height: 26, padding: '0 10px', borderRadius: 8,
-                font: '500 11.5px/1 var(--font-sans)',
-                color: 'var(--primary-300)',
-                background: 'rgba(139,124,255,0.10)',
-                border: '1px solid rgba(139,124,255,0.22)',
-                cursor: 'pointer',
-              }}
-            >
-              <Plus className="w-3 h-3" /> Add entry
-            </button>
-          )}
-        </div>
-
-        {day.entries.length === 0 && !composingEntry ? (
-          <EntriesEmptyState />
-        ) : null}
-
-        <EntryList
-          entries={day.entries}
-          composing={composingEntry}
-          onSetComposing={setComposingEntry}
-          onCreate={(json, text) =>
-            createEntryMut.mutateAsync({ content_json: json, content_text: text }).then(() => undefined)
-          }
-          onUpdate={(id, json, text) =>
-            updateEntryMut.mutateAsync({ entryId: id, content_json: json, content_text: text }).then(() => undefined)
-          }
-          onDelete={(id) => deleteEntryMut.mutateAsync(id).then(() => undefined)}
-        />
-      </div>
     </div>
   );
 }
 
-function EntriesEmptyState() {
+function EntriesEmptyState({ onStart }: { onStart: () => void }) {
   return (
-    <div style={{
-      border: '1px dashed var(--border-default)',
-      borderRadius: 14,
-      padding: 32,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-      textAlign: 'center',
-      background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)',
-    }}>
-      {/* Icon box */}
+    <button
+      type="button"
+      onClick={onStart}
+      style={{
+        width: '100%', textAlign: 'center',
+        border: '1px dashed var(--border-default)',
+        borderRadius: 14,
+        padding: 32,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+        background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)',
+        cursor: 'pointer',
+        transition: 'border-color 200ms, background 200ms',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,124,255,0.40)';
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.04)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)';
+        (e.currentTarget as HTMLButtonElement).style.background =
+          'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)';
+      }}
+    >
       <div style={{
         width: 40, height: 40, borderRadius: 12,
         display: 'grid', placeItems: 'center',
@@ -480,6 +494,6 @@ function EntriesEmptyState() {
       <div style={{ color: 'var(--fg-4)', fontSize: 12.5 }}>
         Short notes stack here — timestamped, searchable, AI-grounded.
       </div>
-    </div>
+    </button>
   );
 }

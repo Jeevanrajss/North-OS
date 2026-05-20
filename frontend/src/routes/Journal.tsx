@@ -28,9 +28,12 @@ function isToday(d: Date): boolean {
 
 // ── component ──────────────────────────────────────────────────────────────
 
+type Tab = 'entries' | 'insights';
+
 export function Journal() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [anchorMonth, setAnchorMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [activeTab, setActiveTab] = useState<Tab>('entries');
 
   function handleSelect(d: Date) {
     setSelectedDate(d);
@@ -209,55 +212,74 @@ export function Journal() {
               {format(selectedDate, 'MMMM d')}
             </span>
           </h1>
-          <p style={{ color: '#A0A9BC', fontSize: 14, margin: 0 }}>
-            One page per day. Mood, tags, summary — and as many entries as you want.
-          </p>
         </div>
 
-        {/* ── Day content: mood+tags | reflect, summary, entries ──────────── */}
-        <JournalDayContent date={selectedDate} />
-
-        {/* ── Insights section header ──────────────────────────────────────── */}
+        {/* ── Tab bar ───────────────────────────────────────────────────────── */}
         <div
-          className="flex items-baseline"
-          style={{ margin: '56px 0 18px' }}
+          className="flex items-center gap-1 mb-6"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 14,
+            padding: 4,
+            width: 'fit-content',
+          }}
         >
-          <h2
-            style={{
-              margin: 0,
-              font: '500 22px/1.2 "Clash Grotesk", Inter, sans-serif',
-              letterSpacing: '-0.01em',
-              color: 'white',
-            }}
-          >
-            Insights
-          </h2>
-          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
-          <span style={{ color: '#7B8498', fontSize: 12 }}>Last 30 days</span>
+          {(['entries', 'insights'] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '7px 22px',
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 180ms ease',
+                textTransform: 'capitalize',
+                background: activeTab === tab ? 'rgba(139,124,255,0.15)' : 'transparent',
+                color: activeTab === tab ? '#B8A5FF' : '#7B8498',
+                border: activeTab === tab ? '1px solid rgba(139,124,255,0.25)' : '1px solid transparent',
+              }}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
-        {/* 3-col: Calendar | Streak | Mood Trend */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <MonthCalendar
-            anchorMonth={anchorMonth}
-            onAnchorChange={setAnchorMonth}
-            selectedDate={selectedDate}
-            onSelect={handleSelect}
-          />
-          <StreakCard />
-          <MoodSparkline />
-        </div>
+        {/* ── Entries tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'entries' && (
+          <JournalDayContent date={selectedDate} />
+        )}
 
-        {/* 2-col: Habits & mood | Top tags */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 mt-4">
-          <MoodHabitCard />
-          <TagCloud />
-        </div>
+        {/* ── Insights tab ──────────────────────────────────────────────────── */}
+        {activeTab === 'insights' && (
+          <>
+            {/* 3-col: Calendar | Streak | Mood Trend */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <MonthCalendar
+                anchorMonth={anchorMonth}
+                onAnchorChange={setAnchorMonth}
+                selectedDate={selectedDate}
+                onSelect={handleSelect}
+              />
+              <StreakCard />
+              <MoodSparkline />
+            </div>
 
-        {/* Year in review */}
-        <div className="mt-4">
-          <JournalAnnualCard />
-        </div>
+            {/* 2-col: Habits & mood | Top tags */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 mt-4">
+              <MoodHabitCard />
+              <TagCloud />
+            </div>
+
+            {/* Year in review */}
+            <div className="mt-4">
+              <JournalAnnualCard />
+            </div>
+          </>
+        )}
 
       </div>
     </div>
