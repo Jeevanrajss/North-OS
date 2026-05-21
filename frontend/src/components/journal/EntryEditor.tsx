@@ -93,7 +93,7 @@ export function EntryEditor({ entry, onSave, autoFocus }: Props) {
   }
 
   return (
-    <div className="rounded-md border border-ink-800 bg-ink-950">
+    <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface)]">
       <div className="px-3 py-2.5">
         <EditorContent editor={editor} />
       </div>

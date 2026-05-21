@@ -240,7 +240,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                   type="date"
                   value={billingStartDate}
                   onChange={(e) => setBillingStartDate(e.target.value)}
-                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1.5 text-sm outline-none focus:border-emerald-500/60 text-ink-200 [color-scheme:dark]"
+                  className="w-full border border-emerald-500/30 rounded-md px-2 py-1.5 text-sm outline-none focus:border-emerald-500/60 text-ink-200 [color-scheme:dark]"
                 />
               </div>
               <div className="flex-1">
@@ -254,7 +254,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                   placeholder="e.g. 399"
                   min="0"
                   step="0.01"
-                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1.5 text-sm outline-none focus:border-emerald-500/60 placeholder:text-ink-400"
+                  className="w-full border border-emerald-500/30 rounded-md px-2 py-1.5 text-sm outline-none focus:border-emerald-500/60 placeholder:text-ink-400"
                 />
               </div>
             </div>

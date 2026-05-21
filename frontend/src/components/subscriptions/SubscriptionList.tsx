@@ -459,13 +459,13 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
               <div className="flex-1">
                 <label className="text-[10px] text-emerald-500/80 uppercase tracking-wide mb-0.5 block">Billing starts on</label>
                 <input type="date" value={billingStartDate} onChange={(e) => setBillingStartDate(e.target.value)}
-                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 text-ink-200 [color-scheme:dark]" />
+                  className="w-full border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 text-ink-200 [color-scheme:dark]" />
               </div>
               <div className="flex-1">
                 <label className="text-[10px] text-emerald-500/80 uppercase tracking-wide mb-0.5 block">Price after trial</label>
                 <input type="number" value={postTrialAmount} onChange={(e) => setPostTrialAmount(e.target.value)}
                   placeholder="e.g. 399" min="0" step="0.01"
-                  className="w-full bg-ink-900 border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 placeholder:text-ink-400" />
+                  className="w-full border border-emerald-500/30 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500/60 placeholder:text-ink-400" />
               </div>
             </div>
             <div className="flex items-end gap-2">

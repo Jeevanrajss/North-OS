@@ -59,7 +59,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Type toggle */}
-      <div className="flex gap-1 p-1 bg-ink-950 rounded-lg border border-ink-800">
+      <div className="flex gap-1 p-1 bg-[var(--surface)] rounded-lg border border-[var(--border-default)]">
         {(['expense', 'income', 'transfer'] as TransactionType[]).map((t) => (
           <button
             key={t}

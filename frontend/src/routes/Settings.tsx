@@ -218,7 +218,7 @@ function ModelField({
           </button>
         )}
         {open && suggestions.length > 0 && (
-          <ul className="absolute z-20 mt-1 w-full bg-ink-900 border border-ink-700 rounded-md shadow-xl max-h-48 overflow-auto">
+          <ul className="absolute z-20 mt-1 w-full bg-[var(--surface-elev)] border border-[var(--border-strong)] rounded-md shadow-xl max-h-48 overflow-auto">
             {suggestions.map((s) => (
               <li key={s}>
                 <button

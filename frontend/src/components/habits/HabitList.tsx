@@ -310,7 +310,7 @@ function HabitListRow({ habit, streak, onSave, onArchive }: RowProps) {
               }
             }}
             maxLength={80}
-            className="flex-1 min-w-0 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60"
+            className="flex-1 min-w-0 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60"
           />
           <button
             type="button"

@@ -170,7 +170,7 @@ export function FloatingChat() {
         </div>
 
         {/* Input */}
-        <div className="flex items-end gap-2 border-t border-ink-800 px-3 py-2 shrink-0">
+        <div className="flex items-end gap-2 border-t border-white/5 px-3 py-2 shrink-0">
           <textarea
             ref={textareaRef}
             value={input}
@@ -178,7 +178,7 @@ export function FloatingChat() {
             onKeyDown={onKeyDown}
             placeholder="Ask me anything…"
             rows={1}
-            className="flex-1 resize-none overflow-hidden bg-ink-900 border border-ink-800 rounded-md px-2.5 py-1.5 text-xs text-ink-100 placeholder:text-ink-500 outline-none focus:border-accent/60 leading-relaxed"
+            className="flex-1 resize-none overflow-hidden rounded-md px-2.5 py-1.5 text-xs text-ink-100 placeholder:text-ink-500 outline-none focus:border-accent/60 leading-relaxed"
             style={{ minHeight: '34px' }}
           />
           <button

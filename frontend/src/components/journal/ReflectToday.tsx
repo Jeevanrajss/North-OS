@@ -169,7 +169,7 @@ export function ReflectToday({ date }: Props) {
           )}
 
           {slot.text && (
-            <div className="rounded-md border border-ink-800 bg-ink-950/60 p-3">
+            <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface)] p-3">
               <div className="text-sm text-ink-100 leading-relaxed whitespace-pre-wrap">
                 {renderBold(slot.text)}
               </div>
