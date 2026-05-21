@@ -27,6 +27,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
     summary_learnings:  values.summary_learnings  ?? '',
     summary_gratitude:  values.summary_gratitude  ?? '',
   });
+  const [focusedKey, setFocusedKey] = useState<SummaryKey | null>(null);
   const timers = useRef<Partial<Record<SummaryKey, number>>>({});
   const initialKey = useRef<string>('');
 
@@ -50,72 +51,88 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
     }, 600);
   }
 
+  const anyFocused = focusedKey !== null;
+
   return (
-    /* gap:1px + border-subtle bg = hairline dividers between cells */
     <div
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: 1,
-        background: 'rgba(255,255,255,0.04)',
+        background: anyFocused ? 'rgba(139,124,255,0.20)' : 'rgba(255,255,255,0.06)',
         borderRadius: 12,
+        border: anyFocused
+          ? '1px solid rgba(139,124,255,0.40)'
+          : '1px solid var(--border-default)',
         overflow: 'hidden',
+        transition: 'border-color 200ms, background 200ms',
       }}
     >
-      {FIELDS.map((f) => (
-        <div
-          key={f.key}
-          className="group"
-          style={{
-            background: 'var(--surface)',
-            padding: '18px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'background 250ms ease',
-          }}
-          onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)')}
-          onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.background = 'var(--surface)')}
-          onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)'; }}
-          onBlurCapture={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--surface)'; }}
-        >
-          <div className="flex items-center gap-2 mb-2.5">
-            <span
-              style={{
-                width: 6, height: 6, borderRadius: 999, flexShrink: 0,
-                background: f.dot,
-              }}
-            />
-            <span
-              style={{
-                fontSize: '10.5px', fontWeight: 500,
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: 'var(--fg-4)',
-              }}
-            >
-              {f.label}
-            </span>
-          </div>
-          <textarea
-            value={local[f.key]}
-            onChange={(e) => update(f.key, e.target.value)}
-            disabled={disabled}
-            placeholder={f.placeholder}
-            rows={3}
+      {FIELDS.map((f) => {
+        const isFocused = focusedKey === f.key;
+        return (
+          <div
+            key={f.key}
             style={{
-              width: '100%',
-              resize: 'none',
-              background: 'transparent',
-              border: 0,
-              outline: 'none',
-              color: 'white',
-              font: '400 14px/22px var(--font-sans)',
-              minHeight: 72,
-              opacity: disabled ? 0.5 : 1,
+              background: isFocused
+                ? 'rgba(139,124,255,0.06)'
+                : 'rgba(0,0,0,0.22)',
+              padding: '16px 18px',
+              display: 'flex',
+              flexDirection: 'column',
+              cursor: 'text',
+              transition: 'background 180ms ease',
             }}
-            className="placeholder:text-ink-500"
-          />
-        </div>
-      ))}
+            onClick={() => {
+              const el = document.getElementById(`summary-${f.key}`);
+              el?.focus();
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2.5">
+              <span
+                style={{
+                  width: 6, height: 6, borderRadius: 999, flexShrink: 0,
+                  background: f.dot,
+                  boxShadow: isFocused ? `0 0 6px ${f.dot}` : 'none',
+                  transition: 'box-shadow 180ms',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '10.5px', fontWeight: 500,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: isFocused ? 'var(--fg-2)' : 'var(--fg-4)',
+                  transition: 'color 180ms',
+                }}
+              >
+                {f.label}
+              </span>
+            </div>
+            <textarea
+              id={`summary-${f.key}`}
+              value={local[f.key]}
+              onChange={(e) => update(f.key, e.target.value)}
+              onFocus={() => setFocusedKey(f.key)}
+              onBlur={() => setFocusedKey(null)}
+              disabled={disabled}
+              placeholder={f.placeholder}
+              rows={3}
+              style={{
+                width: '100%',
+                resize: 'none',
+                background: 'transparent',
+                border: 0,
+                outline: 'none',
+                color: 'var(--fg-1)',
+                font: '400 14px/22px var(--font-sans)',
+                minHeight: 72,
+                opacity: disabled ? 0.5 : 1,
+              }}
+              className="placeholder:text-ink-500"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
