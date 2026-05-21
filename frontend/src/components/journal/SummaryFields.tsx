@@ -14,10 +14,10 @@ type Props = {
 };
 
 const FIELDS: { key: SummaryKey; dot: string; label: string; placeholder: string }[] = [
-  { key: 'summary_highlights', dot: '#FFD76A', label: 'Highlights', placeholder: 'Biggest moments of the day…' },
-  { key: 'summary_wins',       dot: '#3DFF98', label: 'Wins',       placeholder: 'What went well?' },
-  { key: 'summary_learnings',  dot: '#3EBEFF', label: 'Learnings',  placeholder: 'What did you learn?' },
-  { key: 'summary_gratitude',  dot: '#FF7AD9', label: 'Gratitude',  placeholder: 'What are you grateful for?' },
+  { key: 'summary_highlights', dot: 'var(--accent-yellow)', label: 'Highlights', placeholder: 'Biggest moments of the day…' },
+  { key: 'summary_wins',       dot: 'var(--accent-green)',  label: 'Wins',       placeholder: 'What went well?' },
+  { key: 'summary_learnings',  dot: 'var(--secondary-500)', label: 'Learnings',  placeholder: 'What did you learn?' },
+  { key: 'summary_gratitude',  dot: 'var(--accent-pink)',   label: 'Gratitude',  placeholder: 'What are you grateful for?' },
 ];
 
 export function SummaryFields({ values, onPatch, disabled }: Props) {
@@ -67,22 +67,16 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
           key={f.key}
           className="group"
           style={{
-            background: '#0E1018',
+            background: 'var(--surface)',
             padding: '18px 20px',
             display: 'flex',
             flexDirection: 'column',
             transition: 'background 250ms ease',
           }}
-          onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = '#232734')}
-          onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.background = '#0E1018')}
-          onFocusCapture={e => {
-            const el = e.currentTarget as HTMLDivElement;
-            el.style.background = '#232734';
-          }}
-          onBlurCapture={e => {
-            const el = e.currentTarget as HTMLDivElement;
-            el.style.background = '#0E1018';
-          }}
+          onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.background = 'var(--surface)')}
+          onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)'; }}
+          onBlurCapture={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--surface)'; }}
         >
           <div className="flex items-center gap-2 mb-2.5">
             <span
@@ -95,7 +89,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
               style={{
                 fontSize: '10.5px', fontWeight: 500,
                 letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: '#7B8498',
+                color: 'var(--fg-4)',
               }}
             >
               {f.label}
@@ -114,7 +108,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
               border: 0,
               outline: 'none',
               color: 'white',
-              font: '400 14px/22px Inter, system-ui, sans-serif',
+              font: '400 14px/22px var(--font-sans)',
               minHeight: 72,
               opacity: disabled ? 0.5 : 1,
             }}

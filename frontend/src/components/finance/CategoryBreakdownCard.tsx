@@ -31,7 +31,7 @@ function getCatDotColor(category: string): string {
   if (c.includes('transport') || c.includes('travel')) return 'var(--secondary-500)';
   if (c.includes('shop') || c.includes('retail')) return 'var(--accent-pink)';
   if (c.includes('bill') || c.includes('util')) return 'var(--accent-red)';
-  if (c.includes('health') || c.includes('medical')) return '#FF7AD9';
+  if (c.includes('health') || c.includes('medical')) return 'var(--accent-pink)';
   return 'var(--fg-4)';
 }
 

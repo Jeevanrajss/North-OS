@@ -62,7 +62,7 @@ export function FinanceInsightsCard() {
           disabled={slot.isPending}
           title={generated ? 'Regenerate' : 'Generate insights'}
           style={{
-            padding: 5, borderRadius: 7,
+            padding: 5, borderRadius: 8,
             color: 'var(--primary-300)',
             background: 'rgba(139,124,255,0.10)',
             border: '1px solid rgba(139,124,255,0.22)',

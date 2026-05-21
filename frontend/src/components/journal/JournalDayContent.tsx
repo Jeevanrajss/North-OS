@@ -97,7 +97,7 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
           'radial-gradient(360px 240px at 80% 0%, rgba(139,124,255,0.22), transparent 60%)',
           'radial-gradient(280px 200px at 10% 100%, rgba(62,190,255,0.16), transparent 60%)',
           'linear-gradient(135deg, rgba(139,124,255,0.08), rgba(139,124,255,0.02))',
-          '#151827',
+          'var(--surface)',
         ].join(', '),
         border: '1px solid rgba(139,124,255,0.28)',
         boxShadow: '0 0 40px rgba(139,124,255,0.15)',
@@ -115,11 +115,11 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
 
       {/* Header */}
       <div className="flex items-center gap-1.5 relative z-10">
-        <Zap className="w-3 h-3" style={{ color: '#B8A5FF' }} />
+        <Zap className="w-3 h-3" style={{ color: 'var(--primary-300)' }} />
         <span
           style={{
             fontSize: 11, fontWeight: 500, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: '#B8A5FF',
+            textTransform: 'uppercase', color: 'var(--primary-300)',
           }}
         >
           Reflect with North AI
@@ -130,11 +130,11 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
       <div className="relative z-10 flex-1">
         <h3
           className="text-white leading-tight mb-2"
-          style={{ font: '500 24px/1.2 "Clash Grotesk", Inter, sans-serif', letterSpacing: '-0.01em', marginTop: 12 }}
+          style={{ font: '500 24px/1.2 var(--font-display)', letterSpacing: '-0.01em', marginTop: 12 }}
         >
           Ask anything about today.
         </h3>
-        <p style={{ color: '#A0A9BC', fontSize: 13.5, lineHeight: '22px', margin: '0 0 20px' }}>
+        <p style={{ color: 'var(--fg-3)', fontSize: 13.5, lineHeight: '22px', margin: '0 0 20px' }}>
           Gemma reads this day's moods, tags, summary, and entries — and reflects back.
           Runs locally via Ollama; no data leaves your machine.
         </p>
@@ -280,7 +280,7 @@ export function JournalDayContent({ date }: Props) {
             borderRadius: 20,
             background: [
               'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))',
-              '#151827',
+              'var(--surface)',
             ].join(', '),
             border: '1px solid rgba(255,255,255,0.08)',
             padding: '28px 32px',
@@ -425,7 +425,7 @@ export function JournalDayContent({ date }: Props) {
             )}
             style={{
               height: 26, padding: '0 10px',
-              color: '#B8A5FF',
+              color: 'var(--primary-300)',
               background: 'rgba(139,124,255,0.10)',
               border: '1px solid rgba(139,124,255,0.22)',
             }}

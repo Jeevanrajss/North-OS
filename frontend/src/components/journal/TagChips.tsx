@@ -79,8 +79,8 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
               borderRadius: 999,
               background: 'rgba(184,165,255,0.10)',
               border: '1px solid rgba(184,165,255,0.18)',
-              color: '#B8A5FF',
-              fontFamily: 'JetBrains Mono, Menlo, monospace',
+              color: 'var(--primary-300)',
+              fontFamily: 'var(--font-mono)',
               fontSize: '11.5px',
               fontWeight: 500,
             }}
@@ -125,18 +125,18 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
                 height: 22, padding: '0 9px',
                 borderRadius: 999,
                 background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#7B8498',
-                fontFamily: 'JetBrains Mono, Menlo, monospace',
+                border: '1px solid var(--border-default)',
+                color: 'var(--fg-4)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '11px',
               }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(184,165,255,0.30)';
-                (e.currentTarget as HTMLButtonElement).style.color = '#B8A5FF';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary-300)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)';
-                (e.currentTarget as HTMLButtonElement).style.color = '#7B8498';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-4)';
               }}
             >
               <Plus className="w-3 h-3" /> {s.name}

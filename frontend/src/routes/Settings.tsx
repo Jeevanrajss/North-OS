@@ -43,8 +43,8 @@ function ConnectionStatusPill({ result, isLoading }: { result?: LLMHealthResult;
     );
   }
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#f87171' }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', display: 'inline-block' }} />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--accent-red)' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-red)', display: 'inline-block' }} />
       Not reachable
     </span>
   );
@@ -370,7 +370,7 @@ function FinanceCategoriesPanel() {
                 {!cat.is_system && (
                   <button
                     onClick={() => { if (confirm(`Delete "${cat.name}"?`)) deleteMut.mutate(cat.id); }}
-                    style={{ fontSize: 11.5, padding: '2px 8px', borderRadius: 6, background: 'none', border: '1px solid rgba(248,113,113,0.35)', color: '#f87171', cursor: 'pointer' }}
+                    style={{ fontSize: 11.5, padding: '2px 8px', borderRadius: 6, background: 'none', border: '1px solid rgba(248,113,113,0.35)', color: 'var(--accent-red)', cursor: 'pointer' }}
                   >
                     Delete
                   </button>
@@ -443,7 +443,7 @@ function FinanceCategoriesPanel() {
               </div>
             </div>
             {createMut.isError && (
-              <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{String(createMut.error)}</p>
+              <p style={{ fontSize: 12, color: 'var(--accent-red)', margin: 0 }}>{String(createMut.error)}</p>
             )}
           </div>
         )}
@@ -661,7 +661,7 @@ function SmsSetupPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* ── HTTP SMS card ── */}
-      <div className="card" style={{ padding: 22 }}>
+      <div className="card" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 18 }}>📱</span>
           <h4 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
@@ -875,7 +875,7 @@ function SmsSetupPanel() {
       </div>
 
       {/* ── iMessage card ── */}
-      <div className="card" style={{ padding: 22 }}>
+      <div className="card" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 18 }}>💻</span>
           <h4 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
@@ -1034,7 +1034,7 @@ function AppLockPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ── PIN / password card ── */}
-      <div className="card" style={{ padding: 22 }}>
+      <div className="card" style={{ padding: 20 }}>
         {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: mode !== 'idle' ? 20 : 0 }}>
           <div>
@@ -1146,7 +1146,7 @@ function AppLockPanel() {
 
       {/* ── Biometric card ── */}
       {showBioCard && (
-        <div className="card" style={{ padding: 22 }}>
+        <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -1669,7 +1669,7 @@ function UpdateChecker() {
       style={{
         height: 28, padding: '0 12px', borderRadius: 8,
         fontSize: 11.5, fontWeight: 500,
-        color: status === 'done' ? '#6EE7B7' : status === 'error' ? 'var(--fg-4)' : 'var(--fg-3)',
+        color: status === 'done' ? 'var(--accent-green)' : status === 'error' ? 'var(--fg-4)' : 'var(--fg-3)',
         border: '1px solid rgba(255,255,255,0.08)',
         background: 'transparent',
         cursor: status === 'checking' ? 'default' : 'pointer',
@@ -2061,7 +2061,7 @@ export function Settings() {
               <ConnectionStatusPill result={healthResult} isLoading={healthLoading} />
             </div>
           </div>
-          <div className="card" style={{ padding: 22 }}>
+          <div className="card" style={{ padding: 20 }}>
 
           {/* Unreachable banner */}
           {healthResult?.ok === false && (
@@ -2069,7 +2069,7 @@ export function Settings() {
               marginBottom: 16, padding: '10px 14px', borderRadius: 10,
               background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.22)',
             }}>
-              <p style={{ margin: '0 0 3px', fontSize: 12.5, fontWeight: 500, color: '#fca5a5' }}>
+              <p style={{ margin: '0 0 3px', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,91,110,0.75)' }}>
                 📡 AI server not reachable
               </p>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-4)', lineHeight: '18px' }}>
@@ -2084,7 +2084,7 @@ export function Settings() {
               marginBottom: 16, padding: '10px 14px', borderRadius: 10,
               background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
             }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#fde68a' }}>ℹ️ {healthResult.note}</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--accent-yellow)' }}>ℹ️ {healthResult.note}</p>
             </div>
           )}
 
@@ -2311,7 +2311,7 @@ export function Settings() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="card" style={{ padding: 22 }}>
+            <div className="card" style={{ padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: 18 }}>🔒</span>
                 <h4 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>Local encryption</h4>
@@ -2321,7 +2321,7 @@ export function Settings() {
                 It is never sent to any third party.
               </p>
             </div>
-            <div className="card" style={{ padding: 22 }}>
+            <div className="card" style={{ padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: 18 }}>🌐</span>
                 <h4 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>Local vs Cloud</h4>
@@ -2364,7 +2364,7 @@ export function Settings() {
 
           <div style={{
             border: '1px solid rgba(239,68,68,0.35)',
-            borderRadius: 14,
+            borderRadius: 12,
             overflow: 'hidden',
           }}>
             {/* Row */}
@@ -2387,7 +2387,7 @@ export function Settings() {
                   display: 'inline-flex', alignItems: 'center', gap: 7,
                   padding: '7px 16px', borderRadius: 8,
                   font: '500 13px/1 var(--font-sans)',
-                  color: '#fca5a5',
+                  color: 'rgba(255,91,110,0.75)',
                   background: 'rgba(239,68,68,0.1)',
                   border: '1px solid rgba(239,68,68,0.4)',
                   cursor: 'pointer', whiteSpace: 'nowrap',
@@ -2408,7 +2408,7 @@ export function Settings() {
               marginTop: 12, padding: '10px 16px', borderRadius: 8,
               background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
               display: 'flex', alignItems: 'center', gap: 8,
-              fontSize: 13, color: '#86efac',
+              fontSize: 13, color: 'var(--accent-green)',
             }}>
               <Check style={{ width: 14, height: 14, flexShrink: 0 }} />
               All data wiped successfully. Your settings have been preserved.
@@ -2442,7 +2442,7 @@ export function Settings() {
                 padding: '18px 22px 14px',
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}>
-                <AlertTriangle style={{ width: 18, height: 18, color: '#f87171', flexShrink: 0 }} />
+                <AlertTriangle style={{ width: 18, height: 18, color: 'var(--accent-red)', flexShrink: 0 }} />
                 <span style={{ font: '600 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
                   {wipeStep === 1 && 'Are you sure?'}
                   {wipeStep === 2 && 'Understand what will be deleted'}
@@ -2453,7 +2453,7 @@ export function Settings() {
                   {[1, 2, 3].map(s => (
                     <div key={s} style={{
                       width: 6, height: 6, borderRadius: '50%',
-                      background: s <= wipeStep ? '#f87171' : 'rgba(255,255,255,0.15)',
+                      background: s <= wipeStep ? 'var(--accent-red)' : 'rgba(255,255,255,0.15)',
                       transition: 'background 0.2s',
                     }} />
                   ))}
@@ -2466,7 +2466,7 @@ export function Settings() {
                   <>
                     <p style={{ margin: '0 0 18px', fontSize: 13.5, color: 'var(--fg-3)', lineHeight: 1.65 }}>
                       You are about to permanently delete <strong style={{ color: 'var(--fg-1)' }}>all your data</strong> from North&nbsp;OS.
-                      This action <strong style={{ color: '#f87171' }}>cannot be undone</strong> — there is no recovery option.
+                      This action <strong style={{ color: 'var(--accent-red)' }}>cannot be undone</strong> — there is no recovery option.
                     </p>
                     <p style={{ margin: '0 0 22px', fontSize: 13, color: 'var(--fg-4)', lineHeight: 1.6 }}>
                       Your AI provider settings and app preferences will be preserved.
@@ -2489,7 +2489,7 @@ export function Settings() {
                         onClick={() => setWipeStep(2)}
                         style={{
                           padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                          color: '#fca5a5', background: 'rgba(239,68,68,0.12)',
+                          color: 'rgba(255,91,110,0.75)', background: 'rgba(239,68,68,0.12)',
                           border: '1px solid rgba(239,68,68,0.4)', cursor: 'pointer',
                         }}
                       >
@@ -2502,7 +2502,7 @@ export function Settings() {
                 {wipeStep === 2 && (
                   <>
                     <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--fg-4)' }}>
-                      The following data will be <strong style={{ color: '#f87171' }}>permanently deleted</strong>:
+                      The following data will be <strong style={{ color: 'var(--accent-red)' }}>permanently deleted</strong>:
                     </p>
                     <ul style={{ margin: '0 0 20px', padding: '0 0 0 18px', fontSize: 13, color: 'var(--fg-3)', lineHeight: 2 }}>
                       <li>All transactions, budgets, and bank accounts</li>
@@ -2516,7 +2516,7 @@ export function Settings() {
                     <div style={{
                       padding: '10px 14px', borderRadius: 8, marginBottom: 20,
                       background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                      fontSize: 12.5, color: '#fca5a5', lineHeight: 1.6,
+                      fontSize: 12.5, color: 'rgba(255,91,110,0.75)', lineHeight: 1.6,
                     }}>
                       ✓ Kept: your AI provider settings, profile preferences, and app configuration.
                     </div>
@@ -2537,7 +2537,7 @@ export function Settings() {
                         onClick={() => setWipeStep(3)}
                         style={{
                           padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                          color: '#fca5a5', background: 'rgba(239,68,68,0.12)',
+                          color: 'rgba(255,91,110,0.75)', background: 'rgba(239,68,68,0.12)',
                           border: '1px solid rgba(239,68,68,0.4)', cursor: 'pointer',
                         }}
                       >
@@ -2550,7 +2550,7 @@ export function Settings() {
                 {wipeStep === 3 && (
                   <>
                     <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.65 }}>
-                      To confirm, type <strong style={{ color: 'var(--fg-1)', fontFamily: 'monospace' }}>delete my data</strong> in the box below.
+                      To confirm, type <strong style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-mono)' }}>delete my data</strong> in the box below.
                     </p>
                     <input
                       type="text"
@@ -2567,7 +2567,7 @@ export function Settings() {
                           : '1px solid rgba(255,255,255,0.1)',
                         color: 'var(--fg-1)', outline: 'none',
                         marginBottom: 20,
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono)',
                         transition: 'border 0.15s',
                       }}
                     />
@@ -2590,7 +2590,7 @@ export function Settings() {
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: 7,
                           padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                          color: wipeConfirmText === 'delete my data' ? '#fff' : '#fca5a5',
+                          color: wipeConfirmText === 'delete my data' ? '#fff' : 'var(--accent-red)',
                           background: wipeConfirmText === 'delete my data'
                             ? 'rgba(239,68,68,0.8)' : 'rgba(239,68,68,0.12)',
                           border: '1px solid rgba(239,68,68,0.5)',
@@ -2606,7 +2606,7 @@ export function Settings() {
                       </button>
                     </div>
                     {wipeMut.isError && (
-                      <p style={{ margin: '10px 0 0', fontSize: 12, color: '#f87171' }}>
+                      <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--accent-red)' }}>
                         Something went wrong. Please try again.
                       </p>
                     )}

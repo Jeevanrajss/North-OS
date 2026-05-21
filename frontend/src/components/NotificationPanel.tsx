@@ -191,7 +191,7 @@ export function NotificationBell() {
               top: -5, right: -5,
               minWidth: 16, height: 16,
               padding: '0 4px',
-              background: '#FF5B6E',
+              background: 'var(--accent-red)',
               boxShadow: '0 0 6px rgba(255,91,110,0.6)',
               fontSize: 9, fontWeight: 700,
               fontFamily: 'var(--font-mono)',

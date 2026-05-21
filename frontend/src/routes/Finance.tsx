@@ -444,7 +444,7 @@ function StatChip({
   return (
     <div
       className="relative overflow-hidden"
-      style={{ borderRadius: 18, padding: 22, background: 'var(--surface)', border: '1px solid var(--border-default)' }}
+      style={{ borderRadius: 16, padding: 20, background: 'var(--surface)', border: '1px solid var(--border-default)' }}
     >
       {/* Corner halo */}
       <span

@@ -358,7 +358,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               </p>
 
               {previewMut.isError && (
-                <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{String(previewMut.error)}</p>
+                <p style={{ fontSize: 12, color: 'var(--accent-red)', margin: 0 }}>{String(previewMut.error)}</p>
               )}
             </div>
           )}
@@ -441,7 +441,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               )}
 
               {previewMut.isError && (
-                <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{String(previewMut.error)}</p>
+                <p style={{ fontSize: 12, color: 'var(--accent-red)', margin: 0 }}>{String(previewMut.error)}</p>
               )}
             </div>
           )}
@@ -459,7 +459,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 )}
                 <span>{rows.length} rows parsed</span>
                 {dupCount > 0 && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#f59e0b' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent-yellow)' }}>
                     <AlertTriangle style={{ width: 12, height: 12 }} /> {dupCount} possible duplicate{dupCount > 1 ? 's' : ''}
                   </span>
                 )}
@@ -522,7 +522,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                         </td>
                         <td style={{ padding: '7px 10px', color: 'var(--fg-3)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {row.is_duplicate && (
-                            <span title="Possible duplicate" style={{ marginRight: 4, color: '#f59e0b' }}>⚠</span>
+                            <span title="Possible duplicate" style={{ marginRight: 4, color: 'var(--accent-yellow)' }}>⚠</span>
                           )}
                           {row.description}
                         </td>
@@ -557,7 +557,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               </div>
 
               {confirmMut.isError && (
-                <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{String(confirmMut.error)}</p>
+                <p style={{ fontSize: 12, color: 'var(--accent-red)', margin: 0 }}>{String(confirmMut.error)}</p>
               )}
             </div>
           )}
@@ -575,7 +575,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--fg-3)' }}>
                   <strong style={{ color: 'var(--accent-green)' }}>{result.imported}</strong> transaction{result.imported !== 1 ? 's' : ''} imported
                   {result.skipped > 0 && (
-                    <>, <strong style={{ color: '#f59e0b' }}>{result.skipped}</strong> skipped as duplicates</>
+                    <>, <strong style={{ color: 'var(--accent-yellow)' }}>{result.skipped}</strong> skipped as duplicates</>
                   )}
                 </p>
               </div>

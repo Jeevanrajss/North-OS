@@ -135,7 +135,7 @@ export function SubscriptionList() {
               type="button"
               onClick={() => setFilter(f)}
               style={{
-                height: 28, padding: '0 12px', borderRadius: 7,
+                height: 28, padding: '0 12px', borderRadius: 8,
                 font: '500 12px/1 var(--font-sans)',
                 color: filter === f ? 'var(--fg-1)' : 'var(--fg-3)',
                 background: filter === f ? 'var(--surface-elev)' : 'transparent',
@@ -160,7 +160,7 @@ export function SubscriptionList() {
               onClick={() => setView(v)}
               title={v === 'grid' ? 'Card grid' : 'List view'}
               style={{
-                width: 30, height: 28, borderRadius: 7,
+                width: 30, height: 28, borderRadius: 8,
                 display: 'grid', placeItems: 'center',
                 color: view === v ? 'var(--fg-1)' : 'var(--fg-4)',
                 background: view === v ? 'var(--surface-elev)' : 'transparent',
@@ -629,7 +629,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 12px 0 4px' }}
         >
           <button type="button" onClick={beginEdit} title="Edit"
-            style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
+            style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-elev)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-4)'; }}
           >
@@ -637,12 +637,12 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           </button>
           {isPaused ? (
             <button type="button" onClick={() => void onResume()} title="Resume"
-              style={{ padding: 5, borderRadius: 7, color: 'var(--accent-green)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}>
+              style={{ padding: 5, borderRadius: 8, color: 'var(--accent-green)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}>
               <Play style={{ width: 12, height: 12 }} />
             </button>
           ) : (
             <button type="button" onClick={() => void onPause()} title="Pause"
-              style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
+              style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-yellow)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-4)'; }}
             >
@@ -652,17 +652,17 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           {confirmCancel ? (
             <>
               <button type="button" onClick={() => void onCancel()}
-                style={{ padding: '3px 7px', borderRadius: 7, fontSize: 10, background: 'rgba(255,91,110,0.12)', border: '1px solid rgba(255,91,110,0.30)', color: 'var(--accent-red)', cursor: 'pointer' }}>
+                style={{ padding: '3px 7px', borderRadius: 8, fontSize: 10, background: 'rgba(255,91,110,0.12)', border: '1px solid rgba(255,91,110,0.30)', color: 'var(--accent-red)', cursor: 'pointer' }}>
                 Confirm
               </button>
               <button type="button" onClick={() => setConfirmCancel(false)}
-                style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}>
+                style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}>
                 <X style={{ width: 11, height: 11 }} />
               </button>
             </>
           ) : (
             <button type="button" onClick={() => setConfirmCancel(true)} title="Cancel subscription"
-              style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
+              style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-red)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-4)'; }}
             >
@@ -799,7 +799,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)',
           marginBottom: 12,
         }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--surface-elev)', display: 'grid', placeItems: 'center', color: 'var(--fg-3)' }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--surface-elev)', display: 'grid', placeItems: 'center', color: 'var(--fg-3)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
           </div>
           <div>
@@ -922,7 +922,7 @@ function CancelledRow({ sub, displayMode = 'grid', onRestore }: { sub: Subscript
         {/* Restore */}
         <div style={{ padding: '0 12px' }}>
           <button type="button" onClick={() => void doRestore()} disabled={restoring} title="Restore"
-            style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'transparent', border: '1px solid var(--border-default)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+            style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid var(--border-default)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-green)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(61,255,152,0.30)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-4)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)'; }}
           >

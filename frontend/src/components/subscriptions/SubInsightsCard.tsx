@@ -63,7 +63,7 @@ export function SubInsightsCard() {
           title={generated ? 'Refresh' : 'Generate insights'}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 7,
+            padding: '4px 10px', borderRadius: 8,
             font: '500 12px/1 var(--font-sans)',
             color: 'var(--primary-300)',
             background: 'rgba(139,124,255,0.10)',

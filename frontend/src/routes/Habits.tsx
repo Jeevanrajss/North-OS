@@ -243,21 +243,21 @@ export function Habits() {
           {/* 3 KPI tiles */}
           <div className="grid grid-cols-3 gap-3 mt-6">
             <HeroKpi
-              iconBg="rgba(255,184,107,0.12)" iconColor="#FFB86B"
+              iconBg="rgba(255,184,107,0.12)" iconColor="var(--accent-yellow)"
               icon={<Flame className="w-[18px] h-[18px]" />}
               label="Current streak"
               value={streak > 0 ? String(streak) : '—'}
               unit={streak !== 1 ? 'days' : 'day'}
             />
             <HeroKpi
-              iconBg="rgba(139,124,255,0.12)" iconColor="#B8A5FF"
+              iconBg="rgba(139,124,255,0.12)" iconColor="var(--primary-300)"
               icon={<CalendarCheck className="w-[18px] h-[18px]" />}
               label="Today"
               value={todayTotal > 0 ? String(todayDone) : '—'}
               unit={todayTotal > 0 ? `/ ${todayTotal} done` : undefined}
             />
             <HeroKpi
-              iconBg="rgba(61,255,152,0.10)" iconColor="#3DFF98"
+              iconBg="rgba(61,255,152,0.10)" iconColor="var(--accent-green)"
               icon={<TrendingUp className="w-[18px] h-[18px]" />}
               label="30-day rate"
               value={habitStats ? String(rate30) : '—'}
@@ -334,7 +334,7 @@ export function Habits() {
           </div>
 
           {/* Week Overview */}
-          <div className="card" style={{ padding: 22 }}>
+          <div className="card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               {/* Section heading with hairline */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flex: 1, minWidth: 0 }}>
@@ -387,7 +387,7 @@ export function Habits() {
             <div
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 2,
-                padding: 3, borderRadius: 10, marginBottom: 16,
+                padding: 3, borderRadius: 8, marginBottom: 16,
                 background: 'var(--surface)', border: '1px solid var(--border-default)',
               }}
             >

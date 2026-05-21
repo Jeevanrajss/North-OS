@@ -89,8 +89,8 @@ function BudgetRow({
 }) {
   const over = pct > 100;
   const warn = pct > 80;
-  const barColor = over ? 'var(--accent-red)' : warn ? '#F59E0B' : 'var(--accent-green)';
-  const textColor = over ? 'var(--accent-red)' : warn ? '#F59E0B' : 'var(--fg-3)';
+  const barColor = over ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--accent-green)';
+  const textColor = over ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--fg-3)';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
@@ -273,7 +273,7 @@ export function MonthlyReportView({ year, month }: Props) {
           label="Savings Rate"
           value={`${report.savings_rate}%`}
           sub={`${report.transaction_count} transactions`}
-          valueColor={report.savings_rate >= 20 ? 'var(--accent-green)' : report.savings_rate >= 0 ? '#F59E0B' : 'var(--accent-red)'}
+          valueColor={report.savings_rate >= 20 ? 'var(--accent-green)' : report.savings_rate >= 0 ? 'var(--accent-yellow)' : 'var(--accent-red)'}
         />
       </div>
 

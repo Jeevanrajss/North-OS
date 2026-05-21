@@ -237,7 +237,7 @@ export function Journal() {
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 14,
+            borderRadius: 12,
             padding: 4,
             width: 'fit-content',
           }}
@@ -249,14 +249,14 @@ export function Journal() {
               onClick={() => setActiveTab(tab)}
               style={{
                 padding: '7px 22px',
-                borderRadius: 10,
+                borderRadius: 8,
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'all 180ms ease',
                 textTransform: 'capitalize',
                 background: activeTab === tab ? 'rgba(139,124,255,0.15)' : 'transparent',
-                color: activeTab === tab ? '#B8A5FF' : '#7B8498',
+                color: activeTab === tab ? 'var(--primary-300)' : 'var(--fg-4)',
                 border: activeTab === tab ? '1px solid rgba(139,124,255,0.25)' : '1px solid transparent',
               }}
             >

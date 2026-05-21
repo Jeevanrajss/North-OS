@@ -63,7 +63,7 @@ export function HabitInsightsCard() {
           title={generated ? 'Refresh' : 'Generate insights'}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 7,
+            padding: '4px 10px', borderRadius: 8,
             font: '500 12px/1 var(--font-sans)',
             color: 'var(--accent-orange)',
             background: 'rgba(255,184,107,0.10)',

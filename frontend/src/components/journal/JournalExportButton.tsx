@@ -83,8 +83,8 @@ export function JournalExportButton() {
             right: 0,
             zIndex: 60,
             width: 300,
-            background: '#13151f',
-            border: '1px solid rgba(255,255,255,0.10)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border-default)',
             borderRadius: 16,
             padding: '20px',
             boxShadow: '0 12px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
@@ -107,8 +107,8 @@ export function JournalExportButton() {
                     cursor: 'pointer',
                     transition: 'all 150ms',
                     background: active ? 'rgba(139,124,255,0.18)' : 'rgba(255,255,255,0.05)',
-                    border: active ? '1px solid rgba(139,124,255,0.45)' : '1px solid rgba(255,255,255,0.08)',
-                    color: active ? '#C4B5FF' : '#7B8498',
+                    border: active ? '1px solid rgba(139,124,255,0.45)' : '1px solid var(--border-default)',
+                    color: active ? 'var(--primary-300)' : 'var(--fg-4)',
                   }}
                 >
                   {label}
@@ -120,18 +120,18 @@ export function JournalExportButton() {
           {/* Date inputs */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#566175', marginBottom: 5 }}>From</label>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--fg-4)', marginBottom: 5 }}>From</label>
               <input
                 type="date"
                 value={start}
                 max={end}
                 onChange={(e) => { setStart(e.target.value); setActivePreset(''); }}
                 className="w-full rounded-md px-2.5 py-1.5 text-sm outline-none [color-scheme:dark]"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#C9D0E0', fontSize: 12 }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--fg-2)', fontSize: 12 }}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#566175', marginBottom: 5 }}>To</label>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--fg-4)', marginBottom: 5 }}>To</label>
               <input
                 type="date"
                 value={end}
@@ -139,12 +139,12 @@ export function JournalExportButton() {
                 max={today}
                 onChange={(e) => { setEnd(e.target.value); setActivePreset(''); }}
                 className="w-full rounded-md px-2.5 py-1.5 text-sm outline-none [color-scheme:dark]"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#C9D0E0', fontSize: 12 }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--fg-2)', fontSize: 12 }}
               />
             </div>
           </div>
 
-          <p style={{ fontSize: 11, color: '#566175', marginBottom: 16, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 16, lineHeight: 1.5 }}>
             Exports as Markdown (.md) — includes mood, tags, daily summary, and all entries.
           </p>
 
@@ -154,9 +154,9 @@ export function JournalExportButton() {
               type="button"
               onClick={() => setOpen(false)}
               style={{
-                flex: 1, padding: '8px 0', borderRadius: 9, fontSize: 12.5, fontWeight: 500,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                color: '#7B8498', cursor: 'pointer',
+                flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12.5, fontWeight: 500,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)',
+                color: 'var(--fg-3)', cursor: 'pointer',
               }}
             >
               Cancel
@@ -166,10 +166,10 @@ export function JournalExportButton() {
               onClick={handleExport}
               disabled={!start || !end || start > end || loading}
               style={{
-                flex: 1, padding: '8px 0', borderRadius: 9, fontSize: 12.5, fontWeight: 500,
+                flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12.5, fontWeight: 500,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 background: 'rgba(139,124,255,0.18)', border: '1px solid rgba(139,124,255,0.40)',
-                color: '#C4B5FF', cursor: 'pointer',
+                color: 'var(--primary-300)', cursor: 'pointer',
                 opacity: (!start || !end || start > end || loading) ? 0.45 : 1,
               }}
             >

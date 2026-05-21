@@ -24,9 +24,9 @@ type Props = {
 
 function valenceStyle(v: number | null): { bg: string; color: string } {
   if (v == null) return { bg: 'transparent', color: '' };
-  if (v >= 0.5)  return { bg: 'rgba(61,255,152,0.10)',  color: '#B4F5CB' };
-  if (v > -0.5)  return { bg: 'rgba(255,184,77,0.10)',  color: '#FFD9A2' };
-  return           { bg: 'rgba(255,91,110,0.12)',        color: '#FFC4CB' };
+  if (v >= 0.5)  return { bg: 'rgba(61,255,152,0.10)',  color: 'var(--accent-green)' };
+  if (v > -0.5)  return { bg: 'rgba(255,184,77,0.10)',  color: 'var(--accent-yellow)' };
+  return           { bg: 'rgba(255,91,110,0.12)',        color: 'var(--accent-red)' };
 }
 
 export function MonthCalendar({

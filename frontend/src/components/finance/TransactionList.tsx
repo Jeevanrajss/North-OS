@@ -55,7 +55,7 @@ function getIconStyle(category: string | null | undefined, type: string): { bg: 
   if (c.includes('transport') || c.includes('travel') || c.includes('cab')) return { bg: 'rgba(62,190,255,0.14)', color: 'var(--secondary-500)' };
   if (c.includes('shop') || c.includes('retail')) return { bg: 'rgba(255,122,217,0.14)', color: 'var(--accent-pink)' };
   if (c.includes('bill') || c.includes('util')) return { bg: 'rgba(255,91,110,0.14)', color: 'var(--accent-red)' };
-  if (c.includes('health') || c.includes('medical')) return { bg: 'rgba(255,122,217,0.14)', color: '#FF7AD9' };
+  if (c.includes('health') || c.includes('medical')) return { bg: 'rgba(255,122,217,0.14)', color: 'var(--accent-pink)' };
   return { bg: 'rgba(255,255,255,0.06)', color: 'var(--fg-3)' };
 }
 
@@ -270,7 +270,7 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
               disabled={page === 0}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
-                padding: '5px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
                 cursor: page === 0 ? 'default' : 'pointer',
                 background: 'var(--surface-elev)',
                 border: '1px solid var(--border-default)',
@@ -301,7 +301,7 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
                     key={p}
                     onClick={() => setPage(p)}
                     style={{
-                      width: 28, height: 28, borderRadius: 7, fontSize: 12, fontWeight: 500,
+                      width: 28, height: 28, borderRadius: 8, fontSize: 12, fontWeight: 500,
                       cursor: 'pointer',
                       background: p === page ? 'var(--primary-500)' : 'var(--surface-elev)',
                       border: `1px solid ${p === page ? 'var(--primary-500)' : 'var(--border-default)'}`,
@@ -320,7 +320,7 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
               disabled={page >= totalPages - 1}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
-                padding: '5px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
                 cursor: page >= totalPages - 1 ? 'default' : 'pointer',
                 background: 'var(--surface-elev)',
                 border: '1px solid var(--border-default)',
