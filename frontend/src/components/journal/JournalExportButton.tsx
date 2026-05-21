@@ -127,7 +127,7 @@ export function JournalExportButton() {
                 max={end}
                 onChange={(e) => { setStart(e.target.value); setActivePreset(''); }}
                 className="w-full rounded-md px-2.5 py-1.5 text-sm outline-none [color-scheme:dark]"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--fg-2)', fontSize: 12 }}
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--fg-2)', fontSize: 12 }}
               />
             </div>
             <div style={{ flex: 1 }}>
@@ -139,7 +139,7 @@ export function JournalExportButton() {
                 max={today}
                 onChange={(e) => { setEnd(e.target.value); setActivePreset(''); }}
                 className="w-full rounded-md px-2.5 py-1.5 text-sm outline-none [color-scheme:dark]"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', color: 'var(--fg-2)', fontSize: 12 }}
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--fg-2)', fontSize: 12 }}
               />
             </div>
           </div>

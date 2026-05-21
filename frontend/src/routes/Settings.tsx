@@ -55,11 +55,11 @@ function ConnectionStatusPill({ result, isLoading }: { result?: LLMHealthResult;
 // ---------------------------------------------------------------------------
 const inputCls =
   'w-full rounded-lg px-3 py-2 text-sm text-ink-200 outline-none placeholder:text-ink-500 disabled:opacity-50 transition-colors'
-  + ' bg-[var(--surface-elev)] border border-[rgba(255,255,255,0.07)] focus:border-[rgba(139,124,255,0.50)]';
+  + ' focus:border-[rgba(139,124,255,0.50)]';
 
 const selectCls =
   'w-full rounded-lg px-3 py-2 text-sm text-ink-200 outline-none transition-colors'
-  + ' bg-[var(--surface-elev)] border border-[rgba(255,255,255,0.07)] focus:border-[rgba(139,124,255,0.50)]';
+  + ' focus:border-[rgba(139,124,255,0.50)]';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -323,7 +323,7 @@ function FinanceCategoriesPanel() {
                 <input
                   value={editEmoji}
                   onChange={e => setEditEmoji(e.target.value)}
-                  style={{ width: 36, textAlign: 'center', fontSize: 18, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '2px 0' }}
+                  style={{ width: 36, textAlign: 'center', fontSize: 18, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 6, padding: '2px 0' }}
                   maxLength={2}
                 />
                 <input
@@ -334,7 +334,7 @@ function FinanceCategoriesPanel() {
                     if (e.key === 'Enter') updateMut.mutate({ id: cat.id, patch: { name: editName, emoji: editEmoji } });
                     if (e.key === 'Escape') setEditId(null);
                   }}
-                  style={{ flex: 1, fontSize: 13, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '4px 8px', color: 'var(--fg-1)', outline: 'none' }}
+                  style={{ flex: 1, fontSize: 13, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 6, padding: '4px 8px', color: 'var(--fg-1)', outline: 'none' }}
                 />
                 <button
                   onClick={() => updateMut.mutate({ id: cat.id, patch: { name: editName, emoji: editEmoji } })}
@@ -345,7 +345,7 @@ function FinanceCategoriesPanel() {
                 </button>
                 <button
                   onClick={() => setEditId(null)}
-                  style={{ fontSize: 11.5, padding: '3px 8px', borderRadius: 6, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', color: 'var(--fg-3)', cursor: 'pointer' }}
+                  style={{ fontSize: 11.5, padding: '3px 8px', borderRadius: 6, background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--fg-3)', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -396,7 +396,7 @@ function FinanceCategoriesPanel() {
               <input
                 value={addEmoji}
                 onChange={e => setAddEmoji(e.target.value)}
-                style={{ width: 40, textAlign: 'center', fontSize: 18, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '4px 0' }}
+                style={{ width: 40, textAlign: 'center', fontSize: 18, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 6, padding: '4px 0' }}
                 maxLength={2}
                 placeholder="💸"
               />
@@ -406,7 +406,7 @@ function FinanceCategoriesPanel() {
                 onChange={e => setAddName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && addName.trim()) createMut.mutate({ name: addName.trim(), emoji: addEmoji || '💸', type: addType }); }}
                 placeholder="Category name"
-                style={{ flex: 1, fontSize: 13, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '6px 10px', color: 'var(--fg-1)', outline: 'none' }}
+                style={{ flex: 1, fontSize: 13, background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 6, padding: '6px 10px', color: 'var(--fg-1)', outline: 'none' }}
               />
             </div>
             {/* Emoji quick-picks */}
@@ -429,7 +429,7 @@ function FinanceCategoriesPanel() {
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button
                   onClick={() => { setShowAdd(false); setAddName(''); setAddEmoji('💸'); }}
-                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--surface-elev)', border: '1px solid var(--border-default)', color: 'var(--fg-3)', cursor: 'pointer' }}
+                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--fg-3)', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -652,7 +652,7 @@ function SmsSetupPanel() {
 
   const codeSty: React.CSSProperties = {
     display: 'block', padding: '10px 14px', borderRadius: 9,
-    background: 'var(--surface-elev)', border: '1px solid var(--border-default)',
+    background: 'var(--input-bg)', border: '1px solid var(--input-border)',
     color: 'var(--fg-2)', fontSize: 12, fontFamily: 'var(--font-mono)',
     wordBreak: 'break-all', userSelect: 'all' as const,
   };
@@ -794,7 +794,7 @@ function SmsSetupPanel() {
                 disabled={debugging}
                 style={{
                   padding: '5px 12px', borderRadius: 7, fontSize: 11.5, fontWeight: 500,
-                  background: 'var(--surface-elev)', border: '1px solid var(--border-default)',
+                  background: 'var(--input-bg)', border: '1px solid var(--input-border)',
                   color: 'var(--fg-4)', cursor: debugging ? 'default' : 'pointer',
                   opacity: debugging ? 0.6 : 1,
                 }}
@@ -1593,7 +1593,7 @@ function NotificationSettingsPanel() {
             onClick={() => handleTest(key)}
             style={{
               fontSize: 11.5, padding: '4px 10px', borderRadius: 6,
-              background: 'var(--surface-elev)', border: '1px solid var(--border-default)',
+              background: 'var(--input-bg)', border: '1px solid var(--input-border)',
               color: 'var(--fg-3)', cursor: !enabled || !!testing ? 'default' : 'pointer',
               opacity: !enabled || !!testing ? 0.35 : 1,
               transition: 'opacity 150ms',

@@ -89,7 +89,7 @@ export function DashAIChat() {
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="text-left text-xs text-ink-400 hover:text-accent bg-ink-950 border border-ink-800 rounded-md px-2.5 py-1.5 hover:border-accent/40 transition-colors"
+                  className="text-left text-xs text-ink-400 hover:text-accent rounded-md px-2.5 py-1.5 hover:border-accent/40 transition-colors"
                 >
                   {s}
                 </button>
@@ -104,7 +104,7 @@ export function DashAIChat() {
               'max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap',
               m.role === 'user'
                 ? 'bg-accent/15 border border-accent/25 text-ink-100'
-                : 'bg-ink-950 border border-ink-800 text-ink-300',
+                : 'text-ink-300',
             )}>
               {m.content}
             </div>
@@ -113,7 +113,7 @@ export function DashAIChat() {
 
         {mut.isPending && (
           <div className="flex justify-start">
-            <div className="bg-ink-950 border border-ink-800 rounded-lg px-3 py-2.5 flex items-center gap-2">
+            <div className="rounded-lg px-3 py-2.5 flex items-center gap-2">
               <Loader2 className="w-3 h-3 text-ink-500 animate-spin" />
               <span className="text-xs text-ink-400">Thinking…</span>
             </div>
@@ -139,7 +139,7 @@ export function DashAIChat() {
           onKeyDown={onKeyDown}
           placeholder="Ask about your habits, journal, spending…"
           rows={1}
-          className="flex-1 resize-none overflow-hidden bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 outline-none focus:border-accent/60 leading-relaxed"
+          className="flex-1 resize-none overflow-hidden rounded-md px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 outline-none focus:border-accent/60 leading-relaxed"
           style={{ minHeight: '38px' }}
         />
         <button

@@ -92,7 +92,7 @@ export function HabitAddForm({ onCreate, disabled }: Props) {
         onChange={(e) => setName(e.target.value)}
         placeholder="Habit name (e.g. Meditate)"
         maxLength={80}
-        className="flex-1 min-w-[12ch] bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60"
+        className="flex-1 min-w-[12ch] rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60"
       />
       <div className="inline-flex rounded-md border border-ink-800 overflow-hidden text-xs">
         <button

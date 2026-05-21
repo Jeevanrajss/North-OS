@@ -93,13 +93,13 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
             step="0.01"
             min="0"
             required
-            className="w-full pl-8 pr-3 py-2 bg-ink-900 border border-ink-800 rounded-md text-sm outline-none focus:border-accent/60 [appearance:textfield]"
+            className="w-full pl-8 pr-3 py-2 rounded-md text-sm outline-none focus:border-accent/60 [appearance:textfield]"
           />
         </div>
         <select
           value={currency}
           onChange={(e) => setCurrency(e.target.value)}
-          className="bg-ink-900 border border-ink-800 rounded-md px-2 py-2 text-sm outline-none focus:border-accent/60"
+          className="rounded-md px-2 py-2 text-sm outline-none focus:border-accent/60"
         >
           {CURRENCY_OPTS.map((c) => <option key={c}>{c}</option>)}
         </select>
@@ -113,7 +113,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
           value={date}
           onChange={(e) => setDate(e.target.value)}
           required
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60"
+          className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60"
         />
       </div>
 
@@ -124,7 +124,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60"
+            className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60"
           >
             <option value="">— Select category —</option>
             {categories.map((c) => (
@@ -145,7 +145,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
             onChange={(e) => setPayee(e.target.value)}
             placeholder="e.g. Swiggy"
             maxLength={80}
-            className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
+            className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
           />
         </div>
         <div>
@@ -156,7 +156,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
             onChange={(e) => setAccount(e.target.value)}
             placeholder="e.g. HDFC"
             maxLength={60}
-            className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
+            className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
           />
           <datalist id="account-list">
             {meta.account_suggestions.map((a) => <option key={a} value={a} />)}
@@ -174,7 +174,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
                 key={card}
                 type="button"
                 onClick={() => setAccount(card)}
-                className="text-left text-xs text-ink-300 hover:text-accent bg-ink-900 border border-ink-800 hover:border-accent/40 rounded-md px-2.5 py-1.5 transition-colors"
+                className="text-left text-xs text-ink-300 hover:text-accent hover:border-accent/40 rounded-md px-2.5 py-1.5 transition-colors"
               >
                 💳 {card.replace(' Credit Card', '')}
               </button>
@@ -191,7 +191,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           placeholder="Any extra detail…"
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500 resize-none"
+          className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500 resize-none"
         />
       </div>
 

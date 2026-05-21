@@ -90,7 +90,7 @@ export function EmojiPickerPopover({
         aria-label={ariaLabel}
         aria-expanded={open}
         className={cn(
-          'rounded-md bg-ink-900 border border-ink-800 hover:border-accent/40 transition-colors flex items-center justify-center leading-none',
+          'rounded-md hover:border-accent/40 transition-colors flex items-center justify-center leading-none',
           btnSize,
         )}
       >
@@ -129,7 +129,7 @@ export function EmojiPickerPopover({
               onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.preventDefault(); submitCustom(ev as unknown as React.FormEvent); } }}
               placeholder="Custom emoji…"
               maxLength={8}
-              className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-xs outline-none focus:border-accent/60"
+              className="flex-1 rounded-md px-2 py-1 text-xs outline-none focus:border-accent/60"
             />
             <button
               type="button"

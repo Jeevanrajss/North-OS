@@ -359,7 +359,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
 
   if (editing) {
     return (
-      <li className="rounded-md bg-ink-950 border border-ink-800 px-3 py-2.5 space-y-2.5">
+      <li className="rounded-md px-3 py-2.5 space-y-2.5">
 
         {/* Mode toggle */}
         <div className="flex rounded-md border border-ink-800 overflow-hidden w-fit text-xs">
@@ -395,7 +395,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           <div className="flex-1 min-w-0">
             <L>Name</L>
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
-              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
+              className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
           </div>
           <div className="flex items-center gap-1 self-end pb-0.5">
             <button type="button" onClick={() => void save()} disabled={saving || !name.trim()}
@@ -416,19 +416,19 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
               <div>
                 <L>Amount</L>
                 <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0.01" step="0.01"
-                  className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
+                  className="w-24 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60" />
               </div>
               <div>
                 <L>Currency</L>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value)}
-                  className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  className="w-20 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
                   {CURRENCY_OPTS.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
                 </select>
               </div>
               <div className="flex-1">
                 <L>Billing cycle</L>
                 <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
                   {CYCLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -437,13 +437,13 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
               <div className="flex-1">
                 <L>Next billing</L>
                 <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
+                  className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]" />
               </div>
               <div className="flex-1">
                 <L>Category</L>
                 <input list="sub-categories-edit" value={category} onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Streaming" maxLength={40}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400" />
+                  className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400" />
                 <datalist id="sub-categories-edit">
                   {CATEGORIES.map((c) => <option key={c} value={c} />)}
                 </datalist>
@@ -472,14 +472,14 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
               <div>
                 <L>Currency</L>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value)}
-                  className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  className="w-20 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
                   {CURRENCY_OPTS.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
                 </select>
               </div>
               <div className="flex-1">
                 <L>Billing cycle</L>
                 <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+                  className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
                   {CYCLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -487,7 +487,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
                 <L>Category</L>
                 <input list="sub-categories-edit-trial" value={category} onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. AI Tools" maxLength={40}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400" />
+                  className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400" />
                 <datalist id="sub-categories-edit-trial">
                   {CATEGORIES.map((c) => <option key={c} value={c} />)}
                 </datalist>
@@ -509,13 +509,13 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
                   if (pt) setPaymentType(pt);
                 }
               }}
-              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 placeholder:text-ink-400"
+              className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200 placeholder:text-ink-400"
             />
           </div>
           <div className="flex-1">
             <L>Payment type</L>
             <select value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType | '')}
-              className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
+              className="w-full rounded-md px-2 py-1 text-sm outline-none focus:border-accent/60 text-ink-200">
               <option value="">— none —</option>
               {PAYMENT_TYPE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>

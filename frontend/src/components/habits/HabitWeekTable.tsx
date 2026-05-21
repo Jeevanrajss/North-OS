@@ -336,7 +336,7 @@ function NotePopover({ date, initialNote, x, y, onSave, onClose }: NotePopoverPr
     <div
       ref={ref}
       style={{ left, top }}
-      className="fixed z-50 w-60 bg-ink-900 border border-ink-700 rounded-lg shadow-xl p-3 space-y-2"
+      className="fixed z-50 w-60 rounded-lg shadow-xl p-3 space-y-2"
     >
       <div className="text-[11px] text-ink-400">{date}</div>
       <textarea
@@ -349,7 +349,7 @@ function NotePopover({ date, initialNote, x, y, onSave, onClose }: NotePopoverPr
         maxLength={280}
         rows={3}
         placeholder="Add a note…"
-        className="w-full bg-ink-950 border border-ink-800 rounded-md px-2 py-1.5 text-xs text-ink-100 placeholder:text-ink-500 resize-none outline-none focus:border-accent/60"
+        className="w-full rounded-md px-2 py-1.5 text-xs text-ink-100 placeholder:text-ink-500 resize-none outline-none focus:border-accent/60"
       />
       <div className="flex items-center justify-end gap-1.5">
         <button

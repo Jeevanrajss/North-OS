@@ -159,7 +159,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           placeholder="Subscription name"
           maxLength={80}
           disabled={disabled}
-          className="flex-1 min-w-0 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+          className="flex-1 min-w-0 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
         />
       </div>
 
@@ -175,12 +175,12 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               placeholder="0.00"
               min="0.01"
               step="0.01"
-              className="w-24 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+              className="w-24 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
             />
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+              className="w-20 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
             >
               {CURRENCY_OPTS.map((o) => (
                 <option key={o.value} value={o.value}>{o.value}</option>
@@ -189,7 +189,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
             <select
               value={cycle}
               onChange={(e) => setCycle(e.target.value as BillingCycle)}
-              className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+              className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
             >
               {CYCLE_OPTS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -205,7 +205,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                 type="date"
                 value={nextDate}
                 onChange={(e) => setNextDate(e.target.value)}
-                className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]"
+                className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 [color-scheme:dark]"
               />
             </div>
             <div className="flex-1">
@@ -216,7 +216,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Streaming"
                 maxLength={40}
-                className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+                className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
               />
               <datalist id="sub-categories-add">
                 {CATEGORIES.map((c) => <option key={c} value={c} />)}
@@ -264,7 +264,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-20 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+                className="w-20 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
               >
                 {CURRENCY_OPTS.map((o) => (
                   <option key={o.value} value={o.value}>{o.value}</option>
@@ -273,7 +273,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               <select
                 value={cycle}
                 onChange={(e) => setCycle(e.target.value as BillingCycle)}
-                className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+                className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
               >
                 {CYCLE_OPTS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -286,7 +286,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="Category (optional)"
                   maxLength={40}
-                  className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+                  className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
                 />
                 <datalist id="sub-categories-trial">
                   {CATEGORIES.map((c) => <option key={c} value={c} />)}
@@ -312,12 +312,12 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               if (pt) setPaymentType(pt);
             }
           }}
-          className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 placeholder:text-ink-400"
+          className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200 placeholder:text-ink-400"
         />
         <select
           value={paymentType}
           onChange={(e) => setPaymentType(e.target.value as PaymentType | '')}
-          className="flex-1 bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+          className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
         >
           <option value="">Payment type</option>
           {PAYMENT_TYPE_OPTS.map((o) => (
@@ -333,7 +333,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           onChange={(e) => setUrl(e.target.value)}
           placeholder="URL (optional)"
           type="url"
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+          className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
         />
         <textarea
           value={notes}
@@ -341,7 +341,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           placeholder="Notes (optional)"
           rows={2}
           maxLength={500}
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400 resize-none"
+          className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400 resize-none"
         />
       </div>
 

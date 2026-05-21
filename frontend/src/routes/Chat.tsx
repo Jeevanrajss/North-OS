@@ -67,7 +67,7 @@ function Bubble({ msg }: { msg: Message }) {
           'px-4 py-3 rounded-2xl text-sm leading-relaxed',
           isUser
             ? 'bg-accent text-white rounded-tr-sm'
-            : 'bg-ink-900 border border-ink-800 text-ink-100 rounded-tl-sm',
+            : 'text-ink-100 rounded-tl-sm',
         )}>
           {isUser ? (
             <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -116,7 +116,7 @@ function EmptyState({ onSuggest }: { onSuggest: (s: string) => void }) {
           <button
             key={i}
             onClick={() => onSuggest(s.replace(/^[\p{Emoji}\s]+/u, '').trim())}
-            className="px-3 py-2 rounded-xl text-xs text-ink-400 bg-ink-900 border border-ink-800
+            className="px-3 py-2 rounded-xl text-xs text-ink-400
               hover:border-accent/40 hover:text-ink-200 hover:bg-ink-800 transition-all text-left"
           >
             {s}
@@ -234,7 +234,7 @@ export function Chat() {
                   <div className="w-7 h-7 shrink-0 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center mt-0.5">
                     <img src="/favicon.png" alt="AI" className="w-4 h-4 rounded-sm" />
                   </div>
-                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ink-900 border border-ink-800">
+                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm">
                     <TypingDots />
                   </div>
                 </div>
@@ -258,7 +258,7 @@ export function Chat() {
       {/* ── Input bar ── */}
       <div className="shrink-0 border-t border-white/5 bg-ink-950 px-6 py-4">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3 bg-ink-900 border border-ink-800 rounded-2xl px-4 py-3
+          <div className="flex items-end gap-3 rounded-2xl px-4 py-3
             focus-within:border-accent/40 transition-colors">
             <textarea
               ref={inputRef}

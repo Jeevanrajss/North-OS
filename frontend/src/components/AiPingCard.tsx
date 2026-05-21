@@ -30,7 +30,7 @@ export function AiPingCard() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
-          className="flex-1 bg-ink-950 border border-ink-800 rounded-md px-3 py-2 text-sm
+          className="flex-1 rounded-md px-3 py-2 text-sm
                      focus:outline-none focus:border-accent/60"
           placeholder="Ask anything…"
         />
@@ -45,7 +45,7 @@ export function AiPingCard() {
         </button>
       </div>
       {response && (
-        <div className="mt-4 text-sm text-ink-100 bg-ink-950 border border-ink-800 rounded-md p-3 whitespace-pre-wrap">
+        <div className="mt-4 text-sm text-ink-100 rounded-md p-3 whitespace-pre-wrap">
           {response}
         </div>
       )}

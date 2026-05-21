@@ -76,7 +76,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
             style={{
               background: isFocused
                 ? 'rgba(139,124,255,0.06)'
-                : 'rgba(0,0,0,0.22)',
+                : 'var(--input-bg)',
               padding: '16px 18px',
               display: 'flex',
               flexDirection: 'column',

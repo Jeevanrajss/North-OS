@@ -329,7 +329,7 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
 
       {/* Summary chip */}
       {!initial && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ink-900 border border-ink-800">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg">
           <span className="text-base">{TYPE_OPTIONS.find((t) => t.value === type)?.emoji}</span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-ink-100">
@@ -365,7 +365,7 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
               : 'e.g. Daily expenses card'
           }
           maxLength={100}
-          className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
+          className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
         />
       </div>
 
@@ -380,7 +380,7 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
             onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
             placeholder="4321"
             maxLength={4}
-            className="w-full bg-ink-900 border border-ink-800 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
+            className="w-full rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60 placeholder:text-ink-500"
           />
         </div>
         {type === 'credit_card' && (
@@ -396,7 +396,7 @@ export function AccountForm({ initial, onSubmit, onCancel }: Props) {
                 onChange={(e) => setCreditLimit(e.target.value)}
                 placeholder="100000"
                 min="0"
-                className="w-full pl-7 pr-3 py-2 bg-ink-900 border border-ink-800 rounded-md text-sm outline-none focus:border-accent/60 [appearance:textfield]"
+                className="w-full pl-7 pr-3 py-2 rounded-md text-sm outline-none focus:border-accent/60 [appearance:textfield]"
               />
             </div>
           </div>

@@ -78,6 +78,8 @@
     --fg-4: #7B8498;
     --fg-disabled: #5A6275;
     --fg-accent: #B8A5FF;
+    --input-bg:     rgba(0, 0, 0, 0.30);
+    --input-border: rgba(255, 255, 255, 0.09);
     --glass-bg:     rgba(255,255,255,0.03);
     --glass-border: rgba(255,255,255,0.06);
     --glass-blur:   blur(20px);
@@ -102,6 +104,28 @@
   }
 
   html, body, #root { height: 100%; }
+
+  /* ── Global input / textarea base ─────────────────────────────────────────── */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="color"]),
+  textarea,
+  select {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--fg-1);
+    border-radius: var(--radius-sm);
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="color"]):focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(139,124,255,0.16);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--fg-4);
+  }
 
   body {
     @apply text-ink-200 antialiased;
@@ -230,14 +254,14 @@
   /* ── Inputs ──────────────────────────────────────────────────────────────── */
   .input {
     @apply w-full rounded-xl px-3 py-2 text-sm outline-none transition-all;
-    background: rgba(0,0,0,0.30);
-    border: 1px solid var(--border-default);
-    color: white;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--fg-1);
   }
-  .input::placeholder { color: #7B8498; }
+  .input::placeholder { color: var(--fg-4); }
   .input:focus {
     border-color: var(--primary-500);
-    box-shadow: 0 0 0 4px rgba(139,124,255,0.16);
+    box-shadow: 0 0 0 3px rgba(139,124,255,0.16);
   }
 
   .input-label {
