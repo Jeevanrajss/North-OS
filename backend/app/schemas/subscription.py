@@ -34,6 +34,7 @@ class SubscriptionIn(BaseModel):
     category: str | None = Field(default=None, max_length=40)
     notes: str | None = None
     url: str | None = Field(default=None, max_length=255)
+    is_autopay: bool = False
 
     @field_validator("name")
     @classmethod
@@ -60,6 +61,7 @@ class SubscriptionPatch(BaseModel):
     category: str | None = None
     notes: str | None = None
     url: str | None = Field(default=None, max_length=255)
+    is_autopay: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -84,6 +86,8 @@ class SubscriptionOut(BaseModel):
     category: str | None
     notes: str | None
     url: str | None
+    is_autopay: bool
+    last_renewed_at: date_cls | None
     paused_at: datetime | None
     cancelled_at: datetime | None
     created_at: datetime

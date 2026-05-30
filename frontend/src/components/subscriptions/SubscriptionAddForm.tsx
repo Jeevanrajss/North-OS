@@ -42,6 +42,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
   const [billingStartDate, setBillingStartDate] = useState('');
   const [postTrialAmount, setPostTrialAmount] = useState('');
 
+  const [isAutopay, setIsAutopay] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +52,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
     setNotes(''); setUrl('');
     setAmount(''); setNextDate(today);
     setBillingStartDate(''); setPostTrialAmount('');
+    setIsAutopay(false);
     setError(null);
   }
 
@@ -78,14 +80,15 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           amount: 0,
           currency,
           billing_cycle: cycle,
-          next_billing_date: billingStartDate,  // same date
-          trial_end_date: billingStartDate,      // same date
+          next_billing_date: billingStartDate,
+          trial_end_date: billingStartDate,
           post_trial_amount: pta,
           payment_type: paymentType || null,
           account_name: accountName.trim() || null,
           category: category.trim() || null,
           notes: notes.trim() || null,
           url: url.trim() || null,
+          is_autopay: isAutopay,
         });
       } else {
         const parsedAmount = parseFloat(amount);
@@ -104,6 +107,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           category: category.trim() || null,
           notes: notes.trim() || null,
           url: url.trim() || null,
+          is_autopay: isAutopay,
         });
       }
       reset();
@@ -344,6 +348,35 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
           className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400 resize-none"
         />
       </div>
+
+      {/* Autopay toggle */}
+      <button
+        type="button"
+        onClick={() => setIsAutopay((v) => !v)}
+        className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md border transition-colors"
+        style={{
+          background: isAutopay ? 'rgba(139,124,255,0.08)' : 'transparent',
+          borderColor: isAutopay ? 'rgba(139,124,255,0.35)' : 'var(--border-default)',
+        }}
+      >
+        {/* pill toggle */}
+        <span
+          style={{
+            width: 32, height: 18, borderRadius: 999, flexShrink: 0,
+            background: isAutopay ? 'var(--primary-500)' : 'var(--surface-hover)',
+            position: 'relative', transition: 'background 180ms',
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 2, left: isAutopay ? 16 : 2,
+            width: 14, height: 14, borderRadius: 999,
+            background: 'white', transition: 'left 180ms',
+          }} />
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: isAutopay ? 'var(--primary-300)' : 'var(--fg-4)' }}>
+          {isAutopay ? '⚡ Autopay — card charged automatically' : 'Manual — I pay this myself each cycle'}
+        </span>
+      </button>
 
       {error && <div className="text-[11px] text-red-400">{error}</div>}
 

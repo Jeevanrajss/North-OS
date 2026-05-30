@@ -208,6 +208,12 @@ def check_subscription_alerts(db: Session) -> int:
         delta = (sub.next_billing_date - today).days
         if not (0 <= delta <= days_before):
             continue
+
+        # For non-autopay: skip alert if already renewed this cycle
+        if not sub.is_autopay and sub.last_renewed_at is not None:
+            if sub.last_renewed_at >= sub.next_billing_date - __import__('datetime').timedelta(days=days_before):
+                continue
+
         # One alert per sub per day
         already = db.query(Notification).filter(
             Notification.type == "sub_alert",
@@ -216,15 +222,29 @@ def check_subscription_alerts(db: Session) -> int:
         ).first()
         if already:
             continue
-        msg = (
-            f"{sub.emoji} {sub.name} renews TODAY" if delta == 0
-            else f"{sub.emoji} {sub.name} renews tomorrow" if delta == 1
-            else f"{sub.emoji} {sub.name} renews in {delta} days"
-        )
+
+        if sub.is_autopay:
+            # Autopay: informational — no action needed
+            msg = (
+                f"{sub.emoji} {sub.name} auto-deducts TODAY — ₹{sub.amount:,.0f}" if delta == 0
+                else f"{sub.emoji} {sub.name} auto-deducts tomorrow — ₹{sub.amount:,.0f}" if delta == 1
+                else f"{sub.emoji} {sub.name} auto-deducts in {delta} days"
+            )
+            title = "Autopay Upcoming ⚡"
+        else:
+            # Manual renewal: action required
+            msg = (
+                f"{sub.emoji} {sub.name} is due TODAY — mark as renewed in Subscriptions" if delta == 0
+                else f"{sub.emoji} {sub.name} due tomorrow — open Subscriptions to confirm payment" if delta == 1
+                else f"{sub.emoji} {sub.name} due in {delta} days — remember to pay manually"
+            )
+            title = "Renewal Due 🔔"
+
         create_notification(
-            db, "sub_alert", "Subscription Renewal 🔄", msg,
+            db, "sub_alert", title, msg,
             {"sub_id": sub.id, "days_until": delta, "name": sub.name,
-             "amount": sub.amount, "currency": sub.currency},
+             "amount": sub.amount, "currency": sub.currency,
+             "is_autopay": sub.is_autopay},
         )
         created += 1
     return created

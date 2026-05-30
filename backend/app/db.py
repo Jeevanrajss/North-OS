@@ -196,6 +196,8 @@ def _dev_migrate_subscriptions(conn) -> None:
         ("paused_at", "DATETIME"),
         ("trial_end_date", "DATE"),
         ("post_trial_amount", "REAL"),
+        ("is_autopay", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("last_renewed_at", "DATE"),
     ]
     for col, col_type in new_cols:
         if col not in existing_cols:

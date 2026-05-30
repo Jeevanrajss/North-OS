@@ -5,7 +5,7 @@ import uuid
 from datetime import date as date_cls
 from datetime import datetime
 
-from sqlalchemy import Date, DateTime, Float, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -51,6 +51,13 @@ class Subscription(Base):
     # Price that kicks in after the free trial ends. Only meaningful when
     # amount == 0 (currently free) and trial_end_date is set.
     post_trial_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Autopay flag — True = card charged automatically; False = user must pay manually.
+    is_autopay: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Last time the user confirmed/marked a manual renewal. Used to determine
+    # whether the current billing cycle has been paid for non-autopay subs.
+    last_renewed_at: Mapped[date_cls | None] = mapped_column(Date, nullable=True)
 
     # Soft-pause — subscription is still active but billing is on hold.
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

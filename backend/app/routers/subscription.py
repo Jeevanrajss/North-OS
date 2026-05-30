@@ -208,3 +208,60 @@ def unpause_subscription(sub_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(sub)
     return sub
+
+
+def _add_months(d: date, n: int) -> date:
+    """Add n calendar months, clamping to last day of month."""
+    import calendar
+    m = d.month - 1 + n
+    year = d.year + m // 12
+    month = m % 12 + 1
+    last_day = calendar.monthrange(year, month)[1]
+    return d.replace(year=year, month=month, day=min(d.day, last_day))
+
+
+def _advance_billing_date(d: date, cycle: str) -> date:
+    if cycle == "weekly":
+        return d + timedelta(weeks=1)
+    if cycle == "monthly":
+        return _add_months(d, 1)
+    if cycle == "quarterly":
+        return _add_months(d, 3)
+    if cycle == "yearly":
+        return _add_months(d, 12)
+    return d
+
+
+@router.post("/{sub_id}/renew", response_model=SubscriptionOut)
+def renew_subscription(sub_id: str, db: Session = Depends(get_db)):
+    """Mark a non-autopay subscription as manually paid for the current cycle.
+
+    Records today as last_renewed_at and advances next_billing_date by one
+    billing cycle. Fires a confirmation notification.
+    """
+    from app.services.notification_service import create_notification
+
+    sub = db.get(Subscription, sub_id)
+    if sub is None:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    today = date.today()
+    sub.last_renewed_at = today
+
+    # Advance billing date from whichever is later: scheduled date or today.
+    base = sub.next_billing_date if sub.next_billing_date >= today else today
+    sub.next_billing_date = _advance_billing_date(base, sub.billing_cycle)
+
+    db.commit()
+    db.refresh(sub)
+
+    # Confirmation notification
+    create_notification(
+        db,
+        type="sub_renewed",
+        title="Subscription Renewed ✅",
+        body=f"{sub.emoji} {sub.name} marked as paid. Next renewal: {sub.next_billing_date}.",
+        data={"sub_id": sub.id, "name": sub.name, "next_billing_date": str(sub.next_billing_date)},
+        skip_quiet=True,
+    )
+    return sub

@@ -119,6 +119,14 @@ export function SubscriptionList() {
     onSuccess: () => invalidateAll(),
   });
 
+  const renewMut = useMutation({
+    mutationFn: (id: string) => api.subscriptions.renew(id),
+    onSuccess: () => {
+      invalidateAll();
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
   const activeCount = allSubs.filter((s) => s.cancelled_at === null && s.paused_at === null).length;
   const pausedCount = allSubs.filter((s) => s.cancelled_at === null && s.paused_at !== null).length;
   const cancelledCount = allSubs.filter((s) => s.cancelled_at !== null).length;
@@ -239,6 +247,7 @@ export function SubscriptionList() {
                 onPause={() => pauseMut.mutateAsync(s.id).then(() => undefined)}
                 onResume={() => unpauseMut.mutateAsync(s.id).then(() => undefined)}
                 onCancel={() => cancelMut.mutateAsync(s.id).then(() => undefined)}
+                onRenew={() => renewMut.mutateAsync(s.id).then(() => undefined)}
               />
             ),
           )}
@@ -258,9 +267,10 @@ type RowProps = {
   onPause: () => Promise<void>;
   onResume: () => Promise<void>;
   onCancel: () => Promise<void>;
+  onRenew: () => Promise<void>;
 };
 
-function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume, onCancel }: RowProps) {
+function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume, onCancel, onRenew }: RowProps) {
   const isTrial = sub.amount === 0 && sub.trial_end_date !== null;
 
   const [editing, setEditing] = useState(false);
@@ -286,6 +296,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
   const [postTrialAmount, setPostTrialAmount] = useState(
     sub.post_trial_amount != null ? String(sub.post_trial_amount) : '',
   );
+  const [isAutopay, setIsAutopay] = useState(sub.is_autopay ?? false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -293,6 +304,16 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
 
   const isPaused = sub.paused_at !== null;
   const days = daysUntil(sub.next_billing_date);
+
+  // Renewal status for non-autopay subs
+  const [renewing, setRenewing] = useState(false);
+  const needsRenewal = !sub.is_autopay && !isPaused && days <= 3;
+  const isOverdue = days < 0;
+
+  async function handleRenew() {
+    setRenewing(true);
+    try { await onRenew(); } finally { setRenewing(false); }
+  }
 
   function beginEdit() {
     const trialMode = sub.amount === 0 && sub.trial_end_date !== null;
@@ -304,6 +325,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
     setAmount(String(sub.amount)); setNextDate(sub.next_billing_date);
     setBillingStartDate(sub.trial_end_date ?? sub.next_billing_date);
     setPostTrialAmount(sub.post_trial_amount != null ? String(sub.post_trial_amount) : '');
+    setIsAutopay(sub.is_autopay ?? false);
     setError(null); setEditing(true);
   }
 
@@ -322,6 +344,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
     if (an !== sub.account_name) patch.account_name = an;
     const cat = category.trim() || null;
     if (cat !== sub.category) patch.category = cat;
+    if (isAutopay !== sub.is_autopay) patch.is_autopay = isAutopay;
 
     if (editMode === 'trial') {
       if (!billingStartDate) { setError('Billing start date is required.'); return; }
@@ -522,6 +545,32 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           </div>
         </div>
 
+        {/* Autopay toggle */}
+        <button
+          type="button"
+          onClick={() => setIsAutopay((v) => !v)}
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md border transition-colors"
+          style={{
+            background: isAutopay ? 'rgba(139,124,255,0.08)' : 'transparent',
+            borderColor: isAutopay ? 'rgba(139,124,255,0.35)' : 'var(--border-default)',
+          }}
+        >
+          <span style={{
+            width: 28, height: 16, borderRadius: 999, flexShrink: 0,
+            background: isAutopay ? 'var(--primary-500)' : 'var(--surface-hover)',
+            position: 'relative', transition: 'background 180ms',
+          }}>
+            <span style={{
+              position: 'absolute', top: 2, left: isAutopay ? 13 : 2,
+              width: 12, height: 12, borderRadius: 999,
+              background: 'white', transition: 'left 180ms',
+            }} />
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 500, color: isAutopay ? 'var(--primary-300)' : 'var(--fg-4)' }}>
+            {isAutopay ? '⚡ Autopay — charged automatically' : 'Manual — I pay this myself each cycle'}
+          </span>
+        </button>
+
         {error && <div className="text-[11px] text-red-400">{error}</div>}
       </li>
     );
@@ -575,7 +624,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           <div style={{ font: '500 15.5px/1.2 var(--font-display)', color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {sub.name}
           </div>
-          <div style={{ color: 'var(--fg-4)', fontSize: 11, marginTop: 1, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ color: 'var(--fg-4)', fontSize: 11, marginTop: 1, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span>{CYCLE_LABELS[sub.billing_cycle]}</span>
             {sub.account_name && <><span style={{ opacity: 0.5 }}>·</span><span>{sub.account_name}</span></>}
             {sub.category && (
@@ -587,6 +636,17 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
                 {sub.category}
               </span>
             )}
+            {/* Autopay badge */}
+            {sub.is_autopay && (
+              <span style={{
+                padding: '2px 7px', borderRadius: 999,
+                font: '500 10px/1 var(--font-mono)',
+                background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)',
+                border: '1px solid rgba(139,124,255,0.25)',
+              }}>
+                ⚡ Autopay
+              </span>
+            )}
           </div>
         </div>
 
@@ -594,7 +654,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
         {!isPaused && (
           <div style={{ padding: '0 14px', textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: days <= 7 ? 'var(--accent-yellow)' : 'var(--fg-2)', fontFamily: 'var(--font-mono)' }}>
-              {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`}
+              {isOverdue ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`}
             </div>
             <div style={{ fontSize: 10.5, color: 'var(--fg-4)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
               {sub.next_billing_date}
@@ -628,6 +688,24 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           className="opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 12px 0 4px' }}
         >
+          {/* Mark Renewed — only for non-autopay subs due soon */}
+          {needsRenewal && (
+            <button
+              type="button"
+              onClick={() => void handleRenew()}
+              disabled={renewing}
+              title="Mark as renewed/paid"
+              style={{
+                padding: '3px 8px', borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                background: isOverdue ? 'rgba(255,91,110,0.12)' : 'rgba(61,255,152,0.10)',
+                border: isOverdue ? '1px solid rgba(255,91,110,0.30)' : '1px solid rgba(61,255,152,0.25)',
+                color: isOverdue ? 'var(--accent-red)' : 'var(--accent-green)',
+                opacity: renewing ? 0.5 : 1,
+              }}
+            >
+              {renewing ? '…' : isOverdue ? 'Overdue — Paid?' : '✓ Mark Paid'}
+            </button>
+          )}
           <button type="button" onClick={beginEdit} title="Edit"
             style={{ padding: 5, borderRadius: 8, color: 'var(--fg-4)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-elev)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-2)'; }}
@@ -822,8 +900,30 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
         </div>
       )}
 
+      {/* Mark Paid button — card view, visible (not hover-only) */}
+      {needsRenewal && (
+        <div style={{ marginBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => void handleRenew()}
+            disabled={renewing}
+            style={{
+              width: '100%', padding: '6px 0', borderRadius: 10, fontSize: 11, fontWeight: 600,
+              cursor: renewing ? 'default' : 'pointer',
+              background: isOverdue ? 'rgba(255,91,110,0.12)' : 'rgba(61,255,152,0.10)',
+              border: isOverdue ? '1px solid rgba(255,91,110,0.30)' : '1px solid rgba(61,255,152,0.25)',
+              color: isOverdue ? 'var(--accent-red)' : 'var(--accent-green)',
+              transition: 'opacity 150ms',
+              opacity: renewing ? 0.6 : 1,
+            }}
+          >
+            {renewing ? '…' : isOverdue ? '⚠ Overdue — Mark as Paid' : '✓ Mark as Paid'}
+          </button>
+        </div>
+      )}
+
       {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{
           padding: '3px 8px', borderRadius: 999,
           font: '500 10.5px/1 var(--font-mono)',
@@ -835,6 +935,11 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
         }}>
           {isPaused ? 'paused' : sub.amount === 0 ? 'trial' : 'active'}
         </span>
+        {sub.is_autopay && (
+          <span style={{ padding: '2px 7px', borderRadius: 999, font: '500 10px/1 var(--font-mono)', background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.25)' }}>
+            ⚡ Autopay
+          </span>
+        )}
         {sub.category && (
           <span style={{ padding: '3px 8px', borderRadius: 999, font: '500 10.5px/1 var(--font-mono)', background: 'var(--glass-bg)', color: 'var(--fg-3)', border: '1px solid var(--border-default)' }}>
             {sub.category}

@@ -523,6 +523,8 @@ export type Subscription = {
   category: string | null;
   notes: string | null;
   url: string | null;
+  is_autopay: boolean;
+  last_renewed_at: string | null; // YYYY-MM-DD — when user last confirmed manual payment
   paused_at: string | null;
   cancelled_at: string | null;
   created_at: string;
@@ -543,6 +545,7 @@ export type SubscriptionIn = {
   category?: string | null;
   notes?: string | null;
   url?: string | null;
+  is_autopay?: boolean;
 };
 
 export type SubscriptionPatch = Partial<SubscriptionIn>;
@@ -975,6 +978,8 @@ export const api = {
       request<Subscription>(`/subscriptions/${id}/pause`, { method: 'POST' }),
     unpause: (id: string) =>
       request<Subscription>(`/subscriptions/${id}/unpause`, { method: 'POST' }),
+    renew: (id: string) =>
+      request<Subscription>(`/subscriptions/${id}/renew`, { method: 'POST' }),
     stats: () => request<SubscriptionStatsResponse>('/subscriptions/stats'),
     forecast: () => request<ForecastResponse>('/subscriptions/forecast'),
   },
