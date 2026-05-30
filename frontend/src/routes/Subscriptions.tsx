@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { SubscriptionList } from '@/components/subscriptions/SubscriptionList';
 import { SpendingByCategoryCard } from '@/components/subscriptions/SpendingByCategoryCard';
@@ -20,6 +21,7 @@ function fmtCurrency(amount: number, currency = 'INR'): string {
 }
 
 export function Subscriptions() {
+  const [addOpen, setAddOpen] = useState(false);
   const [displayCurrency, setDisplayCurrency] = useState(
     () => localStorage.getItem('sub_display_currency') ?? 'INR',
   );
@@ -65,6 +67,23 @@ export function Subscriptions() {
         title="Subscriptions"
         eyebrow="SUBSCRIPTIONS · RECURRING"
         subtitle="Track recurring spend. Never miss a renewal."
+        action={
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              height: 36, padding: '0 16px', borderRadius: 10,
+              font: '500 13px/1 var(--font-sans)', color: 'white',
+              background: 'var(--grad-primary)',
+              boxShadow: 'var(--elev-1), var(--elev-glow)',
+              border: 'none', cursor: 'pointer',
+            }}
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            Add subscription
+          </button>
+        }
       />
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -177,7 +196,7 @@ export function Subscriptions() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
         <div>
-          <SubscriptionList />
+          <SubscriptionList addOpen={addOpen} setAddOpen={setAddOpen} />
         </div>
         <aside className="space-y-5">
           <SubInsightsCard />

@@ -8,6 +8,9 @@ import { WeekdayChips } from './WeekdayChips';
 type Props = {
   onCreate: (payload: HabitIn) => Promise<void>;
   disabled?: boolean;
+  /** When true the form is always visible — no collapsed button state. Used inside drawers. */
+  alwaysExpanded?: boolean;
+  onCancel?: () => void;
 };
 
 const DEFAULT_EMOJI = '✅';
@@ -18,7 +21,7 @@ const DEFAULT_EMOJI = '✅';
  * Weekly is specific-days-only; `frequency_target` is derived server-side from
  * the number of selected weekdays.
  */
-export function HabitAddForm({ onCreate, disabled }: Props) {
+export function HabitAddForm({ onCreate, disabled, alwaysExpanded, onCancel }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
@@ -57,6 +60,7 @@ export function HabitAddForm({ onCreate, disabled }: Props) {
       });
       reset();
       setOpen(false);
+      onCancel?.(); // close drawer if provided
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create habit.');
     } finally {
@@ -64,7 +68,9 @@ export function HabitAddForm({ onCreate, disabled }: Props) {
     }
   }
 
-  if (!open) {
+  const isExpanded = alwaysExpanded || open;
+
+  if (!isExpanded) {
     return (
       <button
         type="button"
@@ -82,8 +88,8 @@ export function HabitAddForm({ onCreate, disabled }: Props) {
 
   return (
     <form
-      onSubmit={submit}
-      className="flex flex-wrap items-center gap-2 rounded-md border border-ink-800 bg-ink-950 p-2"
+      onSubmit={(e) => void submit(e)}
+      className="flex flex-wrap items-center gap-2 rounded-md p-2"
     >
       <EmojiPickerPopover value={emoji} onChange={setEmoji} ariaLabel="Habit emoji" />
       <input
@@ -131,6 +137,7 @@ export function HabitAddForm({ onCreate, disabled }: Props) {
         onClick={() => {
           reset();
           setOpen(false);
+          onCancel?.();
         }}
         className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-ink-400 hover:text-ink-200"
         aria-label="Cancel"

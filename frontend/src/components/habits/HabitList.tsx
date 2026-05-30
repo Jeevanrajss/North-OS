@@ -6,19 +6,16 @@ import {
   api,
   type FrequencyKind,
   type Habit,
-  type HabitIn,
   type HabitPatch,
   type HabitStatsResponse,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
-import { HabitAddForm } from './HabitAddForm';
 import { WeekdayChips, describeSchedule } from './WeekdayChips';
 
 type Props = {
   habits: Habit[];
   loading?: boolean;
-  onCreate: (payload: HabitIn) => Promise<void>;
 };
 
 /**
@@ -27,7 +24,7 @@ type Props = {
  * editor (emoji picker + name input + frequency toggle + weekday chips +
  * save / cancel). Trash archives the habit (soft-delete — history survives).
  */
-export function HabitList({ habits, loading, onCreate }: Props) {
+export function HabitList({ habits, loading }: Props) {
   const qc = useQueryClient();
   const [archivedOpen, setArchivedOpen] = useState(false);
 
@@ -156,10 +153,6 @@ export function HabitList({ habits, loading, onCreate }: Props) {
         )}
       </div>
 
-      {/* Add form */}
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
-        <HabitAddForm onCreate={onCreate} disabled={loading} />
-      </div>
     </div>
   );
 }

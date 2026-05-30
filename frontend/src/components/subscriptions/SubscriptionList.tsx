@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArchiveRestore, Check, LayoutGrid, List, Pause, Pencil, Play, Plus, Trash2, X, ExternalLink } from 'lucide-react';
+import { ArchiveRestore, Check, LayoutGrid, List, Pause, Pencil, Play, Trash2, X, ExternalLink } from 'lucide-react';
+import { RightDrawer } from '@/components/ui/RightDrawer';
 import {
   api,
   CYCLE_LABELS,
@@ -64,10 +65,18 @@ function getSubLogoGrad(name: string): string {
   return 'linear-gradient(135deg, var(--primary-500), #6352DB)';
 }
 
-export function SubscriptionList() {
+type SubscriptionListProps = {
+  /** Controlled from parent (Subscriptions.tsx) so the Add button can live in PageHeader */
+  addOpen?: boolean;
+  setAddOpen?: (open: boolean) => void;
+};
+
+export function SubscriptionList({ addOpen: extAddOpen, setAddOpen: extSetAddOpen }: SubscriptionListProps = {}) {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<Filter>('active');
-  const [addOpen, setAddOpen] = useState(false);
+  const [internalAddOpen, setInternalAddOpen] = useState(false);
+  const addOpen    = extAddOpen    ?? internalAddOpen;
+  const setAddOpen = extSetAddOpen ?? setInternalAddOpen;
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const { data: allSubs = [], isLoading } = useQuery<Subscription[]>({
@@ -133,7 +142,23 @@ export function SubscriptionList() {
 
   return (
     <div>
-      {/* Toolbar: filter seg + add button */}
+      {/* Right-side drawer for adding a new subscription */}
+      <RightDrawer
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="New Subscription"
+        width={500}
+      >
+        <SubscriptionAddForm
+          onCreate={async (payload) => {
+            await createMut.mutateAsync(payload);
+            setAddOpen(false);
+          }}
+          onCancel={() => setAddOpen(false)}
+        />
+      </RightDrawer>
+
+      {/* Toolbar: filter seg + view toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         {/* Filter segmented control */}
         <div style={{ display: 'inline-flex', background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 10, padding: 3, marginRight: 'auto' }}>
@@ -183,35 +208,7 @@ export function SubscriptionList() {
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setAddOpen((o) => !o)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            height: 36, padding: '0 14px', borderRadius: 10,
-            font: '500 13px/1 var(--font-sans)', color: 'white',
-            background: 'var(--grad-primary)',
-            boxShadow: 'var(--elev-1), var(--elev-glow)',
-            border: 'none', cursor: 'pointer',
-          }}
-        >
-          <Plus style={{ width: 14, height: 14 }} />
-          Add subscription
-        </button>
       </div>
-
-      {addOpen && (
-        <div className="card" style={{ marginBottom: 18, padding: 20 }}>
-          <SubscriptionAddForm
-            onCreate={async (payload) => {
-              await createMut.mutateAsync(payload);
-              setAddOpen(false);
-            }}
-            onCancel={() => setAddOpen(false)}
-          />
-        </div>
-      )}
 
       {isLoading ? (
         <div style={{ color: 'var(--fg-4)', fontSize: 13, padding: '40px 0', textAlign: 'center' }}>Loading…</div>

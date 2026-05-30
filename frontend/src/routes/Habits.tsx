@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CheckSquare, BarChart3, Loader2, Flame, TrendingUp, CalendarCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckSquare, BarChart3, Loader2, Flame, TrendingUp, CalendarCheck, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { RightDrawer } from '@/components/ui/RightDrawer';
 import { HabitTodayStrip } from '@/components/habits/HabitTodayStrip';
+import { HabitAddForm } from '@/components/habits/HabitAddForm';
 import { HabitWeekTable } from '@/components/habits/HabitWeekTable';
 import { HabitStreakCard } from '@/components/habits/HabitStreakCard';
 import { HabitList } from '@/components/habits/HabitList';
@@ -30,6 +32,7 @@ type Tab = 'log' | 'chart';
 export function Habits() {
   const qc = useQueryClient();
 
+  const [addOpen, setAddOpen] = useState(false);
   const [weekStart, setWeekStart] = useState<Date>(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 }),
   );
@@ -197,7 +200,39 @@ export function Habits() {
         title="Habits"
         eyebrow="HABITS · TRACKER"
         subtitle="Build consistency, one rep at a time. Small actions compounded daily."
+        action={
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              height: 36, padding: '0 16px', borderRadius: 10,
+              font: '500 13px/1 var(--font-sans)', color: 'white',
+              background: 'var(--grad-primary)',
+              boxShadow: 'var(--elev-1), var(--elev-glow)',
+              border: 'none', cursor: 'pointer',
+            }}
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            Add habit
+          </button>
+        }
       />
+
+      <RightDrawer
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="New Habit"
+      >
+        <HabitAddForm
+          alwaysExpanded
+          onCreate={async (payload) => {
+            await createMut.mutateAsync(payload);
+            setAddOpen(false);
+          }}
+          onCancel={() => setAddOpen(false)}
+        />
+      </RightDrawer>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section
@@ -436,7 +471,6 @@ export function Habits() {
           <HabitList
             habits={habits}
             loading={habitsQ.isLoading}
-            onCreate={handleCreate}
           />
         </aside>
       </div>
