@@ -34,7 +34,7 @@ export function Topbar() {
       }}
     >
       <div
-        className="max-w-[1240px] mx-auto px-12 flex items-center gap-4"
+        className="no-drag max-w-[1240px] mx-auto px-12 flex items-center gap-4"
         style={{ height: 56 }}
       >
         {/* Breadcrumb */}
@@ -50,10 +50,7 @@ export function Topbar() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Bell — must opt out of drag so clicks register */}
-        <div className="no-drag">
-          <NotificationBell />
-        </div>
+        <NotificationBell />
       </div>
     </header>
   );

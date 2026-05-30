@@ -6,6 +6,19 @@
 .drag-region { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
 
+/* ── Electron: ensure ALL interactive elements are always clickable ──────────
+   Without this, elements nested inside a .drag-region parent inherit the drag
+   behaviour — Chromium's hit-test marks their inner content as a drag handle
+   so clicks on text/icons don't fire; only the outer border-box edge works.
+   Declaring no-drag on every button/link/input globally fixes it for every
+   page without having to wrap every widget individually.                     */
+button, a, input, textarea, select,
+label, [role="button"], [role="link"],
+[role="menuitem"], [role="tab"], [role="checkbox"],
+[role="radio"], [role="switch"], [role="combobox"] {
+  -webkit-app-region: no-drag;
+}
+
 /* ── Clash Grotesk display font ──────────────────────────────────────────── */
 @font-face {
   font-family: "Clash Grotesk";
@@ -229,7 +242,6 @@
     box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 0 40px rgba(139,124,255,0.15);
   }
   .btn-primary:hover {
-    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.18), 0 0 60px rgba(139,124,255,0.32);
   }
   .btn-primary:disabled { @apply opacity-40 cursor-not-allowed; transform: none; }
