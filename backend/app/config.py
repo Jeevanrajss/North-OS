@@ -61,11 +61,25 @@ class Settings(BaseSettings):
     offline_mode: bool = False  # When true, middleware blocks non-local outbound
 
     def model_post_init(self, __context) -> None:  # type: ignore[override]
+        # Resolve the effective data dir: pydantic field takes priority over
+        # bare os.environ (Electron sets it as a real env var; .env sets the field).
+        effective_data_dir = (
+            self.personal_os_data_dir
+            or os.environ.get("PERSONAL_OS_DATA_DIR", "")
+        )
+
         # Resolve db_path: env-var override → .env value → default
         if not self.db_path:
-            object.__setattr__(self, "db_path", _default_db_path())
+            if effective_data_dir:
+                Path(effective_data_dir).mkdir(parents=True, exist_ok=True)
+                object.__setattr__(
+                    self, "db_path", str(Path(effective_data_dir) / "north-os.db")
+                )
+            else:
+                object.__setattr__(self, "db_path", str(ROOT_DIR / "data" / "north-os.db"))
+
         # Disable encryption when running as packaged app
-        if self.personal_os_data_dir and self.db_encryption:
+        if effective_data_dir and self.db_encryption:
             object.__setattr__(self, "db_encryption", False)
 
 
