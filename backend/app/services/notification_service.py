@@ -81,9 +81,12 @@ def create_notification(
 # ---------------------------------------------------------------------------
 
 def check_morning_briefing(db: Session) -> int:
-    from app.models.habit import Habit, HabitCheckin
-    from app.models.subscription import Subscription
-
+    """
+    Pattern-aware morning briefing. Calls LLM when available; falls back to
+    a simple static summary so the notification always fires even offline.
+    Returns 1 if a notification was created, 0 otherwise.
+    """
+    import asyncio
     today = date.today()
 
     # One briefing per day
@@ -94,19 +97,92 @@ def check_morning_briefing(db: Session) -> int:
     if already:
         return 0
 
-    parts: list[str] = []
+    # ── Try AI-powered briefing ──────────────────────────────────────────────
+    try:
+        from app.services.llm_client import generate as llm_generate, LLMError
+        from app.services.analytics_engine import get_correlations
+        from app.routers.ai import _build_data_context
 
-    # Habits: how many done vs due today
+        context = _build_data_context(db)
+        correlations = get_correlations(db, days=30)
+
+        # Build pattern nudge lines
+        pattern_lines: list[str] = []
+        mhc = correlations.get("mood_vs_habit_completion")
+        if mhc and abs(mhc.get("delta", 0)) >= 0.3:
+            direction = "higher" if mhc["delta"] > 0 else "lower"
+            pattern_lines.append(
+                f"Your mood is {direction} on high-habit-completion days "
+                f"(delta {abs(mhc['delta']):.1f} pts over {correlations['days_analysed']} days)."
+            )
+
+        worst_dow = correlations.get("worst_day_of_week")
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        today_name = day_names[today.weekday()]
+        if worst_dow and worst_dow["day"] == today_name:
+            pattern_lines.append(
+                f"Historically, {today_name} is your weakest habit day "
+                f"({worst_dow['avg_completion'] * 100:.0f}% avg). Be intentional today."
+            )
+
+        evm = correlations.get("expense_vs_mood")
+        if evm and evm.get("delta", 0) > 200:
+            pattern_lines.append(
+                f"You spend ~₹{evm['delta']:.0f} more on low-mood days. "
+                "If today feels heavy, watch discretionary spending."
+            )
+
+        pattern_text = "\n".join(pattern_lines) if pattern_lines else "Not enough pattern data yet."
+
+        prompt = f"""Today's data:
+{context}
+
+Patterns from last 30 days:
+{pattern_text}
+
+Write a brief morning briefing in this format (keep each section on its own line):
+
+Good morning! [1 sentence referencing today's day/date]
+
+Today: [2-3 specific items — habits to do, upcoming subscription renewals, anything notable. Use real data.]
+
+Pattern nudge: [1 sentence personalised insight from the patterns above. Omit this line if no useful pattern data.]
+
+Under 80 words total. Direct and warm. No filler."""
+
+        system = (
+            "You are writing a morning briefing for a personal productivity app. "
+            "Be warm but concise. Reference real names and numbers. "
+            "Omit 'Pattern nudge' if data is insufficient."
+        )
+
+        body = asyncio.run(llm_generate(
+            prompt, purpose="insights", system=system, temperature=0.5, max_tokens=200,
+        ))
+
+        if body and len(body.strip()) > 20:
+            title = f"Morning briefing · {today.strftime('%A, %d %b')}"
+            create_notification(
+                db, "morning_briefing", title, body.strip(),
+                {"date": str(today), "ai_powered": True}, skip_quiet=True,
+            )
+            return 1
+
+    except Exception as e:
+        log.warning("AI morning briefing failed, falling back to static: %s", e)
+
+    # ── Static fallback ──────────────────────────────────────────────────────
+    from app.models.habit import Habit, HabitCheckin
+    from app.models.subscription import Subscription
+
+    parts: list[str] = []
     active_habits = db.query(Habit).filter(Habit.archived_at.is_(None)).all()
     if active_habits:
-        due_today = []
-        for h in active_habits:
-            if h.frequency_kind == "weekly" and h.weekdays:
-                scheduled = {int(d) for d in h.weekdays.split(",") if d.strip()}
-                if today.weekday() not in scheduled:
-                    continue
-            due_today.append(h)
-
+        due_today = [
+            h for h in active_habits
+            if not (h.frequency_kind == "weekly" and h.weekdays and
+                    today.weekday() not in {int(d) for d in h.weekdays.split(",") if d.strip()})
+        ]
         if due_today:
             checked = db.query(HabitCheckin).filter(
                 HabitCheckin.habit_id.in_([h.id for h in due_today]),
@@ -115,11 +191,9 @@ def check_morning_briefing(db: Session) -> int:
             total = len(due_today)
             parts.append(
                 f"All {total} habit{'s' if total != 1 else ''} done ✓"
-                if checked == total
-                else f"{checked}/{total} habits done"
+                if checked == total else f"{checked}/{total} habits done"
             )
 
-    # Subscriptions due today or this week
     subs_today = db.query(Subscription).filter(
         Subscription.cancelled_at.is_(None),
         Subscription.next_billing_date == today,
@@ -129,12 +203,103 @@ def check_morning_briefing(db: Session) -> int:
         parts.append(f"{subs_today} subscription{'s' if subs_today != 1 else ''} renewing today")
 
     body = " · ".join(parts) if parts else "Have a great day."
-
     create_notification(
         db, "morning_briefing", "Good morning ☀️", body,
-        {"date": str(today)}, skip_quiet=True,  # briefing ignores quiet hours
+        {"date": str(today)}, skip_quiet=True,
     )
     return 1
+
+
+# ---------------------------------------------------------------------------
+# Weekly AI Review Digest (Phase 3)
+# ---------------------------------------------------------------------------
+
+def generate_weekly_review(db: Session) -> "Notification | None":
+    """
+    Generate a weekly AI review and persist it as a 'weekly_review' notification.
+    De-duplicates: skips if one was already created in the last 6 days.
+    Sync wrapper — calls asyncio.run() internally.
+    Returns the Notification on success, None on skip or failure.
+    """
+    import asyncio
+    from datetime import timedelta
+
+    # De-dup: one review per 6-day window
+    six_days_ago = date.today() - timedelta(days=6)
+    existing = db.query(Notification).filter(
+        Notification.type == "weekly_review",
+        Notification.created_at >= six_days_ago,
+    ).first()
+    if existing:
+        log.info("Weekly review already sent this week — skipping")
+        return None
+
+    try:
+        from app.services.llm_client import generate as llm_generate, LLMError
+        from app.services.analytics_engine import get_correlations
+        from app.routers.ai import _build_data_context
+
+        context = _build_data_context(db)
+        corr = get_correlations(db, days=7)
+
+        corr_lines: list[str] = []
+        if corr.get("avg_mood_score") is not None:
+            corr_lines.append(f"Avg mood: {corr['avg_mood_score']:.1f}/5")
+        if corr.get("avg_habit_completion") is not None:
+            corr_lines.append(f"Avg habit completion: {corr['avg_habit_completion'] * 100:.0f}%")
+        mhc = corr.get("mood_vs_habit_completion")
+        if mhc:
+            corr_lines.append(
+                f"Mood delta (high vs low habit days): {mhc['delta']:+.1f} pts"
+            )
+        evm = corr.get("expense_vs_mood")
+        if evm:
+            corr_lines.append(
+                f"Extra spend on low-mood days: ₹{evm['delta']:.0f}"
+            )
+
+        prompt = f"""User's data for the last 7 days:
+{context}
+
+Weekly correlations:
+{chr(10).join(corr_lines) or "Insufficient data"}
+
+Write a weekly review in EXACTLY this format (keep the emoji headers):
+
+🌟 Week in review:
+[1-2 sentences on what went well, with specific data]
+
+📊 Pattern noticed:
+[1 cross-module insight connecting at least 2 of: habits, mood, journal, spending]
+
+🎯 One focus for next week:
+[One specific, actionable recommendation]
+
+Under 100 words total. Warm and personal. Use real numbers from the data."""
+
+        system = (
+            "You are a personal coach reviewing someone's week. Be warm, specific, and brief. "
+            "Always reference real numbers. Never fabricate. "
+            "If data is sparse (fewer than 3 days), acknowledge it and focus on what is available."
+        )
+
+        body = asyncio.run(llm_generate(
+            prompt, purpose="insights", system=system, temperature=0.6, max_tokens=300,
+        ))
+
+        if not body or len(body.strip()) < 20:
+            log.warning("Weekly review: empty/short LLM response, skipping")
+            return None
+
+        notif = create_notification(
+            db, "weekly_review", "Your week in review 📊", body.strip(),
+            {"week_ending": str(date.today())}, skip_quiet=True,
+        )
+        return notif
+
+    except Exception as e:
+        log.warning("Weekly review generation failed: %s", e)
+        return None
 
 
 # ---------------------------------------------------------------------------

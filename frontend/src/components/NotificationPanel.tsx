@@ -5,8 +5,10 @@ import { api, type NotificationItem } from '@/lib/api';
 
 const TYPE_ICON: Record<string, string> = {
   morning_briefing: '☀️',
+  weekly_review:    '📊',
   habit_reminder:   '🔥',
   sub_alert:        '🔄',
+  sub_renewed:      '✅',
   budget_warning:   '💰',
   finance_alert:    '💳',
   system:           '🖥️',
@@ -327,9 +329,18 @@ export function NotificationBell() {
                   }}>
                     {item.title}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.4 }}>
-                    {item.body}
-                  </div>
+                  {(item.type === 'weekly_review' || item.type === 'morning_briefing') ? (
+                    <pre style={{
+                      fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', margin: 0,
+                    }}>
+                      {item.body}
+                    </pre>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.4 }}>
+                      {item.body}
+                    </div>
+                  )}
                   <div style={{ fontSize: 10.5, color: 'var(--fg-disabled)', marginTop: 4 }}>
                     {timeAgo(item.created_at)}
                   </div>

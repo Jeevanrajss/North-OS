@@ -58,6 +58,22 @@ def _run_budget_warnings() -> None:
         check_budget_warnings(db)
 
 
+def _run_weekly_review() -> None:
+    """Run Sunday 19:00. Generates AI weekly review notification."""
+    from app.db import SessionLocal
+    from app.models.setting import Setting
+    with SessionLocal() as db:
+        s = db.query(Setting).filter(Setting.key == "notif.weekly_review_enabled").first()
+        if s and s.value == "false":
+            return
+        from app.services.notification_service import generate_weekly_review
+        result = generate_weekly_review(db)
+        if result:
+            log.info("Weekly review notification created")
+        else:
+            log.info("Weekly review skipped or failed")
+
+
 def _run_analytics_snapshot() -> None:
     """Compute today's (and yesterday's) analytics snapshot at 00:05 daily."""
     from datetime import date, timedelta
@@ -151,6 +167,12 @@ def start_scheduler() -> None:
         _run_analytics_snapshot,
         CronTrigger(hour=0, minute=5),
         id="analytics_snapshot", replace_existing=True,
+    )
+    # Weekly review: Sunday 19:00
+    _scheduler.add_job(
+        _run_weekly_review,
+        CronTrigger(day_of_week="sun", hour=19, minute=0),
+        id="weekly_review", replace_existing=True,
     )
 
     _scheduler.start()

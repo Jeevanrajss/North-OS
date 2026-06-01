@@ -118,6 +118,16 @@ def trigger_budget_check(db: Session = Depends(get_db)) -> dict:
     return {"created": count}
 
 
+@router.post("/trigger/weekly-review")
+def trigger_weekly_review(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger for the weekly AI review. Useful for testing or ad-hoc generation."""
+    from app.services.notification_service import generate_weekly_review
+    notif = generate_weekly_review(db)
+    if notif:
+        return {"created": True, "body": notif.body}
+    return {"created": False, "reason": "AI unavailable or already sent this week"}
+
+
 @router.post("/reschedule")
 def reschedule(db: Session = Depends(get_db)) -> dict:
     from app.scheduler import reschedule_jobs

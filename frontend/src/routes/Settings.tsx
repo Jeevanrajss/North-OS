@@ -1306,6 +1306,7 @@ function NotificationSettingsPanel() {
   const [subEnabled,      setSubEnabled]      = useState(true);
   const [subDays,         setSubDays]         = useState('3');
   const [budgetEnabled,   setBudgetEnabled]   = useState(false);
+  const [weeklyReviewEnabled, setWeeklyReviewEnabled] = useState(true);
   const [quietStart,      setQuietStart]      = useState('22:00');
   const [quietEnd,        setQuietEnd]        = useState('07:00');
   // Sound is a local device preference — stored in localStorage, not synced to backend
@@ -1334,6 +1335,7 @@ function NotificationSettingsPanel() {
     setSubEnabled((settings['notif.sub_alert_enabled'] as string) !== 'false');
     setSubDays((settings['notif.sub_alert_days_before'] as string) || '3');
     setBudgetEnabled((settings['notif.budget_warning_enabled'] as string) === 'true');
+    setWeeklyReviewEnabled((settings['notif.weekly_review_enabled'] as string) !== 'false');
     setQuietStart((settings['notif.quiet_start'] as string) || '22:00');
     setQuietEnd((settings['notif.quiet_end'] as string) || '07:00');
   }, [settings]);
@@ -1344,7 +1346,7 @@ function NotificationSettingsPanel() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => { handleSave(); }, 600);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [briefingEnabled, briefingTime, habitEnabled, habitTime, subEnabled, subDays, budgetEnabled, quietStart, quietEnd]);
+  }, [briefingEnabled, briefingTime, habitEnabled, habitTime, subEnabled, subDays, budgetEnabled, weeklyReviewEnabled, quietStart, quietEnd]);
 
   async function handleSave() {
     await api.settings.update({
@@ -1355,6 +1357,7 @@ function NotificationSettingsPanel() {
       'notif.sub_alert_enabled':        subEnabled ? 'true' : 'false',
       'notif.sub_alert_days_before':    subDays,
       'notif.budget_warning_enabled':   budgetEnabled ? 'true' : 'false',
+      'notif.weekly_review_enabled':    weeklyReviewEnabled ? 'true' : 'false',
       'notif.quiet_start':              quietStart,
       'notif.quiet_end':                quietEnd,
     });
@@ -1378,14 +1381,22 @@ function NotificationSettingsPanel() {
     setTesting(type);
     setTestResult(null);
     try {
-      let res: { created: number };
-      if (type === 'briefing') res = await api.notifications.triggerMorningBriefing();
-      else if (type === 'habit') res = await api.notifications.triggerHabitCheck();
-      else if (type === 'sub')   res = await api.notifications.triggerSubCheck();
-      else                       res = await api.notifications.triggerBudgetCheck();
-      setTestResult(res.created > 0
-        ? `✓ ${res.created} notification${res.created !== 1 ? 's' : ''} created`
-        : '— Nothing pending right now');
+      if (type === 'briefing') {
+        const res = await api.notifications.triggerMorningBriefing();
+        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Already sent today');
+      } else if (type === 'habit') {
+        const res = await api.notifications.triggerHabitCheck();
+        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+      } else if (type === 'sub') {
+        const res = await api.notifications.triggerSubCheck();
+        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+      } else if (type === 'weekly-review') {
+        const res = await (fetch('/api/v1/notifications/trigger/weekly-review', { method: 'POST' }).then(r => r.json()) as Promise<{ created: boolean; body?: string; reason?: string }>);
+        setTestResult(res.created ? `✓ Weekly review created` : `— ${res.reason ?? 'Not created'}`);
+      } else {
+        const res = await api.notifications.triggerBudgetCheck();
+        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+      }
       qc.invalidateQueries({ queryKey: ['notif-count'] });
       qc.invalidateQueries({ queryKey: ['notifications'] });
     } catch (e: unknown) {
@@ -1533,6 +1544,21 @@ function NotificationSettingsPanel() {
           </div>
         </div>
 
+        {/* ── Weekly review ── */}
+        <div style={rowStyle}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--fg-1)', marginBottom: 4 }}>
+              Weekly review (Sunday evenings)
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--fg-4)' }}>
+              AI-generated review of your week — mood, habits, spending patterns. Fires at 19:00 every Sunday.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 24, flexShrink: 0 }}>
+            <NotifToggle on={weeklyReviewEnabled} onChange={setWeeklyReviewEnabled} />
+          </div>
+        </div>
+
         {/* ── Notification sound ── */}
         <div style={rowStyle}>
           <div>
@@ -1581,10 +1607,11 @@ function NotificationSettingsPanel() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11.5, color: 'var(--fg-4)', marginRight: 4 }}>Test now:</span>
         {([
-          { key: 'briefing', label: '☀️ Briefing',    enabled: briefingEnabled },
-          { key: 'habit',    label: '🔥 Habits',      enabled: habitEnabled },
-          { key: 'sub',      label: '🔄 Subs',        enabled: subEnabled },
-          { key: 'budget',   label: '💰 Budget',      enabled: budgetEnabled },
+          { key: 'briefing',       label: '☀️ Briefing',    enabled: briefingEnabled },
+          { key: 'habit',          label: '🔥 Habits',      enabled: habitEnabled },
+          { key: 'sub',            label: '🔄 Subs',        enabled: subEnabled },
+          { key: 'budget',         label: '💰 Budget',      enabled: budgetEnabled },
+          { key: 'weekly-review',  label: '📊 Weekly',      enabled: weeklyReviewEnabled },
         ] as const).map(({ key, label, enabled }) => (
           <button
             key={key}
