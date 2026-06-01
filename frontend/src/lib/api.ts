@@ -17,6 +17,54 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Goal types
+// ---------------------------------------------------------------------------
+export type GoalType = 'habit_streak' | 'habit_rate' | 'finance_save' | 'finance_spend' | 'custom';
+export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
+
+export type Goal = {
+  id: string;
+  title: string;
+  description: string | null;
+  emoji: string;
+  goal_type: GoalType;
+  linked_id: string | null;
+  linked_label: string | null;
+  target_value: number | null;
+  target_period_days: number | null;
+  currency: string;
+  current_value: number | null;
+  target_date: string | null;
+  status: GoalStatus;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  // Computed
+  progress_pct: number | null;
+  computed_current: number | null;
+  days_remaining: number | null;
+  overdue: boolean;
+  linked_missing: boolean;
+};
+
+export type GoalIn = {
+  title: string;
+  description?: string | null;
+  emoji?: string;
+  goal_type?: GoalType;
+  linked_id?: string | null;
+  linked_label?: string | null;
+  target_value?: number | null;
+  target_period_days?: number | null;
+  currency?: string;
+  current_value?: number | null;
+  target_date?: string | null;
+  sort_order?: number;
+};
+
+export type GoalPatch = Partial<GoalIn> & { status?: GoalStatus };
+
+// ---------------------------------------------------------------------------
 // Analytics types
 // ---------------------------------------------------------------------------
 export type AnalyticsSnapshot = {
@@ -1037,6 +1085,22 @@ export const api = {
 
   data: {
     wipe: () => request<{ ok: boolean; message: string }>('/data/wipe', { method: 'DELETE' }),
+  },
+
+  goals: {
+    list: (status?: string) =>
+      request<Goal[]>(`/goals/${status ? `?status=${status}` : ''}`),
+    get: (id: string) => request<Goal>(`/goals/${id}`),
+    create: (body: GoalIn) =>
+      request<Goal>('/goals/', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: GoalPatch) =>
+      request<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    delete: (id: string) =>
+      request<void>(`/goals/${id}`, { method: 'DELETE' }),
+    complete: (id: string) =>
+      request<Goal>(`/goals/${id}/complete`, { method: 'POST' }),
+    abandon: (id: string) =>
+      request<Goal>(`/goals/${id}/abandon`, { method: 'POST' }),
   },
 
   analytics: {

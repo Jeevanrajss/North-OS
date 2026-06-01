@@ -15,6 +15,7 @@ import { HabitDetail } from '@/routes/HabitDetail';
 import { Settings } from '@/routes/Settings';
 import { Chat } from '@/routes/Chat';
 import { Patterns } from '@/routes/Patterns';
+import { Goals } from '@/routes/Goals';
 import { BriefingProvider } from '@/contexts/BriefingContext';
 import { AIContentProvider } from '@/contexts/AIContentContext';
 import { ModulesProvider, useModules } from '@/contexts/ModulesContext';
@@ -63,6 +64,7 @@ function AppShell() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/chat" element={<ModuleGuard moduleId="chat"><Chat /></ModuleGuard>} />
                 <Route path="/patterns" element={<ModuleGuard moduleId="patterns"><Patterns /></ModuleGuard>} />
+                <Route path="/goals" element={<ModuleGuard moduleId="goals"><Goals /></ModuleGuard>} />
               </Routes>
             </div>
           )}

@@ -8,6 +8,7 @@ import { DashJournalCard } from '@/components/dashboard/DashJournalCard';
 import { DashSubsCard } from '@/components/dashboard/DashSubsCard';
 import { DashFinanceCard } from '@/components/dashboard/DashFinanceCard';
 import { DashAIBriefing } from '@/components/dashboard/DashAIBriefing';
+import { DashGoalsCard } from '@/components/dashboard/DashGoalsCard';
 import { useModules } from '@/contexts/ModulesContext';
 
 // ---------------------------------------------------------------------------
@@ -286,6 +287,7 @@ export function Dashboard() {
           <div className={hasLeft ? 'lg:col-span-4 space-y-5' : 'lg:col-span-10 space-y-5'}>
             {isEnabled('chat') && <DashAIBriefing />}
             {isEnabled('subscriptions') && <DashSubsCard />}
+            {isEnabled('goals') && <DashGoalsCard />}
             {isEnabled('finance') && <DashFinanceCard />}
 
           {/* System status — always visible */}

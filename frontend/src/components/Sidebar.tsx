@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, CreditCard, RefreshCw,
-  CheckSquare, MessageSquare, Settings, ChevronLeft, ChevronRight, TrendingUp,
+  CheckSquare, MessageSquare, Settings, ChevronLeft, ChevronRight, TrendingUp, Target,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useModules } from '@/contexts/ModulesContext';
@@ -21,6 +21,7 @@ const nav: Array<{
   { to: '/app/habits',        label: 'Habits',        icon: CheckSquare,     moduleId: 'habits' },
   { to: '/app/chat',          label: 'AI Chat',       icon: MessageSquare,   moduleId: 'chat' },
   { to: '/app/patterns',     label: 'Patterns',      icon: TrendingUp,      moduleId: 'patterns' },
+  { to: '/app/goals',        label: 'Goals',         icon: Target,          moduleId: 'goals' },
 ];
 
 type Props = { collapsed: boolean; onToggle: () => void };

@@ -140,6 +140,23 @@ def _build_data_context(db: Session) -> str:
         for t in cur_month_txns[-5:]:
             lines.append(f"- {t.date} {t.type}: {t.currency} {t.amount:.0f} ({t.category or 'uncategorised'}) {t.payee or ''}")
 
+    # ── Active goals ─────────────────────────────────────────────────────────
+    try:
+        from app.models.goal import Goal
+        active_goals = db.query(Goal).filter(
+            Goal.status == "active", Goal.archived_at.is_(None)
+        ).order_by(Goal.sort_order).all()
+        if active_goals:
+            lines.append("\n## Active Goals")
+            for g in active_goals:
+                deadline = f" (due {g.target_date})" if g.target_date else ""
+                lines.append(
+                    f"- {g.emoji} {g.title}{deadline}: type={g.goal_type}, "
+                    f"target={g.target_value}, linked={g.linked_label or 'none'}"
+                )
+    except Exception:
+        pass  # Goals module not yet initialised
+
     # ── Cross-module correlations (pre-computed analytics) ───────────────────
     try:
         from app.services.analytics_engine import get_correlations
