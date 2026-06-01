@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, CreditCard, Eye, EyeOff, FileBarChart2, LayoutDashboard, Plus, TrendingDown, TrendingUp, Upload, Wallet, X } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { RightDrawer } from '@/components/ui/RightDrawer';
 import { AccountsCard } from '@/components/finance/AccountsCard';
 import { BudgetCard } from '@/components/finance/BudgetCard';
 import { CategoryBreakdownCard } from '@/components/finance/CategoryBreakdownCard';
@@ -141,16 +142,11 @@ export function Finance() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowForm((v) => !v)}
-                  className={cn(
-                    'inline-flex items-center gap-2 h-9 px-3.5 rounded-[10px] text-[13px] font-medium transition-all',
-                    showForm
-                      ? 'btn-ghost'
-                      : 'btn-primary',
-                  )}
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center gap-2 h-9 px-3.5 rounded-[10px] text-[13px] font-medium btn-primary"
                 >
-                  {showForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                  {showForm ? 'Cancel' : 'Add transaction'}
+                  <Plus className="w-3.5 h-3.5" />
+                  Add transaction
                 </button>
               </>
             )}
@@ -308,24 +304,26 @@ export function Finance() {
             />
           </div>
 
+          {/* Right-side drawer for adding a transaction */}
+          <RightDrawer
+            open={showForm}
+            onClose={() => setShowForm(false)}
+            title="New Transaction"
+          >
+            {meta && (
+              <TransactionForm
+                meta={meta}
+                onSubmit={async (payload) => { await createMut.mutateAsync(payload); }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+          </RightDrawer>
+
           {/* Main grid — 1.4fr left (transactions), 1fr right (categories + AI) */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
-            {/* Left — add form + SMS inbox + transaction list */}
+            {/* Left — SMS inbox + transaction list */}
             <div className="space-y-4">
               <SmsInbox queryKey={txnKey} />
-
-              {showForm && meta && (
-                <div className="card" style={{ padding: 22 }}>
-                  <h3 style={{ margin: '0 0 16px', font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
-                    New Transaction
-                  </h3>
-                  <TransactionForm
-                    meta={meta}
-                    onSubmit={async (payload) => { await createMut.mutateAsync(payload); }}
-                    onCancel={() => setShowForm(false)}
-                  />
-                </div>
-              )}
 
               <div className="card" style={{ padding: 22 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
