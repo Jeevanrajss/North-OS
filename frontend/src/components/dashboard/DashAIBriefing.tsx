@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, type Day, type HabitsTodayResponse, type SubscriptionStatsResponse } from '@/lib/api';
@@ -63,6 +63,7 @@ function BriefingError({ kind, message }: { kind: ErrorKind | null; message: str
 }
 
 export function DashAIBriefing() {
+  const qc = useQueryClient();
   const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const { data: habits } = useQuery<HabitsTodayResponse>({
@@ -85,7 +86,19 @@ export function DashAIBriefing() {
 
   const { text: briefing, isPending, error, errorKind, generate } = useBriefing();
 
-  function handleGenerate() {
+  // Detect if the briefing used pattern data (Phase 4 upgrade)
+  const isPatternAware = !!briefing && briefing.toLowerCase().includes('pattern');
+
+  async function handleGenerate() {
+    // Trigger the server-side pattern-aware briefing (stores as notification),
+    // then also run the local generation so the card shows content immediately.
+    try {
+      await fetch('/api/v1/notifications/trigger/morning-briefing', { method: 'POST' });
+      qc.invalidateQueries({ queryKey: ['notif-count'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    } catch {
+      // non-fatal — fall through to local generation
+    }
     generate(habits, journal, subs);
   }
 
@@ -101,19 +114,31 @@ export function DashAIBriefing() {
       overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        {/* AI tag */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          color: 'var(--primary-300)',
-          font: '500 12px/1 var(--font-sans)',
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-        }}>
-          <Sparkles style={{ width: 12, height: 12 }} />
-          Morning Briefing
+        {/* AI tag + Pattern-aware badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            color: 'var(--primary-300)',
+            font: '500 12px/1 var(--font-sans)',
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>
+            <Sparkles style={{ width: 12, height: 12 }} />
+            Morning Briefing
+          </div>
+          {isPatternAware && (
+            <span style={{
+              fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+              padding: '2px 7px', borderRadius: 999,
+              background: 'rgba(61,255,152,0.10)', color: 'var(--accent-green)',
+              border: '1px solid rgba(61,255,152,0.22)',
+            }}>
+              Pattern-aware
+            </span>
+          )}
         </div>
         <button
           type="button"
-          onClick={handleGenerate}
+          onClick={() => void handleGenerate()}
           disabled={isPending}
           title={briefing ? 'Regenerate briefing' : 'Generate briefing'}
           className={cn(
@@ -142,12 +167,13 @@ export function DashAIBriefing() {
       {error && <BriefingError kind={errorKind} message={error} />}
 
       {briefing ? (
-        <div style={{
+        <pre style={{
           fontSize: 13, color: 'var(--fg-3)', lineHeight: '20px',
           opacity: isPending ? 0.5 : 1,
+          whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', margin: 0,
         }}>
           {renderBold(briefing)}
-        </div>
+        </pre>
       ) : !isPending && !error ? (
         <div>
           <h3 style={{ margin: '14px 0 6px', font: '500 18px/1.2 var(--font-display)', letterSpacing: '-0.005em', color: 'var(--fg-1)' }}>
@@ -159,7 +185,7 @@ export function DashAIBriefing() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
-              onClick={handleGenerate}
+              onClick={() => void handleGenerate()}
               style={{
                 height: 36, padding: '0 14px', borderRadius: 10,
                 display: 'inline-flex', alignItems: 'center', gap: 8,
