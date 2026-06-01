@@ -116,29 +116,55 @@ def _build_data_context(db: Session) -> str:
                 f" next billing: {s.next_billing_date} ({days_left}d away)"
             )
 
-    # --- Finance (current month transactions) ---
+    # --- Finance: last 3 months summary + current month details ---
     from app.models.finance import Transaction as TxnModel
 
-    cur_month_txns = db.query(TxnModel).filter(
-        extract("month", TxnModel.date) == today.month,
-        extract("year", TxnModel.date) == today.year,
+    # Build month list: [current, -1, -2]
+    months: list[tuple[int, int]] = []  # (year, month)
+    for delta in range(3):
+        m = today.month - delta
+        y = today.year
+        while m < 1:
+            m += 12
+            y -= 1
+        months.append((y, m))
+
+    all_recent_txns = db.query(TxnModel).filter(
+        TxnModel.date >= (today - timedelta(days=92)),
     ).all()
 
-    if cur_month_txns:
-        income = sum(t.amount for t in cur_month_txns if t.type == "income")
-        expense = sum(t.amount for t in cur_month_txns if t.type == "expense")
-        lines.append(f"\n## Finance ({today.year}-{today.month:02d})")
+    lines.append("\n## Finance (last 3 months)")
+
+    for (yr, mo) in months:
+        month_txns = [
+            t for t in all_recent_txns
+            if t.date.year == yr and t.date.month == mo
+        ]
+        if not month_txns:
+            continue
+        label = "current month" if (yr == today.year and mo == today.month) else ""
+        income  = sum(t.amount for t in month_txns if t.type == "income")
+        expense = sum(t.amount for t in month_txns if t.type == "expense")
+        lines.append(f"\n### {yr}-{mo:02d}{' (' + label + ')' if label else ''}")
         lines.append(f"Income: {income:.0f} | Expenses: {expense:.0f} | Net: {income - expense:.0f}")
+
         cat_totals: dict[str, float] = {}
-        for t in cur_month_txns:
+        for t in month_txns:
             if t.type == "expense":
                 c = t.category or "Other"
                 cat_totals[c] = cat_totals.get(c, 0) + t.amount
         if cat_totals:
             top = sorted(cat_totals.items(), key=lambda x: -x[1])[:5]
-            lines.append("Top expense categories: " + ", ".join(f"{c}: {v:.0f}" for c, v in top))
-        for t in cur_month_txns[-5:]:
-            lines.append(f"- {t.date} {t.type}: {t.currency} {t.amount:.0f} ({t.category or 'uncategorised'}) {t.payee or ''}")
+            lines.append("Top categories: " + ", ".join(f"{c}: {v:.0f}" for c, v in top))
+
+        # Show recent individual transactions only for the current month
+        if yr == today.year and mo == today.month:
+            recent = sorted(month_txns, key=lambda t: t.date)[-8:]
+            for t in recent:
+                lines.append(
+                    f"  - {t.date} {t.type}: {t.currency} {t.amount:.0f}"
+                    f" ({t.category or 'uncategorised'}) {t.payee or ''}"
+                )
 
     # ── Active goals ─────────────────────────────────────────────────────────
     try:
