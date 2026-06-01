@@ -17,6 +17,57 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Analytics types
+// ---------------------------------------------------------------------------
+export type AnalyticsSnapshot = {
+  date: string;
+  mood_score: number | null;
+  habit_completion_rate: number | null;
+  daily_expense: number | null;
+  daily_income: number | null;
+  journal_written: boolean | null;
+  habits_done: number | null;
+  habits_scheduled: number | null;
+  sleep_hours: number | null;
+  energy_level: number | null;
+};
+
+export type AnalyticsCorrelations = {
+  days_analysed: number;
+  avg_mood_score: number | null;
+  avg_habit_completion: number | null;
+  avg_daily_expense: number | null;
+  low_mood_days: number;
+  high_mood_days: number;
+  zero_habit_days: number;
+  perfect_habit_days: number;
+  mood_vs_habit_completion: {
+    mood_on_high_completion_days: number;
+    mood_on_low_completion_days: number;
+    delta: number;
+    sample_high: number;
+    sample_low: number;
+  } | null;
+  expense_vs_mood: {
+    avg_spend_high_mood: number;
+    avg_spend_low_mood: number;
+    delta: number;
+  } | null;
+  journal_habit_correlation: {
+    habit_rate_with_journal: number;
+    habit_rate_without_journal: number;
+    delta: number;
+  } | null;
+  sleep_vs_mood: {
+    mood_good_sleep: number;
+    mood_poor_sleep: number;
+    delta: number;
+  } | null;
+  best_day_of_week: { day: string; avg_completion: number } | null;
+  worst_day_of_week: { day: string; avg_completion: number } | null;
+};
+
+// ---------------------------------------------------------------------------
 // Health / AI (existing)
 // ---------------------------------------------------------------------------
 export type HealthResponse = {
@@ -986,5 +1037,20 @@ export const api = {
 
   data: {
     wipe: () => request<{ ok: boolean; message: string }>('/data/wipe', { method: 'DELETE' }),
+  },
+
+  analytics: {
+    correlations: (days = 30) =>
+      request<AnalyticsCorrelations>(`/analytics/correlations?days=${days}`),
+    snapshots: (params: { from_date?: string; to_date?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (params.from_date) q.set('from_date', params.from_date);
+      if (params.to_date)   q.set('to_date',   params.to_date);
+      return request<AnalyticsSnapshot[]>(`/analytics/snapshots?${q.toString()}`);
+    },
+    backfill: (days = 90) =>
+      request<{ processed: number }>(`/analytics/backfill?days=${days}`, { method: 'POST' }),
+    computeToday: () =>
+      request<{ ok: boolean; date: string }>('/analytics/compute-today', { method: 'POST' }),
   },
 };

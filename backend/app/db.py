@@ -216,6 +216,7 @@ def init_db() -> None:
     """
     # Import models so they register with Base.metadata.
     from app.models import account, budget, finance, finance_category, habit, journal, setting, subscription, user, sms_transaction, notification  # noqa: F401
+    from app.models import analytics  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

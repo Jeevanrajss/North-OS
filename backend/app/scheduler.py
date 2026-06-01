@@ -58,6 +58,21 @@ def _run_budget_warnings() -> None:
         check_budget_warnings(db)
 
 
+def _run_analytics_snapshot() -> None:
+    """Compute today's (and yesterday's) analytics snapshot at 00:05 daily."""
+    from datetime import date, timedelta
+    from app.db import SessionLocal
+    from app.services.analytics_engine import compute_snapshot_for_date
+    with SessionLocal() as db:
+        try:
+            compute_snapshot_for_date(db, date.today())
+            # Also recompute yesterday — catches late-night journal/transactions
+            compute_snapshot_for_date(db, date.today() - timedelta(days=1))
+        except Exception as e:
+            log.warning("Analytics snapshot job failed: %s", e)
+    log.info("Analytics snapshot computed")
+
+
 # ---------------------------------------------------------------------------
 # Time helpers
 # ---------------------------------------------------------------------------
@@ -130,6 +145,12 @@ def start_scheduler() -> None:
         _run_budget_warnings,
         CronTrigger(hour=sh, minute=sm),
         id="budget_warnings", replace_existing=True,
+    )
+    # Analytics snapshot: fixed at 00:05 daily — not user-configurable
+    _scheduler.add_job(
+        _run_analytics_snapshot,
+        CronTrigger(hour=0, minute=5),
+        id="analytics_snapshot", replace_existing=True,
     )
 
     _scheduler.start()

@@ -140,6 +140,43 @@ def _build_data_context(db: Session) -> str:
         for t in cur_month_txns[-5:]:
             lines.append(f"- {t.date} {t.type}: {t.currency} {t.amount:.0f} ({t.category or 'uncategorised'}) {t.payee or ''}")
 
+    # ── Cross-module correlations (pre-computed analytics) ───────────────────
+    try:
+        from app.services.analytics_engine import get_correlations
+        corr = get_correlations(db, days=30)
+        if corr.get("days_analysed", 0) >= 7:
+            lines.append("\n## Cross-Module Patterns (last 30 days, pre-computed)")
+            if corr["avg_mood_score"] is not None:
+                lines.append(f"Average mood score: {corr['avg_mood_score']:.1f}/5.0")
+            if corr["avg_habit_completion"] is not None:
+                lines.append(f"Average habit completion: {corr['avg_habit_completion']*100:.0f}%")
+            mhc = corr.get("mood_vs_habit_completion")
+            if mhc:
+                lines.append(
+                    f"Mood on high-completion days ({mhc['sample_high']} days): {mhc['mood_on_high_completion_days']:.1f}/5.0"
+                )
+                lines.append(
+                    f"Mood on low-completion days ({mhc['sample_low']} days): {mhc['mood_on_low_completion_days']:.1f}/5.0"
+                )
+            evm = corr.get("expense_vs_mood")
+            if evm:
+                lines.append(
+                    f"Avg spend on high-mood days: {evm['avg_spend_high_mood']:.0f} | "
+                    f"on low-mood days: {evm['avg_spend_low_mood']:.0f}"
+                )
+            jhc = corr.get("journal_habit_correlation")
+            if jhc:
+                lines.append(
+                    f"Habit completion with journal: {jhc['habit_rate_with_journal']*100:.0f}% | "
+                    f"without journal: {jhc['habit_rate_without_journal']*100:.0f}%"
+                )
+            if corr.get("best_day_of_week"):
+                lines.append(f"Best habit day: {corr['best_day_of_week']['day']}")
+            if corr.get("worst_day_of_week"):
+                lines.append(f"Worst habit day: {corr['worst_day_of_week']['day']}")
+    except Exception:
+        pass  # Non-fatal — analytics is an enhancement
+
     return "\n".join(lines)
 
 

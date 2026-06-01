@@ -1,7 +1,7 @@
 // Module configuration — defines all toggleable features of the app.
 // Dashboard is always on and not included here.
 
-export type ModuleId = 'journal' | 'finance' | 'subscriptions' | 'habits' | 'chat';
+export type ModuleId = 'journal' | 'finance' | 'subscriptions' | 'habits' | 'chat' | 'patterns';
 
 export interface ModuleConfig {
   id: ModuleId;
@@ -46,6 +46,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     description: 'Chat with your local or cloud AI assistant.',
     icon: '💬',
     route: '/app/chat',
+  },
+  {
+    id: 'patterns',
+    label: 'Patterns',
+    description: 'Cross-module correlation charts — mood, habits, and spending over time.',
+    icon: '📊',
+    route: '/app/patterns',
   },
 ];
 

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import accounts, ai, data, finance, habit, health, journal, settings, subscription, notifications
+from app.routers import accounts, ai, analytics, data, finance, habit, health, journal, settings, subscription, notifications
 from app.routers import import_router, sms
 
 logging.basicConfig(
@@ -25,6 +25,16 @@ async def lifespan(app: FastAPI):
     log.info("Booting North OS backend")
     init_db()
     log.info("DB ready")
+
+    # Backfill analytics snapshots on startup (idempotent — upserts existing rows)
+    from app.services.analytics_engine import backfill_snapshots
+    from app.db import SessionLocal
+    with SessionLocal() as _db:
+        try:
+            backfill_snapshots(_db, days=90)
+        except Exception as _e:
+            log.warning("Analytics backfill failed on startup (non-fatal): %s", _e)
+
     from app.scheduler import start_scheduler
     start_scheduler()
     yield
@@ -65,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(import_router.router)
     app.include_router(sms.router)
     app.include_router(notifications.router)
+    app.include_router(analytics.router)
     app.include_router(data.router)
 
     # Version endpoint — used by Electron to check running version
