@@ -65,6 +65,38 @@ export type GoalIn = {
 export type GoalPatch = Partial<GoalIn> & { status?: GoalStatus };
 
 // ---------------------------------------------------------------------------
+// Health types
+// ---------------------------------------------------------------------------
+export type HealthLog = {
+  id: string;
+  log_date: string;
+  sleep_hours: number | null;
+  energy_level: number | null;
+  exercise_minutes: number | null;
+  exercise_type: string | null;
+  water_glasses: number | null;
+  notes: string | null;
+};
+
+export type HealthLogIn = {
+  sleep_hours?: number | null;
+  energy_level?: number | null;
+  exercise_minutes?: number | null;
+  exercise_type?: string | null;
+  water_glasses?: number | null;
+  notes?: string | null;
+};
+
+export type HealthStats = {
+  days_with_data: number;
+  avg_sleep_hours: number | null;
+  avg_energy_level: number | null;
+  avg_exercise_minutes: number | null;
+  exercise_days: number;
+  total_water_glasses: number;
+};
+
+// ---------------------------------------------------------------------------
 // Analytics types
 // ---------------------------------------------------------------------------
 export type AnalyticsSnapshot = {
@@ -1085,6 +1117,15 @@ export const api = {
 
   data: {
     wipe: () => request<{ ok: boolean; message: string }>('/data/wipe', { method: 'DELETE' }),
+  },
+
+  healthLog: {
+    list: (days = 30) => request<HealthLog[]>(`/health-log/?days=${days}`),
+    get: (date: string) => request<HealthLog>(`/health-log/${date}`),
+    upsert: (date: string, body: HealthLogIn) =>
+      request<HealthLog>(`/health-log/${date}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (date: string) => request<void>(`/health-log/${date}`, { method: 'DELETE' }),
+    stats: (days = 30) => request<HealthStats>(`/health-log/stats?days=${days}`),
   },
 
   goals: {

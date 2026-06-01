@@ -1,7 +1,7 @@
 // Module configuration — defines all toggleable features of the app.
 // Dashboard is always on and not included here.
 
-export type ModuleId = 'journal' | 'finance' | 'subscriptions' | 'habits' | 'chat' | 'patterns' | 'goals';
+export type ModuleId = 'journal' | 'finance' | 'subscriptions' | 'habits' | 'chat' | 'patterns' | 'goals' | 'health';
 
 export interface ModuleConfig {
   id: ModuleId;
@@ -60,6 +60,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     description: 'Set personal goals linked to your habits and finances, and track progress.',
     icon: '🎯',
     route: '/app/goals',
+  },
+  {
+    id: 'health',
+    label: 'Health',
+    description: 'Log sleep, energy, and exercise to find health-pattern correlations.',
+    icon: '❤️',
+    route: '/app/health',
   },
 ];
 
