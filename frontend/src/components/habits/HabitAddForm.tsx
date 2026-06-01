@@ -86,6 +86,78 @@ export function HabitAddForm({ onCreate, disabled, alwaysExpanded, onCancel }: P
     );
   }
 
+  // Drawer mode — vertical stacked layout
+  if (alwaysExpanded) {
+    return (
+      <form onSubmit={(e) => void submit(e)} className="space-y-4">
+        {/* Emoji + name */}
+        <div className="flex items-center gap-2">
+          <EmojiPickerPopover value={emoji} onChange={setEmoji} ariaLabel="Habit emoji" />
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Habit name (e.g. Meditate)"
+            maxLength={80}
+            className="flex-1 min-w-0 rounded-md px-3 py-2 text-sm outline-none focus:border-accent/60"
+          />
+        </div>
+
+        {/* Frequency toggle */}
+        <div>
+          <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-1.5 block">Frequency</label>
+          <div className="inline-flex rounded-md border border-ink-800 overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => setKind('daily')}
+              className={cn('px-4 py-2', kind === 'daily' ? 'bg-accent/15 text-accent' : 'bg-ink-900 text-ink-400')}
+            >
+              Daily
+            </button>
+            <button
+              type="button"
+              onClick={() => setKind('weekly')}
+              className={cn('px-4 py-2 border-l border-ink-800', kind === 'weekly' ? 'bg-accent/15 text-accent' : 'bg-ink-900 text-ink-400')}
+            >
+              Weekly
+            </button>
+          </div>
+        </div>
+
+        {/* Weekday chips — only for weekly */}
+        {kind === 'weekly' && (
+          <div>
+            <label className="text-[10px] text-ink-500 uppercase tracking-wide mb-1.5 block">Days</label>
+            <WeekdayChips value={weekdays} onChange={setWeekdays} />
+          </div>
+        )}
+
+        {error && <div className="text-xs text-red-400">{error}</div>}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !name.trim()}
+            className="flex-1 rounded-md bg-accent/20 border border-accent/40 py-2 text-sm font-medium text-accent hover:bg-accent/30 disabled:opacity-40"
+          >
+            {saving ? 'Adding…' : 'Add Habit'}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={() => { reset(); onCancel(); }}
+              className="rounded-md border border-ink-800 bg-ink-900 px-4 py-2 text-sm text-ink-400 hover:text-ink-200"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+    );
+  }
+
+  // Inline mode — horizontal compact layout (used in HabitList)
   return (
     <form
       onSubmit={(e) => void submit(e)}

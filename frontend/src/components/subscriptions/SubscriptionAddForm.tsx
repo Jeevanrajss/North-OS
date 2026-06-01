@@ -170,7 +170,7 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
       {/* ── SUBSCRIPTION MODE ── */}
       {mode === 'subscription' && (
         <>
-          {/* Amount + currency + cycle */}
+          {/* Amount + currency (row 1) */}
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -179,27 +179,28 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               placeholder="0.00"
               min="0.01"
               step="0.01"
-              className="w-24 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+              className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
             />
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-20 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+              className="w-24 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
             >
               {CURRENCY_OPTS.map((o) => (
                 <option key={o.value} value={o.value}>{o.value}</option>
               ))}
             </select>
-            <select
-              value={cycle}
-              onChange={(e) => setCycle(e.target.value as BillingCycle)}
-              className="flex-1 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
-            >
-              {CYCLE_OPTS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
           </div>
+          {/* Billing cycle (row 2) */}
+          <select
+            value={cycle}
+            onChange={(e) => setCycle(e.target.value as BillingCycle)}
+            className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+          >
+            {CYCLE_OPTS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
 
           {/* Next billing date + category */}
           <div className="flex items-center gap-2">
@@ -263,12 +264,12 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
               </div>
             </div>
 
-            {/* Currency + cycle row */}
+            {/* Currency + cycle row (stacked to avoid overflow in drawer) */}
             <div className="flex items-center gap-2">
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-20 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
+                className="w-24 rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 text-ink-200"
               >
                 {CURRENCY_OPTS.map((o) => (
                   <option key={o.value} value={o.value}>{o.value}</option>
@@ -283,20 +284,19 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-              <div className="flex-1">
-                <input
-                  list="sub-categories-trial"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Category (optional)"
-                  maxLength={40}
-                  className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
-                />
-                <datalist id="sub-categories-trial">
-                  {CATEGORIES.map((c) => <option key={c} value={c} />)}
-                </datalist>
-              </div>
             </div>
+            {/* Category on its own row */}
+            <input
+              list="sub-categories-trial"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="Category (optional)"
+              maxLength={40}
+              className="w-full rounded-md px-2 py-1.5 text-sm outline-none focus:border-accent/60 placeholder:text-ink-400"
+            />
+            <datalist id="sub-categories-trial">
+              {CATEGORIES.map((c) => <option key={c} value={c} />)}
+            </datalist>
 
             <p className="text-[10px] text-emerald-600">
               Currently free — tracked in Trial Tracker. Countdown to first charge.

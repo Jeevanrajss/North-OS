@@ -462,7 +462,10 @@ function StatChip({
       <div style={{ font: '500 12px/1 var(--font-sans)', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
         {label}
       </div>
-      {/* Value — use inline-block span so background-clip:text clips to text shape, not full block width */}
+      {/* Value — always use gradient-text mode with a stable set of CSS keys.
+          Chips without a gradient get a solid-colour "gradient" so the style
+          object shape never changes between renders, eliminating the React
+          "don't mix shorthand background with backgroundClip" warning. */}
       <div style={{ marginTop: 10, overflow: 'hidden' }}>
         <span
           className="tabular-nums"
@@ -475,10 +478,12 @@ function StatChip({
             font: '500 36px/1.05 var(--font-display)',
             letterSpacing: '-0.02em',
             transition: 'filter 0.2s ease',
+            // Always gradient-text mode — same keys every render, values only change.
+            backgroundImage: valueGradient ?? 'linear-gradient(135deg, var(--fg-1), var(--fg-1))',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
             ...(showValues ? {} : { filter: 'blur(10px)', userSelect: 'none', pointerEvents: 'none' }),
-            ...(valueGradient
-              ? { background: valueGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }
-              : { color: savingsStyle ? 'var(--fg-1)' : 'var(--fg-1)' }),
           }}
         >
           {value}

@@ -700,7 +700,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
                 opacity: renewing ? 0.5 : 1,
               }}
             >
-              {renewing ? '…' : isOverdue ? 'Overdue — Paid?' : '✓ Mark Paid'}
+              {renewing ? '…' : isOverdue ? '⚠ Overdue — Mark as Paid' : '✓ Mark as Paid'}
             </button>
           )}
           <button type="button" onClick={beginEdit} title="Edit"
