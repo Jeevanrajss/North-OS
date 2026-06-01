@@ -248,29 +248,44 @@ async def _complete(
     data = r.json()
     try:
         choice = data["choices"][0]
-        content = (choice["message"].get("content") or "").strip()
+        msg = choice["message"]
+        content = (msg.get("content") or "").strip()
         finish_reason = choice.get("finish_reason", "")
     except (KeyError, IndexError) as e:
         raise LLMError(f"Unexpected LLM response shape: {data}") from e
 
     if content == "":
-        # Retry with merged system prompt and/or boosted token count
+        # ── Retry strategy ───────────────────────────────────────────────────
+        # 1. Qwen3/DeepSeek thinking models: content is empty because all tokens
+        #    went to reasoning_content. Retry with enable_thinking=false so the
+        #    model skips the thinking phase and answers directly.
+        # 2. Other models: merge system prompt into user turn (avoids system-
+        #    prompt aversion) and boost token count if we hit finish_reason=length.
+
         if system:
             retry_messages: list[dict[str, str]] = []
             merged = False
-            for msg in messages_no_system:
-                if msg["role"] == "user" and not merged:
+            for m in messages_no_system:
+                if m["role"] == "user" and not merged:
                     retry_messages.append(
-                        {"role": "user", "content": f"{system}\n\n{msg['content']}"}
+                        {"role": "user", "content": f"{system}\n\n{m['content']}"}
                     )
                     merged = True
                 else:
-                    retry_messages.append(msg)
+                    retry_messages.append(m)
         else:
             retry_messages = messages_no_system
 
-        boosted = min(max_tokens * 5, 4096) if finish_reason == "length" else max_tokens
-        retry_payload = {**payload, "messages": retry_messages, "max_tokens": boosted}
+        boosted = min(max_tokens * 4, 8192) if finish_reason == "length" else max_tokens
+        retry_payload = {
+            **payload,
+            "messages": retry_messages,
+            "max_tokens": boosted,
+            # Disable Qwen3 / DeepSeek-R1 style thinking — answer directly.
+            # LM Studio and Ollama pass unknown keys through harmlessly for other models.
+            "enable_thinking": False,
+            "thinking": {"type": "disabled"},  # Anthropic-style thinking disable (ignored otherwise)
+        }
 
         async with httpx.AsyncClient(timeout=300) as client:
             try:
@@ -281,11 +296,13 @@ async def _complete(
 
         data2 = r2.json()
         try:
-            content = (data2["choices"][0]["message"].get("content") or "").strip()
+            msg2 = data2["choices"][0]["message"]
+            content = (msg2.get("content") or "").strip()
         except (KeyError, IndexError):
             pass
 
-    return content
+    # Strip leading/trailing whitespace — Qwen3 adds \n\n before the answer
+    return content.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +314,7 @@ async def generate(
     purpose: str = "chat",
     system: str | None = None,
     temperature: float = 0.3,
-    max_tokens: int = 1024,
+    max_tokens: int = 4096,  # Qwen3 thinking models need this much to think + answer
 ) -> str:
     cfg = _load_config()
     model = _purpose_to_model(cfg, purpose)
@@ -320,6 +337,9 @@ async def generate(
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
+        # Disable Qwen3-style thinking mode on the first attempt.
+        # Other models ignore this key harmlessly.
+        "enable_thinking": False,
     }
     return await _complete(
         payload,
@@ -335,7 +355,7 @@ async def chat(
     *,
     system: str | None = None,
     temperature: float = 0.5,
-    max_tokens: int = 800,
+    max_tokens: int = 4096,  # Qwen3 thinking models need this much to think + answer
 ) -> str:
     cfg = _load_config()
     model = _purpose_to_model(cfg, "chat")
@@ -356,6 +376,7 @@ async def chat(
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
+        "enable_thinking": False,  # disable Qwen3 thinking mode
     }
     return await _complete(
         payload,
