@@ -1066,7 +1066,13 @@ export const api = {
       httpsms_encryption_enabled?: boolean;
     }>('/sms/status'),
     pending: () => request<SmsTransactionOut[]>('/sms/pending'),
-    scanImessage: (daysBack = 7) => request<{ scanned: boolean; new_transactions: number }>(`/sms/scan-imessage?days_back=${daysBack}`, { method: 'POST' }),
+    scanImessage: (daysBack = 7) => request<{
+      scanned: boolean;
+      new_transactions: number;
+      error_code?: string;
+      error?: string;
+      debug?: { total_messages_in_window: number; bank_sender_matches: number; ingested: number; error?: string };
+    }>(`/sms/scan-imessage?days_back=${daysBack}`, { method: 'POST' }),
     syncHttpSms: () => request<{ synced: boolean; new_transactions: number; messages_checked: number; synced_at: string }>('/sms/sync-httpsms', { method: 'POST' }),
     debug: () => request<SmsDebugResult>('/sms/debug'),
     confirm: (id: string, category?: string | null) => request<{ status: string; transaction: Transaction }>(`/sms/pending/${id}/confirm`, { method: 'POST', body: JSON.stringify({ category: category ?? null }), headers: { 'Content-Type': 'application/json' } }),

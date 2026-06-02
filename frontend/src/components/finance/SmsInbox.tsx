@@ -409,12 +409,18 @@ export function SmsInbox({ queryKey }: Props) {
     setScanMsg('');
     try {
       const res = await api.sms.scanImessage(7);
-      setScanMsg(res.new_transactions > 0
-        ? `Found ${res.new_transactions} new transaction${res.new_transactions > 1 ? 's' : ''}.`
-        : 'No new transactions found.');
-      qc.invalidateQueries({ queryKey: ['sms-pending'] });
+      if (!res.scanned && res.error) {
+        // Structured error from backend — show error code prominently
+        setScanMsg(`[${res.error_code}] ${res.error}`);
+      } else {
+        setScanMsg(res.new_transactions > 0
+          ? `Found ${res.new_transactions} new transaction${res.new_transactions > 1 ? 's' : ''}.`
+          : `No new bank transactions found. (${res.debug?.total_messages_in_window ?? 0} messages scanned, ${res.debug?.bank_sender_matches ?? 0} from bank senders)`);
+        qc.invalidateQueries({ queryKey: ['sms-pending'] });
+      }
     } catch (e: unknown) {
-      setScanMsg(e instanceof Error ? e.message : 'Scan failed.');
+      const msg = e instanceof Error ? e.message : 'Scan failed.';
+      setScanMsg(`[IMSG-ERR] ${msg}`);
     } finally {
       setScanning(false);
     }

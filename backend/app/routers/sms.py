@@ -179,15 +179,36 @@ BANK_SENDER_RE = re.compile(
     re.IGNORECASE,
 )
 
-def _scan_imessage_db(db: Session, days_back: int = 7) -> list[SmsTransaction]:
-    """Read macOS Messages.db and ingest any new bank SMS."""
+def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransaction], dict]:
+    """
+    Read macOS Messages.db and ingest any new bank SMS.
+    Returns (ingested_rows, debug_info).
+
+    Bug fix: Apple stores timestamps as nanoseconds since 2001-01-01.
+    The correct cutoff is: (unix_seconds - 978307200) * 1e9
+    NOT: unix_nanoseconds + 978307200_000_000_000 (the old wrong formula).
+    """
+    APPLE_EPOCH_OFFSET = 978307200  # seconds from 1970-01-01 to 2001-01-01
+
+    debug: dict = {
+        "db_exists": IMESSAGE_DB.exists(),
+        "db_path": str(IMESSAGE_DB),
+        "days_back": days_back,
+        "error": None,
+        "total_messages_in_window": 0,
+        "bank_sender_matches": 0,
+        "ingested": 0,
+    }
+
     if not IMESSAGE_DB.exists():
-        return []
+        debug["error"] = f"IMSG-001: chat.db not found at {IMESSAGE_DB}. Enable iMessage + SMS relay in macOS Settings → Messages."
+        return [], debug
+
+    # Correct cutoff: convert Unix time → Apple nanoseconds by SUBTRACTING the epoch offset
+    cutoff_unix = (datetime.utcnow() - timedelta(days=days_back)).timestamp()
+    cutoff_apple_ns = int((cutoff_unix - APPLE_EPOCH_OFFSET) * 1_000_000_000)
 
     results: list[SmsTransaction] = []
-    cutoff_ns = int((datetime.utcnow() - timedelta(days=days_back)).timestamp() * 1e9) + 978307200_000_000_000  # Apple epoch offset
-    # Apple stores timestamps as nanoseconds since 2001-01-01
-    apple_epoch_offset = 978307200  # seconds between 1970-01-01 and 2001-01-01
 
     try:
         conn = sqlite3.connect(f"file:{IMESSAGE_DB}?mode=ro", uri=True, timeout=5)
@@ -206,25 +227,43 @@ def _scan_imessage_db(db: Session, days_back: int = 7) -> list[SmsTransaction]:
               AND m.text IS NOT NULL
               AND length(m.text) > 10
             ORDER BY m.date DESC
-            LIMIT 500
-        """, (cutoff_ns,))
+            LIMIT 1000
+        """, (cutoff_apple_ns,))
         rows = cur.fetchall()
         conn.close()
-    except Exception:
-        return []
+    except PermissionError:
+        debug["error"] = (
+            "IMSG-002: Permission denied reading chat.db. "
+            "Grant Full Disk Access to Terminal (or the North OS app) in "
+            "System Settings → Privacy & Security → Full Disk Access."
+        )
+        return [], debug
+    except Exception as e:
+        debug["error"] = f"IMSG-003: Failed to read chat.db — {e}"
+        return [], debug
+
+    debug["total_messages_in_window"] = len(rows)
 
     for row in rows:
         sender = row["handle_id"] or ""
-        # Only process messages from bank sender IDs
-        if not BANK_SENDER_RE.search(sender):
-            continue
-        # Convert Apple timestamp to datetime
-        ts = datetime.utcfromtimestamp(row["date"] / 1e9 + apple_epoch_offset)
-        sms_row = _ingest(db, row["text"], sender, "imessage", ts)
+        text = row["text"] or ""
+
+        # Pass ALL messages to the parser — it decides what's a transaction.
+        # We still skip clearly personal senders (phone numbers that are NOT bank alpha IDs)
+        # by checking if the parser thinks it's a bank transaction first.
+        # This is more permissive than the old BANK_SENDER_RE pre-filter.
+        if BANK_SENDER_RE.search(sender):
+            debug["bank_sender_matches"] += 1
+
+        # Convert Apple timestamp → Python datetime
+        ts = datetime.utcfromtimestamp(row["date"] / 1_000_000_000 + APPLE_EPOCH_OFFSET)
+
+        sms_row = _ingest(db, text, sender, "imessage", ts)
         if sms_row:
             results.append(sms_row)
+            debug["ingested"] += 1
 
-    return results
+    return results, debug
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -267,13 +306,21 @@ def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db)):
 @router.post("/scan-imessage")
 def scan_imessage(days_back: int = 7, db: Session = Depends(get_db)):
     """Scan macOS Messages.db for recent bank SMS (read-only)."""
-    if not IMESSAGE_DB.exists():
-        raise HTTPException(
-            status_code=404,
-            detail="Messages.db not found. Make sure Messages app is set up with iMessage and SMS relay is enabled.",
-        )
-    ingested = _scan_imessage_db(db, days_back)
-    return {"scanned": True, "new_transactions": len(ingested)}
+    ingested, debug = _scan_imessage_db(db, days_back)
+    if debug.get("error"):
+        # Return 200 with error detail so the frontend can show a useful message
+        return {
+            "scanned": False,
+            "new_transactions": 0,
+            "error_code": debug["error"].split(":")[0],  # e.g. "IMSG-002"
+            "error": debug["error"],
+            "debug": debug,
+        }
+    return {
+        "scanned": True,
+        "new_transactions": len(ingested),
+        "debug": debug,
+    }
 
 
 @router.get("/pending", response_model=list[SmsTransactionOut])
