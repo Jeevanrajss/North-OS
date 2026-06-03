@@ -1,8 +1,10 @@
 # North OS — Intelligence Layer Implementation Plan
 
+> **📖 Reading order:** Read `APP_REPORT.md` first (orientation, decisions, current state) — then this file. Starting here without reading APP_REPORT.md first will miss critical architectural decisions and the list of what is already built.
+
 **Vision:** Track Everything → Understand Patterns → Generate Insights → Improve Life  
-**Current state:** v1.0.20. Data collection (pillar ①) is solid. Pillars ②③④ are the gap.  
-**This plan:** 5 phases that close the gap — written as a Claude Code handoff spec. Each phase is self-contained and shippable independently.
+**Status:** Phases 1–6 ✅ complete (committed to `main`). Phase 7 (Finance Intelligence Layer) is next.  
+**This plan:** Phase-by-phase implementation spec — written as a Claude Code handoff. Each phase is self-contained and shippable independently.
 
 ---
 
@@ -1523,4 +1525,1271 @@ Refer to these existing files for exact code style:
 
 ---
 
-_Generated: 2026-06-01. Supersedes the gap analysis in APP_REPORT.md for implementation purposes._
+## Phase 7 — Finance Intelligence Layer (Debt, Investments, Goals, Advisor)
+
+**Vision:** Turn the Finance module from a cash-flow tracker into a full personal finance advisor. The user sees their complete financial picture — what they owe, what they're building, where they're going — and gets AI guidance on how to get there faster. No stock/investment recommendations. No buy/sell advice. Pure analysis of their own data.
+
+**Design decisions locked:**
+- EMI settlement: confirm-first, then auto-reduce outstanding balance
+- SIP/investment: new `"investment"` transaction type, not an expense subcategory
+- Savings: track actual amount invested only (not NAV/market value). Show note: "This is the amount you've put in, not current market value."
+- Financial goals: dedicated `FinancialGoal` model, richer than Phase 2 Goals
+- Debt payoff: recommend Avalanche + explain why, but let user reorder manually
+- CC payment entries in import: pre-checked skip with explanation shown
+- Unlinked EMI in import: flag it, tell user to add Debt record first (Option B inline creation is Phase 7.1 follow-up)
+- Tax lines: auto-categorise as "Taxes & Fees" — no separate tax stat
+
+**Build order within Phase 7:** Models → Transaction extensions → Import detector → Routers → Frontend tabs → Advisor → Settings
+
+---
+
+### 7.1 New database models
+
+#### `Debt` model
+
+**File:** `backend/app/models/debt.py`
+
+```python
+from __future__ import annotations
+import json, uuid
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db import Base
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+class Debt(Base):
+    """A loan, EMI obligation, or credit card balance."""
+    __tablename__ = "debts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False, default="💳")
+
+    # Types: "home_loan" | "personal_loan" | "car_loan" | "two_wheeler_loan"
+    #        | "education_loan" | "credit_card" | "no_cost_emi" | "other"
+    debt_type: Mapped[str] = mapped_column(String(40), nullable=False, default="personal_loan")
+
+    lender: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Last 4 digits of account/loan number — used to auto-match EMI rows in SMS and CC import
+    account_last4: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
+    # Original sanctioned amount. User enters this when adding the loan.
+    principal: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # Current outstanding balance. User enters the current value when adding.
+    # Reduced automatically when an EMI payment is confirmed.
+    outstanding: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # Annual interest rate in %. Enter 0.0 for no-cost EMI.
+    interest_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # Fixed monthly EMI amount.
+    emi_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # Day of month when EMI is auto-debited (1–31). Used for EMI calendar.
+    emi_due_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+
+    # "active" | "closed" | "paused"
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+```
+
+#### `DebtPayment` model
+
+**File:** `backend/app/models/debt_payment.py`
+
+```python
+from __future__ import annotations
+import uuid
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db import Base
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+class DebtPayment(Base):
+    """Records each EMI payment made against a Debt. Immutable after creation."""
+    __tablename__ = "debt_payments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    debt_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+
+    # FK to Transaction (nullable — manual payments may not have a transaction row)
+    transaction_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    payment_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    # Snapshot of Debt.outstanding AFTER this payment was applied.
+    outstanding_after: Mapped[float] = mapped_column(Float, nullable=False)
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+```
+
+#### `Investment` model
+
+**File:** `backend/app/models/investment.py`
+
+```python
+from __future__ import annotations
+import uuid
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db import Base
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+class Investment(Base):
+    """A savings or investment instrument (MF, FD, PPF, NPS, gold, RD, etc.)."""
+    __tablename__ = "investments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False, default="📈")
+
+    # Types: "mutual_fund" | "fd" | "ppf" | "nps" | "gold" | "rd"
+    #        | "savings_account" | "stocks" | "other"
+    investment_type: Mapped[str] = mapped_column(String(40), nullable=False, default="mutual_fund")
+
+    # Running total of all entries (denormalised for speed — recomputed on entry add/delete)
+    total_invested: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    # SIP configuration (nullable if lumpsum-only)
+    sip_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sip_date: Mapped[int | None] = mapped_column(Integer, nullable=True)  # day of month
+
+    # Target corpus (user-set goal, optional)
+    target_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Linked financial goal (optional)
+    goal_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    # Used for SMS/import auto-matching
+    account_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    folio_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+
+    # "active" | "paused" | "redeemed"
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+```
+
+#### `InvestmentEntry` model
+
+**File:** `backend/app/models/investment_entry.py`
+
+```python
+from __future__ import annotations
+import uuid
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db import Base
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+class InvestmentEntry(Base):
+    """Individual investment transaction (SIP instalment, lumpsum, or manual entry)."""
+    __tablename__ = "investment_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    investment_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+
+    # FK to Transaction (nullable — manual entries may not have a transaction row)
+    transaction_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    entry_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    # "sip" | "lumpsum" | "manual"
+    entry_type: Mapped[str] = mapped_column(String(20), nullable=False, default="sip")
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+```
+
+#### `FinancialGoal` model
+
+**File:** `backend/app/models/financial_goal.py`
+
+```python
+from __future__ import annotations
+import json, uuid
+from datetime import date, datetime
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db import Base
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+class FinancialGoal(Base):
+    """A personal financial target with a timeline and linked investments."""
+    __tablename__ = "financial_goals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False, default="🎯")
+
+    # Types: "emergency_fund" | "purchase" | "education" | "retirement"
+    #        | "travel" | "wedding" | "other"
+    goal_type: Mapped[str] = mapped_column(String(40), nullable=False, default="purchase")
+
+    # "short" = <1 year | "medium" = 1–5 years | "long" = >5 years
+    timeline: Mapped[str] = mapped_column(String(10), nullable=False, default="medium")
+
+    target_amount: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Manually updated OR auto-computed from linked investments (sum of their total_invested)
+    current_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # 1=high | 2=medium | 3=low
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+
+    # JSON array of Investment IDs linked to this goal e.g. '["uuid1", "uuid2"]'
+    linked_investment_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # "active" | "achieved" | "paused"
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def linked_ids(self) -> list[str]:
+        if self.linked_investment_ids:
+            try:
+                return json.loads(self.linked_investment_ids)
+            except Exception:
+                pass
+        return []
+```
+
+**Register all five new models** in `backend/app/db.py` imports:
+```python
+from app.models.debt import Debt
+from app.models.debt_payment import DebtPayment
+from app.models.investment import Investment
+from app.models.investment_entry import InvestmentEntry
+from app.models.financial_goal import FinancialGoal
+```
+
+Auto-migration on startup will create all five tables.
+
+---
+
+### 7.2 Extend existing `Transaction` model
+
+**File:** `backend/app/models/finance.py` — add three columns to `Transaction`:
+
+```python
+# Add after the existing `notes` field:
+
+# GST / tax component extracted from CC statement import.
+# Stored separately from amount so spending analytics exclude taxes.
+tax_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+# Set when this transaction is an EMI payment linked to a Debt record.
+# On confirm: DebtPayment is created and Debt.outstanding is reduced.
+debt_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+# Set when this transaction is a SIP/investment linked to an Investment record.
+# On confirm: InvestmentEntry is created and Investment.total_invested is updated.
+investment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+```
+
+**`type` field validation** — `"investment"` is now a valid 4th type. Update validation everywhere `type` is validated (schemas, frontend dropdowns) to accept `"income" | "expense" | "transfer" | "investment"`.
+
+---
+
+### 7.3 Detection service for CC/bank import
+
+**File:** `backend/app/services/import_detector.py` (new file)
+
+```python
+"""
+Import detection layer.
+
+Runs after CSV parsing, before AI categorisation.
+Classifies each row as: normal_expense | emi | tax_fee | cc_payment
+
+Called by import_router.py preview endpoint.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+# ── Pattern banks ─────────────────────────────────────────────────────────────
+
+EMI_PATTERNS = [
+    r'\bEMI\b',
+    r'\bE\.M\.I\b',
+    r'EMI\s*NO[\.\s]*\d+',
+    r'INST(?:ALMENT|ALLMENT)\s*NO[\.\s]*\d+',
+    r'INSTALMENT\s*\d+\s*OF\s*\d+',
+    r'EMI\s*\d+\s*(?:OF|/)\s*\d+',
+    r'LOAN.*EMI|EMI.*LOAN',
+    r'HOME\s*LOAN\s*EMI',
+    r'CAR\s*LOAN\s*EMI',
+    r'AUTO\s*DEBIT.*(?:EMI|LOAN)',
+    r'(?:BAJAJ|HDFC|ICICI|AXIS|SBI|IDFC)\s*(?:BANK\s*)?EMI',
+    r'NO\s*COST\s*EMI',
+    r'ZERO\s*COST\s*EMI',
+]
+
+TAX_FEE_PATTERNS = [
+    r'\bIGST\b',
+    r'\bSGST\b',
+    r'\bCGST\b',
+    r'GST\s*ON\b',
+    r'GST\s*CHARGES',
+    r'SERVICE\s*TAX',
+    r'LATE\s*(?:PAYMENT\s*)?FEE',
+    r'ANNUAL\s*(?:MEMBERSHIP\s*)?FEE',
+    r'RENEWAL\s*FEE',
+    r'FINANCE\s*CHARGES',
+    r'INTEREST\s*CHARGES',
+    r'OVERLIMIT\s*(?:FEE)?',
+    r'RETURNED\s*(?:CHEQUE|PAYMENT)\s*(?:CHARGES|FEE)',
+    r'CASH\s*ADVANCE\s*(?:CHARGES|FEE)',
+    r'REWARD\s*REDEMPTION\s*FEE',
+]
+
+CC_PAYMENT_PATTERNS = [
+    r'PAYMENT\s*RECEIVED',
+    r'PAYMENT.*THANK\s*YOU',
+    r'THANK\s*YOU.*PAYMENT',
+    r'NEFT\s*(?:CR|CREDIT)',
+    r'IMPS\s*(?:CR|CREDIT)',
+    r'UPI\s*(?:CR|CREDIT)',
+    r'PAYMENT\s*BY\s*(?:NET|NETBANKING|MOBILE|CUSTOMER)',
+    r'CREDIT\s*ADJUSTMENT',
+    r'PAYMENT\s*CREDITED',
+    r'BILL\s*PAYMENT\s*CREDITED',
+]
+
+
+@dataclass
+class DetectionResult:
+    row_type: str           # "normal" | "emi" | "tax_fee" | "cc_payment"
+    is_emi: bool
+    is_tax_fee: bool
+    is_cc_payment: bool
+    suggested_debt_id: str | None
+    suggested_debt_name: str | None
+    installment_info: str | None   # e.g. "3 of 12"
+    skip_by_default: bool
+    skip_reason: str | None        # shown to user when skip_by_default=True
+
+
+def detect_row(
+    description: str,
+    amount: float,
+    tx_type: str,           # "income" | "expense" from parser
+    active_debts: list,     # list of Debt ORM objects
+) -> DetectionResult:
+    """
+    Classify a single parsed import row.
+
+    Rules applied in order (first match wins):
+    1. CC payment: tx_type=income AND matches CC_PAYMENT_PATTERNS → skip by default
+    2. Tax/fee: tx_type=expense AND matches TAX_FEE_PATTERNS → auto-categorise
+    3. EMI: tx_type=expense AND matches EMI_PATTERNS → flag, try to match Debt
+    4. Normal: everything else
+    """
+    desc_upper = description.upper().strip()
+
+    # ── 1. CC payment ─────────────────────────────────────────────────────────
+    if tx_type == "income" and any(re.search(p, desc_upper) for p in CC_PAYMENT_PATTERNS):
+        return DetectionResult(
+            row_type="cc_payment",
+            is_emi=False, is_tax_fee=False, is_cc_payment=True,
+            suggested_debt_id=None, suggested_debt_name=None,
+            installment_info=None,
+            skip_by_default=True,
+            skip_reason=(
+                "This appears to be a CC bill payment already captured "
+                "in your bank statement — importing it here would double-count it."
+            ),
+        )
+
+    # ── 2. Tax / fee line ─────────────────────────────────────────────────────
+    if tx_type == "expense" and any(re.search(p, desc_upper) for p in TAX_FEE_PATTERNS):
+        return DetectionResult(
+            row_type="tax_fee",
+            is_emi=False, is_tax_fee=True, is_cc_payment=False,
+            suggested_debt_id=None, suggested_debt_name=None,
+            installment_info=None,
+            skip_by_default=False,
+            skip_reason=None,
+        )
+
+    # ── 3. EMI ────────────────────────────────────────────────────────────────
+    if tx_type == "expense" and any(re.search(p, desc_upper) for p in EMI_PATTERNS):
+        # Extract instalment position e.g. "3 of 12"
+        installment_info = None
+        m = re.search(r'(\d+)\s*(?:OF|/)\s*(\d+)', desc_upper)
+        if m:
+            installment_info = f"{m.group(1)} of {m.group(2)}"
+
+        # Auto-match to a Debt record
+        suggested_debt_id = None
+        suggested_debt_name = None
+
+        for debt in active_debts:
+            # Priority 1: account_last4 appears in description
+            if debt.account_last4 and debt.account_last4 in desc_upper:
+                suggested_debt_id = debt.id
+                suggested_debt_name = debt.name
+                break
+
+        if not suggested_debt_id:
+            for debt in active_debts:
+                # Priority 2: EMI amount within ±5% tolerance
+                if debt.emi_amount and debt.emi_amount > 0:
+                    if abs(debt.emi_amount - amount) / debt.emi_amount <= 0.05:
+                        suggested_debt_id = debt.id
+                        suggested_debt_name = debt.name
+                        break
+
+        if not suggested_debt_id:
+            for debt in active_debts:
+                # Priority 3: first word of lender name in description
+                if debt.lender:
+                    first_word = debt.lender.upper().split()[0]
+                    if len(first_word) >= 4 and first_word in desc_upper:
+                        suggested_debt_id = debt.id
+                        suggested_debt_name = debt.name
+                        break
+
+        return DetectionResult(
+            row_type="emi",
+            is_emi=True, is_tax_fee=False, is_cc_payment=False,
+            suggested_debt_id=suggested_debt_id,
+            suggested_debt_name=suggested_debt_name,
+            installment_info=installment_info,
+            skip_by_default=False,
+            skip_reason=None,
+        )
+
+    # ── 4. Normal ─────────────────────────────────────────────────────────────
+    return DetectionResult(
+        row_type="normal",
+        is_emi=False, is_tax_fee=False, is_cc_payment=False,
+        suggested_debt_id=None, suggested_debt_name=None,
+        installment_info=None,
+        skip_by_default=False,
+        skip_reason=None,
+    )
+```
+
+---
+
+### 7.4 Extend import schema
+
+**File:** `backend/app/schemas/import_schema.py`
+
+Add new fields to existing classes:
+
+```python
+class ImportPreviewRow(BaseModel):
+    # --- existing fields (unchanged) ---
+    row_index: int
+    date: str
+    description: str
+    amount: float
+    tx_type: str
+    suggested_category: str
+    is_duplicate: bool
+    duplicate_txn_id: str | None
+
+    # --- NEW fields ---
+    is_emi: bool = False
+    is_tax_fee: bool = False
+    is_cc_payment: bool = False
+    suggested_debt_id: str | None = None
+    suggested_debt_name: str | None = None   # display label for loan dropdown
+    installment_info: str | None = None      # "3 of 12"
+    skip_by_default: bool = False
+    skip_reason: str | None = None           # shown to user when skip_by_default=True
+
+
+class ConfirmRow(BaseModel):
+    # --- existing fields (unchanged) ---
+    row_index: int
+    date: str
+    description: str
+    amount: float
+    tx_type: str
+    category: str
+    notes: str | None = None
+    include: bool = True
+
+    # --- NEW fields ---
+    debt_id: str | None = None         # user selected loan to link (for EMI rows)
+    tax_amount: float | None = None    # user-confirmed tax portion (for tax_fee rows)
+```
+
+---
+
+### 7.5 Wire detection into import preview endpoint
+
+**File:** `backend/app/routers/import_router.py`
+
+In the preview endpoint, after parsing rows and before AI categorisation, add:
+
+```python
+# Load active debts for EMI matching
+from app.models.debt import Debt as DebtModel
+from app.services.import_detector import detect_row
+
+active_debts = db.query(DebtModel).filter(
+    DebtModel.status == "active"
+).all()
+
+for row in parsed_rows:
+    detection = detect_row(
+        description=row["description"],
+        amount=row["amount"],
+        tx_type=row["tx_type"],
+        active_debts=active_debts,
+    )
+    row["is_emi"] = detection.is_emi
+    row["is_tax_fee"] = detection.is_tax_fee
+    row["is_cc_payment"] = detection.is_cc_payment
+    row["suggested_debt_id"] = detection.suggested_debt_id
+    row["suggested_debt_name"] = detection.suggested_debt_name
+    row["installment_info"] = detection.installment_info
+    row["skip_by_default"] = detection.skip_by_default
+    row["skip_reason"] = detection.skip_reason
+
+    # Tax fee rows: skip AI categorisation, assign directly
+    if detection.is_tax_fee:
+        row["suggested_category"] = "Taxes & Fees"
+        row["skip_ai"] = True
+
+    # CC payment rows: skip AI categorisation, mark to skip
+    if detection.is_cc_payment:
+        row["suggested_category"] = "CC Payment"
+        row["include"] = False
+        row["skip_ai"] = True
+```
+
+**In the confirm endpoint**, handle debt-linked rows:
+
+```python
+from app.models.debt import Debt as DebtModel
+from app.models.debt_payment import DebtPayment
+
+for confirm_row in req.rows:
+    if not confirm_row.include:
+        skipped += 1
+        continue
+
+    # Build base transaction
+    t = Transaction(
+        type=confirm_row.tx_type,
+        amount=confirm_row.amount,
+        date=confirm_row.date,
+        category=confirm_row.category,
+        account=req.account_name,
+        notes=confirm_row.notes,
+        tax_amount=confirm_row.tax_amount,
+        debt_id=confirm_row.debt_id,
+    )
+    db.add(t)
+    db.flush()  # get t.id before commit
+
+    # If EMI linked to a debt → create DebtPayment + reduce outstanding
+    if confirm_row.debt_id:
+        debt = db.get(DebtModel, confirm_row.debt_id)
+        if debt and debt.status == "active":
+            outstanding_after = max(0.0, debt.outstanding - confirm_row.amount)
+
+            payment = DebtPayment(
+                debt_id=debt.id,
+                transaction_id=t.id,
+                amount=confirm_row.amount,
+                payment_date=confirm_row.date,
+                outstanding_after=outstanding_after,
+            )
+            db.add(payment)
+
+            debt.outstanding = outstanding_after
+            # Auto-close if fully paid
+            if outstanding_after == 0.0:
+                debt.status = "closed"
+
+    imported += 1
+
+db.commit()
+```
+
+**Edge cases:**
+- If `debt_id` is set but the Debt record no longer exists (deleted between preview and confirm): skip the DebtPayment creation silently, still create the Transaction. Log a warning.
+- If `debt.outstanding` would go below 0 after payment: clamp to 0.0, set `debt.status = "closed"`.
+- If `confirm_row.amount` is larger than `debt.emi_amount` by more than 20%: still process, but note it may be a pre-payment. No special handling needed.
+
+---
+
+### 7.6 Routers
+
+#### Debt router
+
+**File:** `backend/app/routers/debt.py`
+
+```
+GET    /api/v1/finance/debt                     list active debts
+POST   /api/v1/finance/debt                     create debt
+GET    /api/v1/finance/debt/{id}                get one + payment history
+PATCH  /api/v1/finance/debt/{id}                partial update
+DELETE /api/v1/finance/debt/{id}                soft-close (status=closed)
+
+POST   /api/v1/finance/debt/{id}/payment        manual EMI payment (no CC import)
+GET    /api/v1/finance/debt/{id}/payments       list payment history
+
+GET    /api/v1/finance/debt/summary             totals + payoff projections
+GET    /api/v1/finance/debt/payoff-strategy     avalanche vs snowball comparison
+```
+
+**`POST /debt/{id}/payment` — manual payment flow:**
+
+Body: `{ amount: float, payment_date: date, notes: str | None }`
+
+Logic:
+1. Validate debt exists and status == "active"
+2. Create Transaction (type="expense", category="EMI/Loan", account=debt.lender, debt_id=debt.id)
+3. Create DebtPayment (same outstanding_after logic as import confirm)
+4. Reduce Debt.outstanding
+5. Auto-close if outstanding reaches 0
+
+**`GET /debt/payoff-strategy` — computation:**
+
+```python
+import math
+
+def _months_to_payoff(outstanding: float, emi: float, annual_rate: float) -> int:
+    """Using reducing balance formula. Returns 0 if already paid."""
+    if outstanding <= 0:
+        return 0
+    if annual_rate == 0.0 or emi <= 0:
+        return math.ceil(outstanding / emi) if emi > 0 else 999
+    r = annual_rate / 12 / 100
+    if emi <= outstanding * r:
+        return 999  # EMI doesn't cover interest — loan never ends
+    try:
+        months = -math.log(1 - (outstanding * r) / emi) / math.log(1 + r)
+        return math.ceil(months)
+    except (ValueError, ZeroDivisionError):
+        return 999
+
+def _total_interest(outstanding: float, emi: float, months: int) -> float:
+    return max(0.0, round(emi * months - outstanding, 2))
+```
+
+Response shape:
+```json
+{
+  "avalanche": [
+    {
+      "priority": 1,
+      "debt_id": "...",
+      "name": "HDFC Personal Loan",
+      "outstanding": 85000,
+      "interest_rate": 18.5,
+      "emi_amount": 3200,
+      "months_to_payoff": 34,
+      "total_interest_remaining": 23800,
+      "why_first": "Highest interest rate — paying this first saves the most money."
+    }
+  ],
+  "snowball": [
+    {
+      "priority": 1,
+      "debt_id": "...",
+      "name": "Amazon No-Cost EMI",
+      "outstanding": 12000,
+      "interest_rate": 0.0,
+      "emi_amount": 2000,
+      "months_to_payoff": 6,
+      "why_first": "Smallest balance — eliminates one obligation fastest."
+    }
+  ],
+  "summary": {
+    "total_outstanding": 182000,
+    "total_emi_monthly": 12400,
+    "avalanche_total_interest": 31200,
+    "snowball_total_interest": 34800,
+    "interest_saved_by_avalanche": 3600,
+    "recommendation": "avalanche",
+    "recommendation_reason": "Following avalanche order saves you ₹3,600 in interest over the life of your loans."
+  }
+}
+```
+
+#### Investments router
+
+**File:** `backend/app/routers/investments.py`
+
+```
+GET    /api/v1/finance/investments                  list all investments
+POST   /api/v1/finance/investments                  create
+PATCH  /api/v1/finance/investments/{id}             update
+DELETE /api/v1/finance/investments/{id}             soft-delete (status=redeemed)
+
+POST   /api/v1/finance/investments/{id}/entry       add investment entry (manual or SIP)
+GET    /api/v1/finance/investments/{id}/entries     list entries
+
+GET    /api/v1/finance/investments/summary          total invested, by type, recent SIPs
+```
+
+**`POST /investments/{id}/entry` logic:**
+1. Create InvestmentEntry row
+2. Create Transaction (type="investment", category=investment.investment_type, investment_id=investment.id)
+3. Update Investment.total_invested += entry.amount
+4. If linked to a FinancialGoal, recompute goal.current_amount (sum of linked investments' total_invested)
+
+**Summary response:**
+```json
+{
+  "total_invested": 420000,
+  "by_type": {
+    "mutual_fund": 300000,
+    "fd": 100000,
+    "ppf": 20000
+  },
+  "sip_this_month": 30000,
+  "investments": [...]
+}
+```
+
+#### Financial goals router
+
+**File:** `backend/app/routers/financial_goals.py`
+
+```
+GET    /api/v1/finance/goals                  list all + computed progress
+POST   /api/v1/finance/goals                  create
+PATCH  /api/v1/finance/goals/{id}             update (inc. manually setting current_amount)
+DELETE /api/v1/finance/goals/{id}             soft-archive (status=paused)
+POST   /api/v1/finance/goals/{id}/achieve     mark achieved
+```
+
+**Progress computation (in list endpoint):**
+For each goal, `current_amount` is computed as:
+- If `linked_investment_ids` is non-empty: sum of `Investment.total_invested` for all linked investments
+- Else: use `goal.current_amount` as-is (manual)
+
+**Response includes computed fields:**
+```json
+{
+  "id": "...",
+  "title": "House Down Payment",
+  "target_amount": 2000000,
+  "current_amount": 420000,
+  "progress_pct": 21.0,
+  "target_date": "2027-12-31",
+  "days_remaining": 576,
+  "monthly_needed": 59700,
+  "timeline": "medium",
+  "is_on_track": false
+}
+```
+
+`monthly_needed` = `(target_amount - current_amount) / months_remaining`. If negative (already achieved): 0.
+`is_on_track` = current savings rate (from investments this month) >= monthly_needed.
+
+**Register all three routers in `backend/app/main.py`:**
+```python
+from app.routers.debt import router as debt_router
+from app.routers.investments import router as investments_router
+from app.routers.financial_goals import router as financial_goals_router
+
+app.include_router(debt_router)
+app.include_router(investments_router)
+app.include_router(financial_goals_router)
+```
+
+---
+
+### 7.7 Finance Advisor AI
+
+**File:** `backend/app/routers/finance_advisor.py`
+
+```
+POST   /api/v1/finance/advisor     generate full AI advice
+```
+
+**Context builder for advisor:**
+
+```python
+async def _build_finance_context(db: Session) -> str:
+    from datetime import date, timedelta
+    from sqlalchemy import extract
+    from app.models.finance import Transaction
+    from app.models.debt import Debt
+    from app.models.investment import Investment
+    from app.models.financial_goal import FinancialGoal
+
+    today = date.today()
+    lines = [f"Finance analysis as of {today.isoformat()}"]
+
+    # ── Income & expenses: last 3 months ──────────────────────────────────────
+    three_months_ago = today.replace(day=1) - timedelta(days=1)
+    three_months_ago = three_months_ago.replace(day=1) - timedelta(days=1)
+    three_months_ago = three_months_ago.replace(day=1)  # first day of 3 months ago
+
+    txns = db.query(Transaction).filter(Transaction.date >= three_months_ago).all()
+    income_txns = [t for t in txns if t.type == "income"]
+    expense_txns = [t for t in txns if t.type == "expense"]
+    investment_txns = [t for t in txns if t.type == "investment"]
+
+    avg_income = sum(t.amount for t in income_txns) / 3
+    avg_expense = sum(t.amount for t in expense_txns) / 3
+    avg_investment = sum(t.amount for t in investment_txns) / 3
+
+    lines.append(f"\n## Cash flow (3-month average)")
+    lines.append(f"Average monthly income: {avg_income:.0f}")
+    lines.append(f"Average monthly expenses: {avg_expense:.0f}")
+    lines.append(f"Average monthly investments/SIPs: {avg_investment:.0f}")
+    lines.append(f"Real disposable (income - expenses - investments): {avg_income - avg_expense - avg_investment:.0f}")
+
+    # Category breakdown
+    cat_totals: dict[str, float] = {}
+    for t in expense_txns:
+        c = t.category or "Other"
+        cat_totals[c] = cat_totals.get(c, 0) + t.amount / 3  # monthly average
+    top_cats = sorted(cat_totals.items(), key=lambda x: -x[1])[:8]
+    lines.append("Top expense categories (monthly avg): " + ", ".join(f"{c}: {v:.0f}" for c, v in top_cats))
+
+    # ── Debts ─────────────────────────────────────────────────────────────────
+    debts = db.query(Debt).filter(Debt.status == "active").all()
+    if debts:
+        total_outstanding = sum(d.outstanding for d in debts)
+        total_emi = sum(d.emi_amount for d in debts)
+        lines.append(f"\n## Active debts ({len(debts)} loans)")
+        lines.append(f"Total outstanding: {total_outstanding:.0f}")
+        lines.append(f"Total monthly EMI commitment: {total_emi:.0f}")
+        for d in sorted(debts, key=lambda x: -x.interest_rate):
+            lines.append(
+                f"- {d.name}: outstanding={d.outstanding:.0f}, "
+                f"EMI={d.emi_amount:.0f}/mo, rate={d.interest_rate}% p.a."
+            )
+
+    # ── Investments ───────────────────────────────────────────────────────────
+    investments = db.query(Investment).filter(Investment.status == "active").all()
+    if investments:
+        total_invested = sum(i.total_invested for i in investments)
+        monthly_sip = sum((i.sip_amount or 0) for i in investments)
+        lines.append(f"\n## Investments ({len(investments)} instruments)")
+        lines.append(f"Total invested: {total_invested:.0f}")
+        lines.append(f"Monthly SIP commitment: {monthly_sip:.0f}")
+        for inv in investments:
+            lines.append(f"- {inv.name} ({inv.investment_type}): invested={inv.total_invested:.0f}")
+
+    # ── Financial goals ───────────────────────────────────────────────────────
+    goals = db.query(FinancialGoal).filter(FinancialGoal.status == "active").all()
+    if goals:
+        lines.append(f"\n## Financial goals ({len(goals)} active)")
+        for g in sorted(goals, key=lambda x: x.priority):
+            progress = g.current_amount / g.target_amount * 100 if g.target_amount > 0 else 0
+            deadline = f", deadline: {g.target_date}" if g.target_date else ""
+            lines.append(
+                f"- {g.title} ({g.timeline} term{deadline}): "
+                f"target={g.target_amount:.0f}, saved={g.current_amount:.0f} ({progress:.0f}%)"
+            )
+
+    return "\n".join(lines)
+```
+
+**Advisor system prompt:**
+
+```python
+ADVISOR_SYSTEM = """
+You are a personal finance advisor analysing someone's real financial data.
+
+STRICT RULES — never break these:
+- Do NOT recommend buying or selling any investment, stock, mutual fund, or asset.
+- Do NOT give tax advice or suggest tax-saving instruments.
+- Do NOT comment on whether their investments are "good" or "bad" choices.
+- You may only analyse what they OWE, what they SPEND, and what they SAVE — and help them manage these better.
+
+OUTPUT FORMAT — respond in exactly this structure:
+
+💰 Real disposable income:
+[Income minus expenses minus EMIs minus SIPs = actual free cash. 1 sentence with the number. Flag if it's negative.]
+
+📊 Spending to watch:
+[Top 2-3 expense categories that are high relative to income. Be specific — name the category, the amount, and what reducing by ₹X would achieve. Max 4 sentences.]
+
+💳 Debt priority (avalanche recommended):
+[Rank their debts by interest rate, highest first. For each, say why it costs the most. Explain avalanche vs snowball in 1 sentence. Let them choose — don't be prescriptive.]
+
+🎯 Goal check:
+[For each active financial goal, say whether current savings pace will hit it on time. If not, say the monthly gap in ₹. Max 3 sentences total.]
+
+⚡ One action this week:
+[Single most impactful thing they can do this week. Specific and actionable. Not an investment recommendation.]
+
+Keep the entire response under 250 words. Use actual numbers from the data. Do not fabricate. If data is missing for a section, skip that section.
+"""
+```
+
+**Endpoint:**
+
+```python
+@router.post("/advisor")
+async def finance_advisor(db: Session = Depends(get_db)):
+    from app.services.llm_client import generate as llm_generate, LLMError
+
+    context = await _build_finance_context(db)
+
+    try:
+        response = await llm_generate(
+            context,
+            purpose="insights",
+            system=ADVISOR_SYSTEM,
+            temperature=0.4,
+            max_tokens=600,
+        )
+    except LLMError as e:
+        raise HTTPException(status_code=503, detail=f"AI unavailable: {e}")
+
+    return {"advice": response, "generated_at": date.today().isoformat()}
+```
+
+**Scheduled advisor** (when user enables it):
+
+Add to `scheduler.py`:
+```python
+def _run_finance_advisor() -> None:
+    """Weekly (Sunday) or monthly (1st) — controlled by setting finance.advisor_schedule."""
+    import asyncio
+    from app.db import SessionLocal
+    from app.models.setting import Setting
+
+    with SessionLocal() as db:
+        s = db.query(Setting).filter(Setting.key == "finance.advisor_schedule").first()
+        schedule = s.value if s else "manual"
+        if schedule == "manual":
+            return
+
+    async def _inner():
+        from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
+        from app.services.llm_client import generate as llm_generate, LLMError
+        from app.services.notification_service import create_notification
+
+        with SessionLocal() as db:
+            context = await _build_finance_context(db)
+            try:
+                response = await llm_generate(
+                    context, purpose="insights", system=ADVISOR_SYSTEM,
+                    temperature=0.4, max_tokens=600,
+                )
+            except LLMError:
+                return
+
+            if response:
+                create_notification(
+                    db=db,
+                    type="finance_advisor",
+                    title="Your finance check-in",
+                    body=response.strip(),
+                    skip_quiet=True,
+                )
+
+    try:
+        asyncio.run(_inner())
+    except Exception as e:
+        log.warning("Finance advisor job failed: %s", e)
+```
+
+Add two scheduler jobs in `start_scheduler()`:
+```python
+# Weekly advisor (Sunday 10:00)
+_scheduler.add_job(
+    _run_finance_advisor,
+    CronTrigger(day_of_week="sun", hour=10, minute=0),
+    id="finance_advisor_weekly", replace_existing=True,
+)
+# Monthly advisor (1st of month 10:00) — APScheduler runs whichever fires
+_scheduler.add_job(
+    _run_finance_advisor,
+    CronTrigger(day=1, hour=10, minute=0),
+    id="finance_advisor_monthly", replace_existing=True,
+)
+```
+
+Note: both jobs call the same function which reads `finance.advisor_schedule` setting. If set to "weekly", Sunday fires and runs. Monday–Saturday fire but the function returns immediately. If "monthly", only the 1st job runs.
+
+Add trigger endpoint in `notifications.py`:
+```python
+@router.post("/trigger/finance-advisor")
+async def trigger_finance_advisor(db: Session = Depends(get_db)) -> dict:
+    from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
+    from app.services.llm_client import generate, LLMError
+    context = await _build_finance_context(db)
+    try:
+        response = await generate(context, purpose="insights", system=ADVISOR_SYSTEM,
+                                   temperature=0.4, max_tokens=600)
+        return {"created": True, "advice": response}
+    except LLMError as e:
+        return {"created": False, "reason": str(e)}
+```
+
+---
+
+### 7.8 Frontend — Finance module tab structure
+
+The Finance page (`frontend/src/routes/Finance.tsx`) currently shows a single view. Restructure into 5 tabs using the existing tab pattern from other pages.
+
+**Tab order:** Overview | Budget | Debt & EMI | My Wealth | Advisor
+
+**Tab 1 — Overview** (existing content, no change)
+- `TransactionList.tsx`
+- `MonthlyReportView.tsx`
+- `CategoryBreakdownCard.tsx`
+- `SmsInbox.tsx`
+
+**Tab 2 — Budget** (existing content, no change)
+- `BudgetCard.tsx`
+
+**Tab 3 — Debt & EMI** (new)
+
+Components in `frontend/src/components/finance/debt/`:
+
+`DebtCard.tsx` — one card per loan:
+- Emoji + name + lender
+- Outstanding amount (large, prominent)
+- Interest rate badge (red for >15%, amber for 5-15%, green for 0%)
+- Progress bar: `(principal - outstanding) / principal * 100`
+- EMI amount + next due date chip (red if due within 3 days, amber if within 7)
+- Overflow menu: Edit, Record Payment, Mark as Closed
+
+`PayoffStrategyCard.tsx`:
+- Shows recommended order (avalanche, sorted by interest rate)
+- Each debt ranked 1, 2, 3... with interest rate shown
+- "Saving ₹X by following this order vs paying smallest first"
+- Small toggle: "Show Snowball comparison" → reveals snowball order alongside
+- Explanation: "Avalanche: pay highest interest first — mathematically saves the most. Snowball: pay smallest balance first — faster psychological wins."
+- User can drag to reorder (optional in v1, fine to skip)
+
+`DebtSummaryBar.tsx` — top of tab:
+- Total outstanding | Total EMI/month | Debts remaining count
+
+`RecordPaymentDrawer.tsx` — opened via RightDrawer:
+- Select debt (dropdown)
+- Amount (pre-filled with EMI amount)
+- Date (default today)
+- Notes
+- Confirm → `POST /api/v1/finance/debt/{id}/payment`
+
+**Tab 4 — My Wealth** (new)
+
+Components in `frontend/src/components/finance/wealth/`:
+
+`WealthSummaryBar.tsx` — top of tab:
+- In-hand this month: `income - expenses - EMIs - SIPs` (current month)
+- Total invested (lifetime)
+- Active SIP / month
+
+`InvestmentCard.tsx` — one card per investment:
+- Emoji + name + type badge
+- Total invested (large)
+- Progress bar toward target (if target set)
+- `sip_amount/month` chip if SIP-based
+- Overflow: Edit, Add Entry, Mark as Redeemed
+
+`InvestmentNote.tsx` — persistent banner at top of investments list:
+> "Amounts shown are what you've put in, not current market value. Check your brokerage or investment app for NAV-based returns."
+
+`FinancialGoalCard.tsx` — one card per goal:
+- Emoji + title + timeline badge (short=blue, medium=amber, long=green)
+- Progress bar: current / target
+- `₹X of ₹Y saved` label
+- Days remaining chip
+- `on track` / `behind` badge computed from `is_on_track`
+- Overflow: Edit, Mark as Achieved
+
+`AddInvestmentEntryDrawer.tsx` — add SIP / lumpsum manually:
+- Select investment
+- Amount
+- Date
+- Type: SIP / Lumpsum / Manual
+- Confirm → `POST /api/v1/finance/investments/{id}/entry`
+
+**Tab 5 — Advisor** (upgrade of existing `FinanceInsightsCard.tsx`)
+
+Replace the existing card with a full tab:
+- "Generate analysis" button → calls `POST /api/v1/finance/advisor`
+- Renders AI response with preserved newlines (`whitespace-pre-wrap`)
+- Shows `generated_at` date at bottom
+- Schedule setting inline: "Auto-run: Off / Weekly / Monthly" → saves to `finance.advisor_schedule`
+- Manual trigger: "Run now" button → `POST /api/v1/notifications/trigger/finance-advisor`
+
+**Notification rendering for `type="finance_advisor"`:**
+Same as `weekly_review` — render body with `whitespace-pre-wrap` in `NotificationPanel.tsx`.
+
+---
+
+### 7.9 Import review UI upgrades
+
+**File:** `frontend/src/components/finance/ImportModal.tsx`
+
+In the row review table, add conditional rendering based on new fields:
+
+**EMI rows** (`is_emi=true`):
+- Show orange "EMI" badge on the row
+- Show installment info chip if available ("Instalment 3 of 12")
+- Show loan dropdown: pre-selected to `suggested_debt_name` if matched
+- If no debt matched: show amber warning "⚠️ No matching loan found — add this loan in the Debt & EMI tab first, then re-import"
+- Dropdown fetches `GET /api/v1/finance/debt` and shows all active debts by name
+
+**CC payment rows** (`is_cc_payment=true`):
+- Pre-check the Skip checkbox
+- Show info tooltip/badge: "This appears to be a CC bill payment already captured in your bank statement — importing it here would double-count it."
+- User can un-skip if they want (override is allowed)
+
+**Tax/fee rows** (`is_tax_fee=true`):
+- Show "Taxes & Fees" pre-assigned in category column (non-editable or editable with note)
+- No debt dropdown
+
+---
+
+### 7.10 Settings additions
+
+**File:** `frontend/src/routes/Settings.tsx`
+
+In the Finance section (create if doesn't exist, else add to existing):
+
+```
+Finance Advisor schedule
+  [ Off ]  [ Weekly (Sunday) ]  [ Monthly (1st) ]
+```
+
+Key: `finance.advisor_schedule` — values: `"manual"` | `"weekly"` | `"monthly"`, default: `"manual"`
+
+Add to `api.ts`:
+```typescript
+finance: {
+  // ... existing
+  debt: {
+    list: () => fetch('/api/v1/finance/debt').then(r => r.json()),
+    create: (body) => fetch('/api/v1/finance/debt', { method: 'POST', ... }).then(r => r.json()),
+    update: (id, body) => fetch(`/api/v1/finance/debt/${id}`, { method: 'PATCH', ... }).then(r => r.json()),
+    delete: (id) => fetch(`/api/v1/finance/debt/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    payment: (id, body) => fetch(`/api/v1/finance/debt/${id}/payment`, { method: 'POST', ... }).then(r => r.json()),
+    summary: () => fetch('/api/v1/finance/debt/summary').then(r => r.json()),
+    payoffStrategy: () => fetch('/api/v1/finance/debt/payoff-strategy').then(r => r.json()),
+  },
+  investments: {
+    list: () => fetch('/api/v1/finance/investments').then(r => r.json()),
+    create: (body) => fetch('/api/v1/finance/investments', { method: 'POST', ... }).then(r => r.json()),
+    addEntry: (id, body) => fetch(`/api/v1/finance/investments/${id}/entry`, { method: 'POST', ... }).then(r => r.json()),
+    summary: () => fetch('/api/v1/finance/investments/summary').then(r => r.json()),
+  },
+  goals: {
+    list: () => fetch('/api/v1/finance/goals').then(r => r.json()),
+    create: (body) => fetch('/api/v1/finance/goals', { method: 'POST', ... }).then(r => r.json()),
+    update: (id, body) => fetch(`/api/v1/finance/goals/${id}`, { method: 'PATCH', ... }).then(r => r.json()),
+    achieve: (id) => fetch(`/api/v1/finance/goals/${id}/achieve`, { method: 'POST' }).then(r => r.json()),
+  },
+  advisor: {
+    generate: () => fetch('/api/v1/finance/advisor', { method: 'POST' }).then(r => r.json()),
+  },
+}
+```
+
+---
+
+### 7.11 Dashboard — Finance card upgrade
+
+**File:** `frontend/src/components/dashboard/DashFinanceCard.tsx`
+
+Add below the existing income/expense summary:
+- Total outstanding debt (if any active debts) — shown in amber
+- Next EMI due (soonest upcoming, with days remaining) — shown in red if ≤3 days
+- Total SIP this month — shown in blue
+- Link to Finance → Debt & EMI tab
+
+---
+
+### 7.12 Testing checklist — Phase 7
+
+**Models:**
+- [ ] All 5 new tables created on clean DB startup
+- [ ] Transaction.tax_amount, debt_id, investment_id columns created
+- [ ] Transaction type "investment" accepted by API
+
+**Import detection:**
+- [ ] CC statement with "EMI NO 3 OF 12 - LAPTOP" flagged as `is_emi=true`
+- [ ] "PAYMENT RECEIVED - THANK YOU" flagged as `is_cc_payment=true`, `skip_by_default=true`
+- [ ] "IGST ON FINANCE CHARGES" flagged as `is_tax_fee=true`, category="Taxes & Fees"
+- [ ] Regular "SWIGGY" row unaffected — `is_emi=false`, `is_tax_fee=false`
+- [ ] EMI row auto-matched to Debt when account_last4 in description
+- [ ] EMI row auto-matched to Debt when amount within ±5% of emi_amount
+- [ ] Unmatched EMI shows amber warning in import UI (no crash)
+
+**Debt:**
+- [ ] `POST /finance/debt/{id}/payment` reduces outstanding correctly
+- [ ] Outstanding reaching 0 auto-sets status="closed"
+- [ ] Payoff strategy returns avalanche sorted by interest_rate DESC
+- [ ] No-cost EMI (rate=0%) shows months = ceil(outstanding / emi)
+- [ ] `months_to_payoff=999` returned when EMI < monthly interest (loan never ends)
+- [ ] CC import confirm with debt_id creates DebtPayment + reduces outstanding
+
+**Investments:**
+- [ ] `POST /investments/{id}/entry` increments total_invested correctly
+- [ ] Investment with goal_id link: goal.current_amount auto-updated
+- [ ] Investment note banner visible in My Wealth tab
+
+**Financial goals:**
+- [ ] `monthly_needed` correctly computed from target_amount, current_amount, months_remaining
+- [ ] `is_on_track` correctly compares monthly_needed vs actual SIP this month
+- [ ] Linked investments auto-update goal.current_amount on new entry
+
+**Advisor:**
+- [ ] `POST /finance/advisor` returns structured advice with all 5 sections
+- [ ] Advice contains no stock/investment/buy/sell recommendations (manual review)
+- [ ] `POST /notifications/trigger/finance-advisor` creates notification
+- [ ] Notification renders with whitespace-pre-wrap in NotificationPanel
+- [ ] Setting finance.advisor_schedule="weekly" causes Sunday job to run
+- [ ] Setting finance.advisor_schedule="manual" suppresses scheduler jobs
+
+---
+
+_Phase 7 added: 2026-06-03. Previous phases unchanged._
