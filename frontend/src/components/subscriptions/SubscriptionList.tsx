@@ -149,7 +149,9 @@ export function SubscriptionList({ addOpen: extAddOpen, setAddOpen: extSetAddOpe
         title="New Subscription"
         width={500}
       >
+        {/* key={addOpen ? 'open' : 'closed'} forces remount on every open — clears all form state */}
         <SubscriptionAddForm
+          key={addOpen ? 'open' : 'closed'}
           onCreate={async (payload) => {
             await createMut.mutateAsync(payload);
             setAddOpen(false);

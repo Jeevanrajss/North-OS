@@ -66,18 +66,23 @@ export function Finance() {
   // Debt & EMI drawer state
   const [debtDrawerOpen,  setDebtDrawerOpen]  = useState(false);
   const [editingDebt,     setEditingDebt]     = useState<any | null>(null);
+  const [debtFormKey,     setDebtFormKey]     = useState(0);   // increments to force form remount
   const [paymentDebt,     setPaymentDebt]     = useState<any | null>(null);
   const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+  const [paymentFormKey,  setPaymentFormKey]  = useState(0);
 
   // Investment drawer state
   const [invDrawerOpen,   setInvDrawerOpen]   = useState(false);
   const [editingInv,      setEditingInv]      = useState<any | null>(null);
+  const [invFormKey,      setInvFormKey]      = useState(0);
   const [entryInvestment, setEntryInvestment] = useState<any | null>(null);
   const [showEntryDrawer, setShowEntryDrawer] = useState(false);
+  const [entryFormKey,    setEntryFormKey]    = useState(0);
 
   // Financial goal drawer state
   const [goalDrawerOpen,  setGoalDrawerOpen]  = useState(false);
   const [editingGoal,     setEditingGoal]     = useState<any | null>(null);
+  const [goalFormKey,     setGoalFormKey]     = useState(0);
 
   // Advisor state
   const [advisorAdvice,   setAdvisorAdvice]   = useState<string | null>(null);
@@ -477,6 +482,7 @@ export function Finance() {
             width={500}
           >
             <DebtForm
+              key={debtFormKey}
               initial={editingDebt}
               onSave={() => {
                 void debtsQ.refetch();
@@ -490,6 +496,7 @@ export function Finance() {
 
           {/* Record payment drawer */}
           <RecordPaymentDrawer
+            key={paymentFormKey}
             open={showPaymentDrawer}
             onClose={() => setShowPaymentDrawer(false)}
             debt={paymentDebt}
@@ -509,7 +516,7 @@ export function Finance() {
             </div>
             <button
               type="button"
-              onClick={() => { setEditingDebt(null); setDebtDrawerOpen(true); }}
+              onClick={() => { setEditingDebt(null); setDebtFormKey(k => k + 1); setDebtDrawerOpen(true); }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 height: 32, padding: '0 14px', borderRadius: 8,
@@ -528,7 +535,7 @@ export function Finance() {
               <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
               <div style={{ font: '500 18px/1.3 var(--font-display)', color: 'var(--fg-1)', marginBottom: 8 }}>No active loans</div>
               <p style={{ fontSize: 14, color: 'var(--fg-3)', marginBottom: 20 }}>Track home loans, personal loans, no-cost EMIs — see exactly when each clears.</p>
-              <button type="button" onClick={() => setDebtDrawerOpen(true)}
+              <button type="button" onClick={() => { setEditingDebt(null); setDebtFormKey(k => k + 1); setDebtDrawerOpen(true); }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 18px', borderRadius: 10, font: '500 13px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 14, height: 14 }} /> Add your first loan
               </button>
@@ -539,8 +546,8 @@ export function Finance() {
                 {(debtsQ.data ?? []).filter((d: any) => d.status === 'active').map((debt: any) => (
                   <DebtCard
                     key={debt.id} debt={debt}
-                    onEdit={() => { setEditingDebt(debt); setDebtDrawerOpen(true); }}
-                    onRecordPayment={() => { setPaymentDebt(debt); setShowPaymentDrawer(true); }}
+                    onEdit={() => { setEditingDebt(debt); setDebtFormKey(k => k + 1); setDebtDrawerOpen(true); }}
+                    onRecordPayment={() => { setPaymentDebt(debt); setPaymentFormKey(k => k + 1); setShowPaymentDrawer(true); }}
                     onClose={async () => {
                       await api.debt.delete(debt.id);
                       qc.invalidateQueries({ queryKey: ['debts'] });
@@ -566,6 +573,7 @@ export function Finance() {
             width={480}
           >
             <InvestmentForm
+              key={invFormKey}
               initial={editingInv}
               onSave={() => {
                 void investmentsQ.refetch();
@@ -584,6 +592,7 @@ export function Finance() {
             width={480}
           >
             <FinancialGoalForm
+              key={goalFormKey}
               initial={editingGoal}
               onSave={() => {
                 void financialGoalsQ.refetch();
@@ -595,6 +604,7 @@ export function Finance() {
 
           {/* Entry drawer */}
           <AddInvestmentEntryDrawer
+            key={entryFormKey}
             open={showEntryDrawer}
             onClose={() => setShowEntryDrawer(false)}
             investment={entryInvestment}
@@ -612,7 +622,7 @@ export function Finance() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Investments</div>
               <button type="button"
-                onClick={() => { setEditingInv(null); setInvDrawerOpen(true); }}
+                onClick={() => { setEditingInv(null); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 13, height: 13 }} /> Add investment
               </button>
@@ -624,7 +634,7 @@ export function Finance() {
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📈</div>
                 <div style={{ font: '500 15px/1.3 var(--font-display)', color: 'var(--fg-2)', marginBottom: 6 }}>No investments yet</div>
                 <p style={{ fontSize: 13, color: 'var(--fg-4)', marginBottom: 16 }}>Track MFs, FDs, PPF, gold — see your total invested amount at a glance.</p>
-                <button type="button" onClick={() => setInvDrawerOpen(true)}
+                <button type="button" onClick={() => { setEditingInv(null); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                   <Plus style={{ width: 13, height: 13 }} /> Add investment
                 </button>
@@ -634,8 +644,8 @@ export function Finance() {
                 {(investmentsQ.data ?? []).map((inv: any) => (
                   <InvestmentCard
                     key={inv.id} investment={inv}
-                    onEdit={() => { setEditingInv(inv); setInvDrawerOpen(true); }}
-                    onAddEntry={() => { setEntryInvestment(inv); setShowEntryDrawer(true); }}
+                    onEdit={() => { setEditingInv(inv); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
+                    onAddEntry={() => { setEntryInvestment(inv); setEntryFormKey(k => k + 1); setShowEntryDrawer(true); }}
                     onRedeem={async () => {
                       await api.investments.delete(inv.id);
                       qc.invalidateQueries({ queryKey: ['investments'] });
@@ -652,7 +662,7 @@ export function Finance() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Financial Goals</div>
               <button type="button"
-                onClick={() => { setEditingGoal(null); setGoalDrawerOpen(true); }}
+                onClick={() => { setEditingGoal(null); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 13, height: 13 }} /> Add goal
               </button>
@@ -664,7 +674,7 @@ export function Finance() {
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
                 <div style={{ font: '500 15px/1.3 var(--font-display)', color: 'var(--fg-2)', marginBottom: 6 }}>No financial goals yet</div>
                 <p style={{ fontSize: 13, color: 'var(--fg-4)', marginBottom: 16 }}>Set a target, link investments, see how far you are and how much you need per month.</p>
-                <button type="button" onClick={() => setGoalDrawerOpen(true)}
+                <button type="button" onClick={() => { setEditingGoal(null); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                   <Plus style={{ width: 13, height: 13 }} /> Add goal
                 </button>
@@ -676,7 +686,7 @@ export function Finance() {
                     <FinancialGoalCard goal={goal} />
                     {/* Edit/delete overlay actions */}
                     <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 4 }}>
-                      <button type="button" onClick={() => { setEditingGoal(goal); setGoalDrawerOpen(true); }}
+                      <button type="button" onClick={() => { setEditingGoal(goal); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}
                         style={{ padding: 5, borderRadius: 7, color: 'var(--fg-4)', background: 'var(--surface-elev)', border: '1px solid var(--border-default)', cursor: 'pointer' }}
                         title="Edit">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

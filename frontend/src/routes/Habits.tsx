@@ -33,6 +33,7 @@ export function Habits() {
   const qc = useQueryClient();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [habitFormKey, setHabitFormKey] = useState(0);
   const [weekStart, setWeekStart] = useState<Date>(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 }),
   );
@@ -203,7 +204,7 @@ export function Habits() {
         action={
           <button
             type="button"
-            onClick={() => setAddOpen(true)}
+            onClick={() => { setHabitFormKey(k => k + 1); setAddOpen(true); }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 36, padding: '0 16px', borderRadius: 10,
@@ -225,6 +226,7 @@ export function Habits() {
         title="New Habit"
       >
         <HabitAddForm
+          key={habitFormKey}
           alwaysExpanded
           onCreate={async (payload) => {
             await createMut.mutateAsync(payload);

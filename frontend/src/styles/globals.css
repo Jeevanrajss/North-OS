@@ -10,13 +10,21 @@
    Without this, elements nested inside a .drag-region parent inherit the drag
    behaviour — Chromium's hit-test marks their inner content as a drag handle
    so clicks on text/icons don't fire; only the outer border-box edge works.
-   Declaring no-drag on every button/link/input globally fixes it for every
-   page without having to wrap every widget individually.                     */
+   Declaring no-drag on every button/link/input — AND on their children
+   (text spans, SVG icons, etc.) — fixes it for every page.                  */
 button, a, input, textarea, select,
 label, [role="button"], [role="link"],
 [role="menuitem"], [role="tab"], [role="checkbox"],
 [role="radio"], [role="switch"], [role="combobox"] {
   -webkit-app-region: no-drag;
+}
+
+/* Children of interactive elements must also be no-drag so that clicking
+   on the text label or SVG icon inside a button actually registers. */
+button *, a *, [role="button"] *, [role="link"] *,
+[role="menuitem"] *, [role="tab"] * {
+  -webkit-app-region: no-drag;
+  /* pointer-events fall through to the parent button naturally */
 }
 
 /* ── Clash Grotesk display font ──────────────────────────────────────────── */
