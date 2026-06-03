@@ -17,11 +17,14 @@ class ImportPreviewRow(BaseModel):
     is_emi: bool = False
     is_tax_fee: bool = False
     is_cc_payment: bool = False
+    is_investment: bool = False                    # SIP / MF / PPF detected
     suggested_debt_id: str | None = None
-    suggested_debt_name: str | None = None  # label for loan dropdown
-    installment_info: str | None = None     # "3 of 12"
+    suggested_debt_name: str | None = None         # label for loan dropdown
+    suggested_investment_id: str | None = None
+    suggested_investment_name: str | None = None   # label for investment dropdown
+    installment_info: str | None = None            # "3 of 12"
     skip_by_default: bool = False
-    skip_reason: str | None = None          # shown to user when skip_by_default=True
+    skip_reason: str | None = None                 # shown to user when skip_by_default=True
 
 
 class ImportPreviewResponse(BaseModel):
@@ -52,8 +55,9 @@ class ConfirmRow(BaseModel):
     notes: str | None = None
     include: bool = True            # False = user chose to skip
     # Phase 7 fields
-    debt_id: str | None = None      # user's selected loan for EMI rows
-    tax_amount: float | None = None  # tax portion for tax_fee rows
+    debt_id: str | None = None         # user's selected loan for EMI rows
+    investment_id: str | None = None   # user's selected investment for SIP rows
+    tax_amount: float | None = None    # tax portion for tax_fee rows
 
 
 class ImportConfirmRequest(BaseModel):

@@ -723,8 +723,11 @@ export type ImportPreviewRow = {
   is_emi: boolean;
   is_tax_fee: boolean;
   is_cc_payment: boolean;
+  is_investment: boolean;
   suggested_debt_id: string | null;
   suggested_debt_name: string | null;
+  suggested_investment_id: string | null;
+  suggested_investment_name: string | null;
   installment_info: string | null;
   skip_by_default: boolean;
   skip_reason: string | null;

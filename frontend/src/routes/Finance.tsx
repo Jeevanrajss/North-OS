@@ -123,24 +123,25 @@ export function Finance() {
     staleTime: 1000 * 30,
   });
 
-  // Phase 7 queries — fetched lazily when tab is active
+  // Phase 7 queries — always active so invalidation always triggers a refetch.
+  // staleTime keeps them from hammering the backend on every tab switch.
   const debtsQ = useQuery({
     queryKey: ['debts'],
     queryFn: () => api.debt.list(),
-    staleTime: 30_000,
-    enabled: tab === 'debt',
+    staleTime: 60_000,
+    refetchOnMount: true,
   });
   const investmentsQ = useQuery({
     queryKey: ['investments'],
     queryFn: () => api.investments.list(),
-    staleTime: 30_000,
-    enabled: tab === 'wealth',
+    staleTime: 60_000,
+    refetchOnMount: true,
   });
   const financialGoalsQ = useQuery({
     queryKey: ['financial-goals'],
     queryFn: () => api.financialGoals.list(),
-    staleTime: 30_000,
-    enabled: tab === 'wealth',
+    staleTime: 60_000,
+    refetchOnMount: true,
   });
 
   async function generateAdvisor() {
@@ -478,7 +479,7 @@ export function Finance() {
             <DebtForm
               initial={editingDebt}
               onSave={() => {
-                qc.invalidateQueries({ queryKey: ['debts'] });
+                void debtsQ.refetch();
                 qc.invalidateQueries({ queryKey: ['debt-payoff-strategy'] });
                 qc.invalidateQueries({ queryKey: ['debt-summary-dash'] });
                 setDebtDrawerOpen(false); setEditingDebt(null);
@@ -567,7 +568,7 @@ export function Finance() {
             <InvestmentForm
               initial={editingInv}
               onSave={() => {
-                qc.invalidateQueries({ queryKey: ['investments'] });
+                void investmentsQ.refetch();
                 qc.invalidateQueries({ queryKey: ['inv-summary-dash'] });
                 setInvDrawerOpen(false); setEditingInv(null);
               }}
@@ -585,7 +586,7 @@ export function Finance() {
             <FinancialGoalForm
               initial={editingGoal}
               onSave={() => {
-                qc.invalidateQueries({ queryKey: ['financial-goals'] });
+                void financialGoalsQ.refetch();
                 setGoalDrawerOpen(false); setEditingGoal(null);
               }}
               onCancel={() => { setGoalDrawerOpen(false); setEditingGoal(null); }}

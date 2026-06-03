@@ -69,7 +69,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
   const [colMap, setColMap] = useState<Partial<ColumnMapping>>({});
 
   const [preview, setPreview] = useState<ImportPreviewResponse | null>(null);
-  const [rows, setRows] = useState<(ConfirmRow & { is_duplicate: boolean; is_emi?: boolean; is_cc_payment?: boolean; is_tax_fee?: boolean; suggested_debt_id?: string | null; suggested_debt_name?: string | null; installment_info?: string | null; skip_reason?: string | null })[]>([]);
+  const [rows, setRows] = useState<(ConfirmRow & { is_duplicate: boolean; is_emi?: boolean; is_cc_payment?: boolean; is_tax_fee?: boolean; is_investment?: boolean; suggested_debt_id?: string | null; suggested_debt_name?: string | null; suggested_investment_id?: string | null; suggested_investment_name?: string | null; installment_info?: string | null; skip_reason?: string | null })[]>([]);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 
   const { data: banksData } = useQuery({
@@ -139,11 +139,15 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
         is_emi: r.is_emi ?? false,
         is_cc_payment: r.is_cc_payment ?? false,
         is_tax_fee: r.is_tax_fee ?? false,
+        is_investment: r.is_investment ?? false,
         suggested_debt_id: r.suggested_debt_id ?? null,
         suggested_debt_name: r.suggested_debt_name ?? null,
+        suggested_investment_id: r.suggested_investment_id ?? null,
+        suggested_investment_name: r.suggested_investment_name ?? null,
         installment_info: r.installment_info ?? null,
         skip_reason: r.skip_reason ?? null,
-        debt_id: r.suggested_debt_id ?? null,  // pre-populate for ConfirmRow
+        debt_id: r.suggested_debt_id ?? null,
+        investment_id: r.suggested_investment_id ?? null,  // pre-populate
       }));
       setRows(editableRows);
       setStep('review');
@@ -545,6 +549,11 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                                 Tax/Fee
                               </span>
                             )}
+                            {row.is_investment && (
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(61,190,255,0.12)', color: '#3EBEFF', border: '1px solid rgba(61,190,255,0.25)', whiteSpace: 'nowrap' }}>
+                                SIP/Investment
+                              </span>
+                            )}
                           </div>
                           <div style={{ color: 'var(--fg-3)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {row.description}
@@ -553,7 +562,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                           {row.is_cc_payment && row.skip_reason && (
                             <div style={{ fontSize: 10, color: 'var(--fg-4)', marginTop: 2, lineHeight: 1.4 }}>{row.skip_reason}</div>
                           )}
-                          {/* EMI: loan dropdown */}
+                          {/* EMI: matched loan */}
                           {row.is_emi && (
                             <div style={{ marginTop: 4 }}>
                               {row.suggested_debt_name ? (
@@ -563,6 +572,20 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                               ) : (
                                 <span style={{ fontSize: 10, color: 'var(--accent-red)' }}>
                                   ⚠ No matching loan — add it in Debt & EMI tab first
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {/* Investment: matched fund */}
+                          {row.is_investment && (
+                            <div style={{ marginTop: 4 }}>
+                              {row.suggested_investment_name ? (
+                                <span style={{ fontSize: 10, color: '#3EBEFF', fontFamily: 'var(--font-mono)' }}>
+                                  → {row.suggested_investment_name}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10, color: 'var(--fg-4)' }}>
+                                  Add investment in My Wealth tab to auto-link
                                 </span>
                               )}
                             </div>

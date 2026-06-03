@@ -231,10 +231,12 @@ async def import_preview(
     descriptions = [r.description for r in rows]
     categories = await categorize_batch(descriptions)
 
-    # Phase 7: load active debts for EMI detection
+    # Phase 7: load active debts and investments for detection
     from app.models.debt import Debt as DebtModel
+    from app.models.investment import Investment as InvModel
     from app.services.import_detector import detect_row
     active_debts = db.query(DebtModel).filter(DebtModel.status == "active").all()
+    active_investments = db.query(InvModel).filter(InvModel.status == "active").all()
 
     # Duplicate detection + Phase 7 row classification
     preview_rows: list[ImportPreviewRow] = []
@@ -245,8 +247,15 @@ async def import_preview(
             dup_count += 1
 
         # Run import detector
-        d = detect_row(row.description, row.amount, row.tx_type, active_debts)
-        effective_cat = "Taxes & Fees" if d.is_tax_fee else ("CC Payment" if d.is_cc_payment else cat)
+        d = detect_row(row.description, row.amount, row.tx_type, active_debts, active_investments)
+        if d.is_tax_fee:
+            effective_cat = "Taxes & Fees"
+        elif d.is_cc_payment:
+            effective_cat = "CC Payment"
+        elif d.is_investment:
+            effective_cat = "Investment"
+        else:
+            effective_cat = cat
 
         preview_rows.append(ImportPreviewRow(
             row_index=row.raw_index,
@@ -261,8 +270,11 @@ async def import_preview(
             is_emi=d.is_emi,
             is_tax_fee=d.is_tax_fee,
             is_cc_payment=d.is_cc_payment,
+            is_investment=d.is_investment,
             suggested_debt_id=d.suggested_debt_id,
             suggested_debt_name=d.suggested_debt_name,
+            suggested_investment_id=d.suggested_investment_id,
+            suggested_investment_name=d.suggested_investment_name,
             installment_info=d.installment_info,
             skip_by_default=d.skip_by_default,
             skip_reason=d.skip_reason,
@@ -305,8 +317,11 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
             skipped += 1
             continue
 
+        # Investment rows get type="investment"; others keep their tx_type
+        tx_type = "investment" if getattr(row, 'investment_id', None) else row.tx_type
+
         t = Transaction(
-            type=row.tx_type,
+            type=tx_type,
             amount=row.amount,
             currency=import_currency,
             date=date_cls.fromisoformat(row.date),
@@ -317,9 +332,10 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
             import_batch_id=batch_id,
             tax_amount=row.tax_amount,
             debt_id=row.debt_id,
+            investment_id=getattr(row, 'investment_id', None),
         )
         db.add(t)
-        db.flush()  # need t.id before creating DebtPayment
+        db.flush()  # need t.id before creating child records
 
         # Phase 7: handle EMI payment — reduce Debt.outstanding
         if row.debt_id:
@@ -340,6 +356,27 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
                 _logger.warning(
                     "import confirm: debt_id %s not found or not active — skipping DebtPayment",
                     row.debt_id,
+                )
+
+        # Phase 7: handle SIP / investment — create InvestmentEntry + bump total_invested
+        inv_id = getattr(row, 'investment_id', None)
+        if inv_id:
+            from app.models.investment import Investment as InvModel
+            from app.models.investment_entry import InvestmentEntry
+            inv = db.get(InvModel, inv_id)
+            if inv and inv.status == "active":
+                db.add(InvestmentEntry(
+                    investment_id=inv.id,
+                    transaction_id=t.id,
+                    amount=row.amount,
+                    entry_date=date_cls.fromisoformat(row.date),
+                    entry_type="sip",
+                ))
+                inv.total_invested = round(inv.total_invested + row.amount, 2)
+            else:
+                _logger.warning(
+                    "import confirm: investment_id %s not found or not active — skipping InvestmentEntry",
+                    inv_id,
                 )
 
         imported += 1
