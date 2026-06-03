@@ -69,7 +69,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
   const [colMap, setColMap] = useState<Partial<ColumnMapping>>({});
 
   const [preview, setPreview] = useState<ImportPreviewResponse | null>(null);
-  const [rows, setRows] = useState<(ConfirmRow & { is_duplicate: boolean })[]>([]);
+  const [rows, setRows] = useState<(ConfirmRow & { is_duplicate: boolean; is_emi?: boolean; is_cc_payment?: boolean; is_tax_fee?: boolean; suggested_debt_id?: string | null; suggested_debt_name?: string | null; installment_info?: string | null; skip_reason?: string | null })[]>([]);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
 
   const { data: banksData } = useQuery({
@@ -125,19 +125,26 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
         setStep('map');
         return;
       }
-      const editableRows = data.rows.map(
-        (r: ImportPreviewRow): ConfirmRow & { is_duplicate: boolean } => ({
-          row_index: r.row_index,
-          date: r.date,
-          description: r.description,
-          amount: r.amount,
-          tx_type: r.tx_type,
-          category: r.suggested_category,
-          notes: r.description,
-          include: !r.is_duplicate,
-          is_duplicate: r.is_duplicate,
-        }),
-      );
+      const editableRows = data.rows.map((r: ImportPreviewRow) => ({
+        row_index: r.row_index,
+        date: r.date,
+        description: r.description,
+        amount: r.amount,
+        tx_type: r.tx_type,
+        category: r.suggested_category,
+        notes: r.description,
+        include: !r.is_duplicate && !r.skip_by_default,
+        is_duplicate: r.is_duplicate,
+        // Phase 7 detection fields
+        is_emi: r.is_emi ?? false,
+        is_cc_payment: r.is_cc_payment ?? false,
+        is_tax_fee: r.is_tax_fee ?? false,
+        suggested_debt_id: r.suggested_debt_id ?? null,
+        suggested_debt_name: r.suggested_debt_name ?? null,
+        installment_info: r.installment_info ?? null,
+        skip_reason: r.skip_reason ?? null,
+        debt_id: r.suggested_debt_id ?? null,  // pre-populate for ConfirmRow
+      }));
       setRows(editableRows);
       setStep('review');
     },
@@ -520,11 +527,46 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                         <td style={{ padding: '7px 10px', fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--fg-4)', whiteSpace: 'nowrap' }}>
                           {row.date}
                         </td>
-                        <td style={{ padding: '7px 10px', color: 'var(--fg-3)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {row.is_duplicate && (
-                            <span title="Possible duplicate" style={{ marginRight: 4, color: 'var(--accent-yellow)' }}>⚠</span>
+                        <td style={{ padding: '7px 10px', maxWidth: 260 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                            {row.is_duplicate && <span title="Possible duplicate" style={{ color: 'var(--accent-yellow)', fontSize: 11 }}>⚠</span>}
+                            {row.is_emi && (
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(255,184,107,0.15)', color: 'var(--accent-yellow)', border: '1px solid rgba(255,184,107,0.25)', whiteSpace: 'nowrap' }}>
+                                EMI {row.installment_info ? `· ${row.installment_info}` : ''}
+                              </span>
+                            )}
+                            {row.is_cc_payment && (
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.25)', whiteSpace: 'nowrap' }}>
+                                CC Payment
+                              </span>
+                            )}
+                            {row.is_tax_fee && (
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(61,255,152,0.10)', color: 'var(--accent-green)', border: '1px solid rgba(61,255,152,0.20)', whiteSpace: 'nowrap' }}>
+                                Tax/Fee
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ color: 'var(--fg-3)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {row.description}
+                          </div>
+                          {/* CC payment skip reason */}
+                          {row.is_cc_payment && row.skip_reason && (
+                            <div style={{ fontSize: 10, color: 'var(--fg-4)', marginTop: 2, lineHeight: 1.4 }}>{row.skip_reason}</div>
                           )}
-                          {row.description}
+                          {/* EMI: loan dropdown */}
+                          {row.is_emi && (
+                            <div style={{ marginTop: 4 }}>
+                              {row.suggested_debt_name ? (
+                                <span style={{ fontSize: 10, color: 'var(--accent-yellow)', fontFamily: 'var(--font-mono)' }}>
+                                  → {row.suggested_debt_name}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10, color: 'var(--accent-red)' }}>
+                                  ⚠ No matching loan — add it in Debt & EMI tab first
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 500, color: row.tx_type === 'income' ? 'var(--accent-green)' : 'var(--fg-2)', whiteSpace: 'nowrap' }}>
                           {row.tx_type === 'income' ? '+' : '−'}₹{row.amount.toLocaleString('en-IN')}

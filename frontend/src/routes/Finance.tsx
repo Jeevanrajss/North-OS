@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CreditCard, Eye, EyeOff, FileBarChart2, LayoutDashboard, Plus, TrendingDown, TrendingUp, Upload, Wallet, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CreditCard, Eye, EyeOff, FileBarChart2, LayoutDashboard, Plus, Sparkles, TrendingDown, TrendingUp, Upload, Wallet, X, Landmark, BarChart2 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { RightDrawer } from '@/components/ui/RightDrawer';
 import { AccountsCard } from '@/components/finance/AccountsCard';
@@ -12,6 +12,13 @@ import { MonthlyReportView } from '@/components/finance/MonthlyReportView';
 import { SmsInbox } from '@/components/finance/SmsInbox';
 import { TransactionForm } from '@/components/finance/TransactionForm';
 import { TransactionList } from '@/components/finance/TransactionList';
+import { DebtCard } from '@/components/finance/debt/DebtCard';
+import { PayoffStrategyCard } from '@/components/finance/debt/PayoffStrategyCard';
+import { RecordPaymentDrawer } from '@/components/finance/debt/RecordPaymentDrawer';
+import { InvestmentNote } from '@/components/finance/wealth/InvestmentNote';
+import { InvestmentCard } from '@/components/finance/wealth/InvestmentCard';
+import { FinancialGoalCard } from '@/components/finance/wealth/FinancialGoalCard';
+import { AddInvestmentEntryDrawer } from '@/components/finance/wealth/AddInvestmentEntryDrawer';
 import { api, type Account, type FinanceMeta, type MonthlySummary, type Transaction, type TransactionIn } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
@@ -20,13 +27,16 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-type Tab = 'overview' | 'accounts' | 'budgets' | 'report';
+type Tab = 'overview' | 'budgets' | 'debt' | 'wealth' | 'advisor' | 'accounts' | 'report';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',  label: 'Overview',  icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
-  { id: 'accounts',  label: 'Accounts',  icon: <CreditCard className="w-3.5 h-3.5" /> },
-  { id: 'budgets',   label: 'Budgets',   icon: <Wallet className="w-3.5 h-3.5" /> },
-  { id: 'report',    label: 'Report',    icon: <FileBarChart2 className="w-3.5 h-3.5" /> },
+  { id: 'overview', label: 'Overview',  icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
+  { id: 'budgets',  label: 'Budget',    icon: <Wallet className="w-3.5 h-3.5" /> },
+  { id: 'debt',     label: 'Debt & EMI',icon: <CreditCard className="w-3.5 h-3.5" /> },
+  { id: 'wealth',   label: 'My Wealth', icon: <BarChart2 className="w-3.5 h-3.5" /> },
+  { id: 'advisor',  label: 'Advisor',   icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { id: 'accounts', label: 'Accounts',  icon: <Landmark className="w-3.5 h-3.5" /> },
+  { id: 'report',   label: 'Report',    icon: <FileBarChart2 className="w-3.5 h-3.5" /> },
 ];
 
 function fmtMoney(n: number, currency = 'INR') {
@@ -49,6 +59,20 @@ export function Finance() {
   const [showValues, setShowValues] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
   const [cardTip, setCardTip] = useState<string | null>(null);
+
+  // Debt & EMI state
+  const [paymentDebt, setPaymentDebt]   = useState<any | null>(null);
+  const [showPaymentDrawer, setShowPaymentDrawer] = useState(false);
+
+  // My Wealth state
+  const [entryInvestment, setEntryInvestment] = useState<any | null>(null);
+  const [showEntryDrawer, setShowEntryDrawer]  = useState(false);
+
+  // Advisor state
+  const [advisorAdvice, setAdvisorAdvice]   = useState<string | null>(null);
+  const [advisorDate,   setAdvisorDate]     = useState<string | null>(null);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+  const [advisorError,   setAdvisorError]   = useState<string | null>(null);
 
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
@@ -87,6 +111,39 @@ export function Finance() {
     queryFn: () => api.finance.summary(year, month),
     staleTime: 1000 * 30,
   });
+
+  // Phase 7 queries — fetched lazily when tab is active
+  const debtsQ = useQuery({
+    queryKey: ['debts'],
+    queryFn: () => api.debt.list(),
+    staleTime: 30_000,
+    enabled: tab === 'debt',
+  });
+  const investmentsQ = useQuery({
+    queryKey: ['investments'],
+    queryFn: () => api.investments.list(),
+    staleTime: 30_000,
+    enabled: tab === 'wealth',
+  });
+  const financialGoalsQ = useQuery({
+    queryKey: ['financial-goals'],
+    queryFn: () => api.financialGoals.list(),
+    staleTime: 30_000,
+    enabled: tab === 'wealth',
+  });
+
+  async function generateAdvisor() {
+    setAdvisorLoading(true); setAdvisorError(null);
+    try {
+      const res = await api.advisor.generate();
+      setAdvisorAdvice(res.advice);
+      setAdvisorDate(res.generated_at);
+    } catch (err) {
+      setAdvisorError(err instanceof Error ? err.message : 'AI unavailable.');
+    } finally {
+      setAdvisorLoading(false);
+    }
+  }
 
   const createMut = useMutation({
     mutationFn: (payload: TransactionIn) => api.finance.create(payload),
@@ -395,6 +452,177 @@ export function Finance() {
       {/* ── Report tab ─────────────────────────────────────── */}
       {tab === 'report' && (
         <MonthlyReportView year={year} month={month} />
+      )}
+
+      {/* ── Debt & EMI tab ──────────────────────────────── */}
+      {tab === 'debt' && (
+        <div className="space-y-5">
+          <RecordPaymentDrawer
+            open={showPaymentDrawer}
+            onClose={() => setShowPaymentDrawer(false)}
+            debt={paymentDebt}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ['debts'] });
+              qc.invalidateQueries({ queryKey: ['debt-payoff-strategy'] });
+              qc.invalidateQueries({ queryKey: txnKey });
+              qc.invalidateQueries({ queryKey: ['finance-summary'] });
+            }}
+          />
+          {debtsQ.isLoading ? (
+            <div style={{ color: 'var(--fg-4)', textAlign: 'center', padding: '40px 0' }}>Loading…</div>
+          ) : (debtsQ.data ?? []).filter((d: any) => d.status === 'active').length === 0 ? (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: '40px 32px', textAlign: 'center' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
+              <div style={{ font: '500 18px/1.3 var(--font-display)', color: 'var(--fg-1)', marginBottom: 8 }}>No active loans</div>
+              <p style={{ fontSize: 14, color: 'var(--fg-3)' }}>Add a loan to start tracking EMIs and payoff strategy.</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+                {(debtsQ.data ?? []).filter((d: any) => d.status === 'active').map((debt: any) => (
+                  <DebtCard
+                    key={debt.id} debt={debt}
+                    onEdit={() => {}} // TODO: edit drawer
+                    onRecordPayment={() => { setPaymentDebt(debt); setShowPaymentDrawer(true); }}
+                    onClose={async () => {
+                      await api.debt.delete(debt.id);
+                      qc.invalidateQueries({ queryKey: ['debts'] });
+                    }}
+                  />
+                ))}
+              </div>
+              <PayoffStrategyCard />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── My Wealth tab ───────────────────────────────── */}
+      {tab === 'wealth' && (
+        <div className="space-y-5">
+          <AddInvestmentEntryDrawer
+            open={showEntryDrawer}
+            onClose={() => setShowEntryDrawer(false)}
+            investment={entryInvestment}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ['investments'] });
+              qc.invalidateQueries({ queryKey: ['financial-goals'] });
+            }}
+          />
+          <InvestmentNote />
+
+          {/* Investments */}
+          <div>
+            <div style={{ font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)', marginBottom: 12 }}>Investments</div>
+            {investmentsQ.isLoading ? (
+              <div style={{ color: 'var(--fg-4)', fontSize: 13 }}>Loading…</div>
+            ) : (investmentsQ.data ?? []).length === 0 ? (
+              <div style={{ color: 'var(--fg-4)', fontSize: 13 }}>No investments added yet.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                {(investmentsQ.data ?? []).map((inv: any) => (
+                  <InvestmentCard
+                    key={inv.id} investment={inv}
+                    onEdit={() => {}}
+                    onAddEntry={() => { setEntryInvestment(inv); setShowEntryDrawer(true); }}
+                    onRedeem={async () => {
+                      await api.investments.delete(inv.id);
+                      qc.invalidateQueries({ queryKey: ['investments'] });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Financial goals */}
+          <div>
+            <div style={{ font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)', marginBottom: 12 }}>Financial Goals</div>
+            {financialGoalsQ.isLoading ? (
+              <div style={{ color: 'var(--fg-4)', fontSize: 13 }}>Loading…</div>
+            ) : (financialGoalsQ.data ?? []).length === 0 ? (
+              <div style={{ color: 'var(--fg-4)', fontSize: 13 }}>No financial goals set yet.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                {(financialGoalsQ.data ?? []).map((goal: any) => (
+                  <FinancialGoalCard key={goal.id} goal={goal} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Accounts (moved here from standalone tab) */}
+          <div>
+            <div style={{ font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)', marginBottom: 12 }}>Accounts & Cards</div>
+            <div className="max-w-2xl">
+              <AccountsCard />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Advisor tab ──────────────────────────────────── */}
+      {tab === 'advisor' && (
+        <div style={{ maxWidth: 680 }}>
+          <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ font: '500 16px/1.2 var(--font-display)', letterSpacing: '-0.01em', color: 'var(--fg-1)', marginBottom: 4 }}>
+                  Finance Advisor
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>
+                  AI analysis of your cash flow, debt, savings, and goals. No investment recommendations.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void generateAdvisor()}
+                disabled={advisorLoading}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  height: 36, padding: '0 16px', borderRadius: 10,
+                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  background: advisorLoading ? 'var(--surface-hover)' : 'var(--grad-primary)',
+                  border: 'none', cursor: advisorLoading ? 'default' : 'pointer',
+                  opacity: advisorLoading ? 0.7 : 1,
+                }}
+              >
+                <Sparkles style={{ width: 14, height: 14 }} />
+                {advisorLoading ? 'Analysing…' : advisorAdvice ? 'Refresh' : 'Generate analysis'}
+              </button>
+            </div>
+
+            {advisorError && (
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,91,110,0.08)', border: '1px solid rgba(255,91,110,0.20)', fontSize: 13, color: 'var(--accent-red)', marginBottom: 16 }}>
+                {advisorError}
+              </div>
+            )}
+
+            {advisorAdvice ? (
+              <>
+                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.7, margin: 0 }}>
+                  {advisorAdvice}
+                </pre>
+                {advisorDate && (
+                  <div style={{ marginTop: 16, fontSize: 11, color: 'var(--fg-4)', fontFamily: 'var(--font-mono)' }}>
+                    Generated {advisorDate}
+                  </div>
+                )}
+              </>
+            ) : !advisorLoading && !advisorError ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>💰</div>
+                <div style={{ font: '500 16px/1.3 var(--font-display)', color: 'var(--fg-2)', marginBottom: 8 }}>
+                  Your personalised finance check-in
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--fg-4)', maxWidth: 380, margin: '0 auto' }}>
+                  Analyses your cash flow, debt burden, savings pace, and goal progress — then gives one clear action.
+                  Runs locally on your AI model.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
       )}
 
       {/* ── Import modal ──────────────────────────────────── */}

@@ -118,6 +118,25 @@ def trigger_budget_check(db: Session = Depends(get_db)) -> dict:
     return {"created": count}
 
 
+@router.post("/trigger/finance-advisor")
+async def trigger_finance_advisor(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger for the Finance Advisor. Returns the advice if successful."""
+    from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
+    from app.services.llm_client import generate, LLMError
+    from app.services.notification_service import create_notification
+    context = await _build_finance_context(db)
+    try:
+        response = await generate(context, purpose="insights", system=ADVISOR_SYSTEM,
+                                   temperature=0.4, max_tokens=600)
+        if response:
+            create_notification(db=db, type="finance_advisor",
+                                title="Your finance check-in 💰",
+                                body=response.strip(), skip_quiet=True)
+        return {"created": bool(response), "advice": response}
+    except LLMError as e:
+        return {"created": False, "reason": str(e)}
+
+
 @router.post("/trigger/weekly-review")
 def trigger_weekly_review(db: Session = Depends(get_db)) -> dict:
     """Manual trigger for the weekly AI review. Useful for testing or ad-hoc generation."""

@@ -6,10 +6,11 @@ import { api, type NotificationItem } from '@/lib/api';
 const TYPE_ICON: Record<string, string> = {
   morning_briefing: '☀️',
   weekly_review:    '📊',
+  finance_advisor:  '💰',
   habit_reminder:   '🔥',
   sub_alert:        '🔄',
   sub_renewed:      '✅',
-  budget_warning:   '💰',
+  budget_warning:   '💸',
   finance_alert:    '💳',
   system:           '🖥️',
 };
@@ -329,7 +330,7 @@ export function NotificationBell() {
                   }}>
                     {item.title}
                   </div>
-                  {(item.type === 'weekly_review' || item.type === 'morning_briefing') ? (
+                  {(item.type === 'weekly_review' || item.type === 'morning_briefing' || item.type === 'finance_advisor') ? (
                     <pre style={{
                       fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.5,
                       whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', margin: 0,

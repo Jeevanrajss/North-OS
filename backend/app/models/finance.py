@@ -22,7 +22,8 @@ class Transaction(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
 
-    # "income" | "expense" | "transfer"
+    # "income" | "expense" | "transfer" | "investment"
+    # "investment" is a 4th type — SIP/MF debits are NOT expenses; they build net worth.
     type: Mapped[str] = mapped_column(String(16), nullable=False, default="expense")
 
     amount: Mapped[float] = mapped_column(Float, nullable=False)
@@ -39,6 +40,16 @@ class Transaction(Base):
 
     # Set when the row was created via CSV import (groups rows from same upload)
     import_batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    # Phase 7 extensions
+    # GST/tax component from CC statement — kept separate so spending analytics exclude it
+    tax_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Set when this transaction is an EMI payment → DebtPayment created + outstanding reduced
+    debt_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    # Set when this transaction is a SIP/investment → InvestmentEntry created + total_invested updated
+    investment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

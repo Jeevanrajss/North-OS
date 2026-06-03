@@ -146,19 +146,26 @@ def _dev_migrate_habits(conn) -> None:
 
 
 def _dev_migrate_transactions(conn) -> None:
-    """Add import_batch_id column to transactions table if missing."""
+    """Add import_batch_id + Phase 7 columns to transactions table if missing."""
     try:
         rows = conn.execute(text("PRAGMA table_info(transactions)")).all()
     except Exception as e:
         log.debug("transactions PRAGMA failed (table may not exist yet): %s", e)
         return
     existing_cols = {r[1] for r in rows}
-    if "import_batch_id" not in existing_cols:
-        try:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN import_batch_id VARCHAR(36)"))
-            log.info("Dev migration: added transactions.import_batch_id column")
-        except Exception as e:
-            log.warning("Could not add transactions.import_batch_id: %s", e)
+    new_cols = [
+        ("import_batch_id", "VARCHAR(36)"),
+        ("tax_amount",      "REAL"),
+        ("debt_id",         "VARCHAR(36)"),
+        ("investment_id",   "VARCHAR(36)"),
+    ]
+    for col, col_type in new_cols:
+        if col not in existing_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE transactions ADD COLUMN {col} {col_type}"))
+                log.info("Dev migration: added transactions.%s column", col)
+            except Exception as e:
+                log.warning("Could not add transactions.%s: %s", col, e)
 
 
 def _dev_migrate_accounts(conn) -> None:
@@ -219,6 +226,11 @@ def init_db() -> None:
     from app.models import analytics  # noqa: F401
     from app.models import goal  # noqa: F401
     from app.models import health_log  # noqa: F401
+    from app.models.debt import Debt  # noqa: F401
+    from app.models.debt_payment import DebtPayment  # noqa: F401
+    from app.models.investment import Investment  # noqa: F401
+    from app.models.investment_entry import InvestmentEntry  # noqa: F401
+    from app.models.financial_goal import FinancialGoal  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

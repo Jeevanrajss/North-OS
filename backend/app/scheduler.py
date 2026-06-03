@@ -74,6 +74,43 @@ def _run_weekly_review() -> None:
             log.info("Weekly review skipped or failed")
 
 
+def _run_finance_advisor() -> None:
+    """Weekly (Sunday 10:00) or monthly (1st 10:00) — reads finance.advisor_schedule setting."""
+    import asyncio
+    from app.db import SessionLocal
+    from app.models.setting import Setting
+
+    with SessionLocal() as db:
+        s = db.query(Setting).filter(Setting.key == "finance.advisor_schedule").first()
+        if not s or s.value == "manual":
+            return
+
+    async def _inner():
+        from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
+        from app.services.llm_client import generate as llm_generate, LLMError
+        from app.services.notification_service import create_notification
+        with SessionLocal() as db:
+            context = await _build_finance_context(db)
+            try:
+                response = await llm_generate(
+                    context, purpose="insights",
+                    system=ADVISOR_SYSTEM, temperature=0.4, max_tokens=600,
+                )
+            except LLMError:
+                return
+            if response:
+                create_notification(
+                    db=db, type="finance_advisor",
+                    title="Your finance check-in 💰",
+                    body=response.strip(), skip_quiet=True,
+                )
+
+    try:
+        asyncio.run(_inner())
+    except Exception as e:
+        log.warning("Finance advisor job failed: %s", e)
+
+
 def _run_analytics_snapshot() -> None:
     """Compute today's (and yesterday's) analytics snapshot at 00:05 daily."""
     from datetime import date, timedelta
@@ -173,6 +210,18 @@ def start_scheduler() -> None:
         _run_weekly_review,
         CronTrigger(day_of_week="sun", hour=19, minute=0),
         id="weekly_review", replace_existing=True,
+    )
+    # Finance advisor: Sunday 10:00 (weekly) and 1st of month 10:00 (monthly)
+    # Both check the setting on every run — skip silently if "manual"
+    _scheduler.add_job(
+        _run_finance_advisor,
+        CronTrigger(day_of_week="sun", hour=10, minute=0),
+        id="finance_advisor_weekly", replace_existing=True,
+    )
+    _scheduler.add_job(
+        _run_finance_advisor,
+        CronTrigger(day=1, hour=10, minute=0),
+        id="finance_advisor_monthly", replace_existing=True,
     )
 
     _scheduler.start()

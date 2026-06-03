@@ -13,6 +13,15 @@ class ImportPreviewRow(BaseModel):
     suggested_category: str
     is_duplicate: bool
     duplicate_txn_id: str | None    # ID of existing transaction if duplicate
+    # Phase 7 detection fields
+    is_emi: bool = False
+    is_tax_fee: bool = False
+    is_cc_payment: bool = False
+    suggested_debt_id: str | None = None
+    suggested_debt_name: str | None = None  # label for loan dropdown
+    installment_info: str | None = None     # "3 of 12"
+    skip_by_default: bool = False
+    skip_reason: str | None = None          # shown to user when skip_by_default=True
 
 
 class ImportPreviewResponse(BaseModel):
@@ -42,6 +51,9 @@ class ConfirmRow(BaseModel):
     category: str
     notes: str | None = None
     include: bool = True            # False = user chose to skip
+    # Phase 7 fields
+    debt_id: str | None = None      # user's selected loan for EMI rows
+    tax_amount: float | None = None  # tax portion for tax_fee rows
 
 
 class ImportConfirmRequest(BaseModel):

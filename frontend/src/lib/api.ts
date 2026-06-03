@@ -719,6 +719,15 @@ export type ImportPreviewRow = {
   suggested_category: string;
   is_duplicate: boolean;
   duplicate_txn_id: string | null;
+  // Phase 7 detection fields
+  is_emi: boolean;
+  is_tax_fee: boolean;
+  is_cc_payment: boolean;
+  suggested_debt_id: string | null;
+  suggested_debt_name: string | null;
+  installment_info: string | null;
+  skip_by_default: boolean;
+  skip_reason: string | null;
 };
 
 export type ImportPreviewResponse = {
@@ -1123,6 +1132,41 @@ export const api = {
 
   data: {
     wipe: () => request<{ ok: boolean; message: string }>('/data/wipe', { method: 'DELETE' }),
+  },
+
+  debt: {
+    list: (status?: string) => request<any[]>(`/finance/debt${status ? `?status=${status}` : ''}`),
+    create: (body: any) => request<any>('/finance/debt', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/finance/debt/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    delete: (id: string) => request<void>(`/finance/debt/${id}`, { method: 'DELETE' }),
+    payment: (id: string, body: { amount: number; payment_date: string; notes?: string | null }) =>
+      request<any>(`/finance/debt/${id}/payment`, { method: 'POST', body: JSON.stringify(body) }),
+    payments: (id: string) => request<any[]>(`/finance/debt/${id}/payments`),
+    summary: () => request<{ active_count: number; total_outstanding: number; total_emi_monthly: number; total_principal: number }>('/finance/debt/summary'),
+    payoffStrategy: () => request<any>('/finance/debt/payoff-strategy'),
+  },
+
+  investments: {
+    list: () => request<any[]>('/finance/investments'),
+    create: (body: any) => request<any>('/finance/investments', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/finance/investments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    delete: (id: string) => request<void>(`/finance/investments/${id}`, { method: 'DELETE' }),
+    addEntry: (id: string, body: { amount: number; entry_date: string; entry_type: string; notes?: string | null }) =>
+      request<any>(`/finance/investments/${id}/entry`, { method: 'POST', body: JSON.stringify(body) }),
+    entries: (id: string) => request<any[]>(`/finance/investments/${id}/entries`),
+    summary: () => request<any>('/finance/investments/summary'),
+  },
+
+  financialGoals: {
+    list: () => request<any[]>('/finance/goals'),
+    create: (body: any) => request<any>('/finance/goals', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/finance/goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    delete: (id: string) => request<void>(`/finance/goals/${id}`, { method: 'DELETE' }),
+    achieve: (id: string) => request<any>(`/finance/goals/${id}/achieve`, { method: 'POST' }),
+  },
+
+  advisor: {
+    generate: () => request<{ advice: string; generated_at: string }>('/finance/advisor', { method: 'POST' }),
   },
 
   healthLog: {

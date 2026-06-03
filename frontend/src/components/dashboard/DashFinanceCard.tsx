@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, type MonthlySummary } from '@/lib/api';
+import { useModules } from '@/contexts/ModulesContext';
 
 function fmt(amount: number, currency = 'INR') {
   try {
@@ -170,6 +171,69 @@ export function DashFinanceCard() {
             </p>
           )}
         </>
+      )}
+
+      {/* Phase 7: Debt & SIP summary strip */}
+      <DebtSipStrip />
+    </div>
+  );
+}
+
+function DebtSipStrip() {
+  const { isEnabled } = useModules();
+  if (!isEnabled('finance')) return null;
+
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+
+  const { data: debtSummary } = useQuery({
+    queryKey: ['debt-summary-dash'],
+    queryFn: () => api.debt.summary(),
+    staleTime: 60_000,
+  });
+  const { data: invSummary } = useQuery({
+    queryKey: ['inv-summary-dash'],
+    queryFn: () => api.investments.summary(),
+    staleTime: 60_000,
+  });
+
+  const hasDebt = debtSummary && debtSummary.total_outstanding > 0;
+  const hasSip  = invSummary  && invSummary.sip_this_month > 0;
+
+  if (!hasDebt && !hasSip) return null;
+
+  const activeDebts: any[] = [];  // minimal — just for next EMI
+  const nextEmi = debtSummary && debtSummary.total_emi_monthly > 0 ? debtSummary.total_emi_monthly : null;
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      {hasDebt && (
+        <Link to="/app/finance?tab=debt" style={{ flex: 1, textDecoration: 'none', minWidth: 120 }}>
+          <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,91,110,0.07)', border: '1px solid rgba(255,91,110,0.18)' }}>
+            <div style={{ fontSize: 10, color: 'var(--accent-red)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Debt</div>
+            <div style={{ font: '500 16px/1 var(--font-display)', color: 'var(--fg-1)' }}>
+              ₹{Math.round(debtSummary.total_outstanding).toLocaleString('en-IN')}
+            </div>
+            {nextEmi && (
+              <div style={{ fontSize: 10, color: 'var(--fg-4)', marginTop: 3 }}>
+                EMI ₹{Math.round(nextEmi).toLocaleString('en-IN')}/mo
+              </div>
+            )}
+          </div>
+        </Link>
+      )}
+      {hasSip && (
+        <Link to="/app/finance?tab=wealth" style={{ flex: 1, textDecoration: 'none', minWidth: 120 }}>
+          <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(61,190,255,0.07)', border: '1px solid rgba(61,190,255,0.18)' }}>
+            <div style={{ fontSize: 10, color: '#3EBEFF', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>SIP this month</div>
+            <div style={{ font: '500 16px/1 var(--font-display)', color: 'var(--fg-1)' }}>
+              ₹{Math.round(invSummary.sip_this_month).toLocaleString('en-IN')}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--fg-4)', marginTop: 3 }}>
+              Total ₹{Math.round(invSummary.total_invested).toLocaleString('en-IN')} invested
+            </div>
+          </div>
+        </Link>
       )}
     </div>
   );

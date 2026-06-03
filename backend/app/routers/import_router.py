@@ -231,22 +231,41 @@ async def import_preview(
     descriptions = [r.description for r in rows]
     categories = await categorize_batch(descriptions)
 
-    # Duplicate detection
+    # Phase 7: load active debts for EMI detection
+    from app.models.debt import Debt as DebtModel
+    from app.services.import_detector import detect_row
+    active_debts = db.query(DebtModel).filter(DebtModel.status == "active").all()
+
+    # Duplicate detection + Phase 7 row classification
     preview_rows: list[ImportPreviewRow] = []
     dup_count = 0
     for i, (row, cat) in enumerate(zip(rows, categories)):
         is_dup, dup_id = _is_duplicate(db, account_name, row.date, row.amount, row.description)
         if is_dup:
             dup_count += 1
+
+        # Run import detector
+        d = detect_row(row.description, row.amount, row.tx_type, active_debts)
+        effective_cat = "Taxes & Fees" if d.is_tax_fee else ("CC Payment" if d.is_cc_payment else cat)
+
         preview_rows.append(ImportPreviewRow(
             row_index=row.raw_index,
             date=row.date,
             description=row.description,
             amount=row.amount,
             tx_type=row.tx_type,
-            suggested_category=cat,
+            suggested_category=effective_cat,
             is_duplicate=is_dup,
             duplicate_txn_id=dup_id,
+            # Detection fields
+            is_emi=d.is_emi,
+            is_tax_fee=d.is_tax_fee,
+            is_cc_payment=d.is_cc_payment,
+            suggested_debt_id=d.suggested_debt_id,
+            suggested_debt_name=d.suggested_debt_name,
+            installment_info=d.installment_info,
+            skip_by_default=d.skip_by_default,
+            skip_reason=d.skip_reason,
         ))
 
     bank_display = get_bank_display_name(detected_key or bank_key)
@@ -276,10 +295,16 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
     _cur_row = db.query(_Setting).filter(_Setting.key == "profile.currency").first()
     import_currency = (_cur_row.value or "INR") if _cur_row else "INR"
 
+    from app.models.debt import Debt as DebtModel
+    from app.models.debt_payment import DebtPayment
+    import logging as _log
+    _logger = _log.getLogger(__name__)
+
     for row in body.rows:
         if not row.include:
             skipped += 1
             continue
+
         t = Transaction(
             type=row.tx_type,
             amount=row.amount,
@@ -290,8 +315,33 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
             payee=None,
             notes=row.notes or row.description,
             import_batch_id=batch_id,
+            tax_amount=row.tax_amount,
+            debt_id=row.debt_id,
         )
         db.add(t)
+        db.flush()  # need t.id before creating DebtPayment
+
+        # Phase 7: handle EMI payment — reduce Debt.outstanding
+        if row.debt_id:
+            debt = db.get(DebtModel, row.debt_id)
+            if debt and debt.status == "active":
+                outstanding_after = max(0.0, debt.outstanding - row.amount)
+                db.add(DebtPayment(
+                    debt_id=debt.id,
+                    transaction_id=t.id,
+                    amount=row.amount,
+                    payment_date=date_cls.fromisoformat(row.date),
+                    outstanding_after=outstanding_after,
+                ))
+                debt.outstanding = outstanding_after
+                if outstanding_after == 0.0:
+                    debt.status = "closed"
+            else:
+                _logger.warning(
+                    "import confirm: debt_id %s not found or not active — skipping DebtPayment",
+                    row.debt_id,
+                )
+
         imported += 1
 
     db.commit()
