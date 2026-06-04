@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/finance/advisor", tags=["finance_advisor"])
+# Use prefix="/api/v1/finance" so the endpoint registers as POST /api/v1/finance/advisor
+# (no trailing slash). The old prefix="/api/v1/finance/advisor" + @router.post("/")
+# registered as /advisor/ causing 405 when the client sent /advisor (no slash).
+router = APIRouter(prefix="/api/v1/finance", tags=["finance_advisor"])
 
 # ── System prompt — STRICT RULES must not be changed ─────────────────────────
 ADVISOR_SYSTEM = """
@@ -108,7 +111,7 @@ async def _build_finance_context(db: Session) -> str:
     return "\n".join(lines)
 
 
-@router.post("/")
+@router.post("/advisor")
 async def finance_advisor(db: Session = Depends(get_db)):
     """Generate full AI financial advice on demand."""
     from app.services.llm_client import generate as llm_generate, LLMError

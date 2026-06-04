@@ -33,23 +33,28 @@ export function Topbar() {
         borderColor: 'var(--border-subtle)',
       }}
     >
+      {/* Inner wrapper must NOT have no-drag — the spacer in the middle must
+          stay drag-region so users can grab the window there. Only the
+          interactive elements (NotificationBell, etc.) get no-drag, which
+          happens automatically via the global CSS rule on button/a. */}
       <div
-        className="no-drag max-w-[1240px] mx-auto px-12 flex items-center gap-4"
+        className="max-w-[1240px] mx-auto px-12 flex items-center gap-4"
         style={{ height: 56 }}
       >
-        {/* Breadcrumb */}
+        {/* Breadcrumb — drag-region inherited from header */}
         <div
-          className="font-medium text-[13px]"
-          style={{ color: 'var(--fg-4)' }}
+          className="no-drag font-medium text-[13px]"
+          style={{ color: 'var(--fg-4)', pointerEvents: 'none' }}
         >
           North OS{' '}
           <span style={{ opacity: 0.4, margin: '0 6px' }}>/</span>
           <b style={{ color: 'var(--fg-2)', fontWeight: 500 }}>{label}</b>
         </div>
 
-        {/* Spacer */}
+        {/* Spacer — drag-region inherited, this is the primary drag target */}
         <div className="flex-1" />
 
+        {/* Bell is a button so it gets no-drag automatically */}
         <NotificationBell />
       </div>
     </header>

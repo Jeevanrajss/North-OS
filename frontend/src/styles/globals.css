@@ -44,16 +44,14 @@ button *, a *, [role="button"] *, [role="link"] *,
   z-index: 10;
 }
 
-/* All buttons get a base stacking context so dropdowns/menus render above */
-button {
-  position: relative;
-  z-index: 1;
-}
-
 /* Absolute-positioned dropdown menus inside cards */
 [data-dropdown] {
   z-index: 50;
 }
+
+/* NOTE: Do NOT add position:relative/z-index to button globally —
+   it creates stacking contexts that cover Electron's drag region and
+   break window dragging on macOS. Only specific classes get z-index. */
 
 /* ── Clash Grotesk display font ──────────────────────────────────────────── */
 @font-face {
