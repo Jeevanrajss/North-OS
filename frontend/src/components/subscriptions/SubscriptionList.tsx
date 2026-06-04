@@ -161,7 +161,7 @@ export function SubscriptionList({ addOpen: extAddOpen, setAddOpen: extSetAddOpe
       </RightDrawer>
 
       {/* Toolbar: filter seg + view toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div className="tab-strip" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         {/* Filter segmented control */}
         <div style={{ display: 'inline-flex', background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 10, padding: 3, marginRight: 'auto' }}>
           {(['active', 'paused', 'cancelled', 'all'] as Filter[]).map((f) => (

@@ -283,9 +283,9 @@ export function Finance() {
         </div>
       </div>
 
-      {/* ── Underline Tab strip — matches HTML reference ── */}
+      {/* ── Underline Tab strip ── */}
       <div
-        className="flex items-center gap-1.5 mb-6 mt-4"
+        className="tab-strip flex items-center gap-1.5 mb-6 mt-4"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         {TABS.map((t) => (
@@ -510,7 +510,7 @@ export function Finance() {
           />
 
           {/* Header row with Add button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 10 }}>
             <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>
               Loans & EMIs
             </div>
@@ -619,7 +619,7 @@ export function Finance() {
 
           {/* ── Investments ─────────────────────────────────── */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 10 }}>
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Investments</div>
               <button type="button"
                 onClick={() => { setEditingInv(null); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
@@ -659,7 +659,7 @@ export function Finance() {
 
           {/* ── Financial Goals ──────────────────────────────── */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, position: 'relative', zIndex: 10 }}>
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Financial Goals</div>
               <button type="button"
                 onClick={() => { setEditingGoal(null); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}

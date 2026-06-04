@@ -86,6 +86,7 @@ export function Patterns() {
 
       {/* Window selector */}
       <div
+        className="tab-strip"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 2,
           padding: 3, borderRadius: 10, marginBottom: 24,

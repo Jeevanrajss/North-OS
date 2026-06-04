@@ -144,7 +144,7 @@ Write a brief morning briefing in this format (keep each section on its own line
 
 Good morning! [1 sentence referencing today's day/date]
 
-Today: [2-3 specific items — habits to do, upcoming subscription renewals, anything notable. Use real data.]
+Today: [2-3 specific items — habits to do, upcoming subscription renewals, anything notable. Use ONLY names that appear verbatim in the data above.]
 
 Pattern nudge: [1 sentence personalised insight from the patterns above. Omit this line if no useful pattern data.]
 
@@ -152,8 +152,13 @@ Under 80 words total. Direct and warm. No filler."""
 
         system = (
             "You are writing a morning briefing for a personal productivity app. "
-            "Be warm but concise. Reference real names and numbers. "
-            "Omit 'Pattern nudge' if data is insufficient."
+            "Be warm but concise. "
+            "STRICT RULE: Only mention subscription names, habit names, app names, and amounts "
+            "that appear VERBATIM in the data context provided. "
+            "Never invent, assume, or hallucinate any service, subscription, app, or habit name "
+            "that is not explicitly listed in the data. "
+            "If no subscriptions are due today, do not mention any subscription. "
+            "If the data is empty or minimal, just wish the user a good day without fabricating details."
         )
 
         body = asyncio.run(llm_generate(
@@ -279,7 +284,9 @@ Under 100 words total. Warm and personal. Use real numbers from the data."""
 
         system = (
             "You are a personal coach reviewing someone's week. Be warm, specific, and brief. "
-            "Always reference real numbers. Never fabricate. "
+            "Always reference real numbers from the data. "
+            "Never fabricate, invent, or hallucinate subscription names, "
+            "habit names, app names, or any data not explicitly present in the context. "
             "If data is sparse (fewer than 3 days), acknowledge it and focus on what is available."
         )
 

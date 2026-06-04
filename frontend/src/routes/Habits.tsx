@@ -422,6 +422,7 @@ export function Habits() {
 
             {/* Pill tab switcher */}
             <div
+              className="tab-strip"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 2,
                 padding: 3, borderRadius: 8, marginBottom: 16,

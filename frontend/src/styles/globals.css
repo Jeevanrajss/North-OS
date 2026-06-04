@@ -27,6 +27,34 @@ button *, a *, [role="button"] *, [role="link"] *,
   /* pointer-events fall through to the parent button naturally */
 }
 
+/* ── Z-index layer system ────────────────────────────────────────────────────
+   Ensures CTAs and tab strips always render above adjacent card/chart content.
+   Without explicit z-index, stacking contexts from transforms, overflow:hidden,
+   or opacity on cards can bury buttons underneath them.                       */
+
+/* Tab strips — stay above scrollable card content below them */
+.tab-strip {
+  position: relative;
+  z-index: 10;
+}
+
+/* Primary CTA buttons (gradient, used as "Add X" in page headers) */
+.btn-primary {
+  position: relative;
+  z-index: 10;
+}
+
+/* All buttons get a base stacking context so dropdowns/menus render above */
+button {
+  position: relative;
+  z-index: 1;
+}
+
+/* Absolute-positioned dropdown menus inside cards */
+[data-dropdown] {
+  z-index: 50;
+}
+
 /* ── Clash Grotesk display font ──────────────────────────────────────────── */
 @font-face {
   font-family: "Clash Grotesk";

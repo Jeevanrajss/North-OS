@@ -209,9 +209,20 @@ def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransact
     cutoff_apple_ns = int((cutoff_unix - APPLE_EPOCH_OFFSET) * 1_000_000_000)
 
     results: list[SmsTransaction] = []
+    tmp_path: str | None = None
 
     try:
-        conn = sqlite3.connect(f"file:{IMESSAGE_DB}?mode=ro", uri=True, timeout=5)
+        import shutil, tempfile, os
+
+        # Messages.app keeps chat.db open with a write-lock. Connecting
+        # directly with ?mode=ro often fails with "unable to open database".
+        # Solution: copy to a temp file first — SQLite can open the copy
+        # without competing for the lock.
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            tmp_path = tmp.name
+        shutil.copy2(str(IMESSAGE_DB), tmp_path)
+
+        conn = sqlite3.connect(tmp_path, timeout=5)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("""
@@ -233,14 +244,26 @@ def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransact
         conn.close()
     except PermissionError:
         debug["error"] = (
-            "IMSG-002: Permission denied reading chat.db. "
+            "IMSG-002: Permission denied copying chat.db. "
             "Grant Full Disk Access to Terminal (or the North OS app) in "
             "System Settings → Privacy & Security → Full Disk Access."
         )
         return [], debug
     except Exception as e:
-        debug["error"] = f"IMSG-003: Failed to read chat.db — {e}"
+        debug["error"] = (
+            f"IMSG-003: Failed to read chat.db — {e}. "
+            "Try: System Settings → Privacy & Security → Full Disk Access "
+            "→ add Terminal or the North OS app."
+        )
         return [], debug
+    finally:
+        # Always remove the temp copy
+        if tmp_path:
+            try:
+                import os
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
     debug["total_messages_in_window"] = len(rows)
 
