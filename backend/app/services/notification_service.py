@@ -80,22 +80,30 @@ def create_notification(
 # Morning briefing
 # ---------------------------------------------------------------------------
 
-def check_morning_briefing(db: Session) -> int:
+def check_morning_briefing(db: Session, force: bool = False) -> int:
     """
     Pattern-aware morning briefing. Calls LLM when available; falls back to
     a simple static summary so the notification always fires even offline.
     Returns 1 if a notification was created, 0 otherwise.
+
+    force=True: called by manual trigger. Deletes any existing morning_briefing
+    from today so a fresh one is always created (bypasses de-dup).
     """
     import asyncio
     today = date.today()
 
-    # One briefing per day
+    # De-dup: one briefing per day — but manual triggers (force=True) override
     already = db.query(Notification).filter(
         Notification.type == "morning_briefing",
         sqlfunc.date(Notification.created_at) == str(today),
     ).first()
     if already:
-        return 0
+        if not force:
+            return 0
+        # Force mode: remove existing so we create a fresh one
+        db.delete(already)
+        db.commit()
+        log.info("Morning briefing: deleted existing notification for re-trigger")
 
     # ── Try AI-powered briefing ──────────────────────────────────────────────
     try:
@@ -313,7 +321,7 @@ Under 100 words total. Warm and personal. Use real numbers from the data."""
 # Habit reminders
 # ---------------------------------------------------------------------------
 
-def check_habit_reminders(db: Session) -> int:
+def check_habit_reminders(db: Session, force: bool = False) -> int:
     from app.models.habit import Habit, HabitCheckin
 
     today = date.today()
@@ -337,13 +345,17 @@ def check_habit_reminders(db: Session) -> int:
     if not not_done:
         return 0
 
-    # One reminder per day
+    # One reminder per day — force mode deletes existing for re-trigger
     already = db.query(Notification).filter(
         Notification.type == "habit_reminder",
         sqlfunc.date(Notification.created_at) == str(today),
     ).first()
     if already:
-        return 0
+        if not force:
+            return 0
+        db.delete(already)
+        db.commit()
+        log.info("Habit reminder: deleted existing notification for re-trigger")
 
     count = len(not_done)
     names = ", ".join(h.name for h in not_done[:3])
@@ -361,7 +373,7 @@ def check_habit_reminders(db: Session) -> int:
 # Subscription alerts
 # ---------------------------------------------------------------------------
 
-def check_subscription_alerts(db: Session) -> int:
+def check_subscription_alerts(db: Session, force: bool = False) -> int:
     from app.models.subscription import Subscription
     from app.models.setting import Setting
 
@@ -386,14 +398,17 @@ def check_subscription_alerts(db: Session) -> int:
             if sub.last_renewed_at >= sub.next_billing_date - __import__('datetime').timedelta(days=days_before):
                 continue
 
-        # One alert per sub per day
+        # One alert per sub per day (force=True bypasses for manual triggers)
         already = db.query(Notification).filter(
             Notification.type == "sub_alert",
             Notification.data.contains(sub.id),
             sqlfunc.date(Notification.created_at) == str(today),
         ).first()
         if already:
-            continue
+            if not force:
+                continue
+            db.delete(already)
+            db.flush()
 
         if sub.is_autopay:
             # Autopay: informational — no action needed
@@ -426,7 +441,7 @@ def check_subscription_alerts(db: Session) -> int:
 # Budget warnings
 # ---------------------------------------------------------------------------
 
-def check_budget_warnings(db: Session) -> int:
+def check_budget_warnings(db: Session, force: bool = False) -> int:
     """Fire a notification when any category exceeds 80% of its monthly budget."""
     from app.models.budget import Budget
     from datetime import date as date_cls
@@ -477,7 +492,10 @@ def check_budget_warnings(db: Session) -> int:
             sqlfunc.strftime("%Y-%m", Notification.created_at) == f"{y}-{m:02d}",
         ).first()
         if already:
-            continue
+            if not force:
+                continue
+            db.delete(already)
+            db.flush()
 
         pct_str = f"{int(pct * 100)}%"
         body = f"{cat} is at {pct_str} of its ₹{budget.amount:,.0f} monthly budget."

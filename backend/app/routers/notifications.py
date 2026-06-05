@@ -92,29 +92,33 @@ def delete_notification(notif_id: str, db: Session = Depends(get_db)) -> dict:
 # ── Manual trigger endpoints (for testing / Settings UI) ──────────────────────
 @router.post("/trigger/habit-check")
 def trigger_habit_check(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger — bypasses de-dup so a fresh notification is always created."""
     from app.services.notification_service import check_habit_reminders
-    count = check_habit_reminders(db)
+    count = check_habit_reminders(db, force=True)
     return {"created": count}
 
 
 @router.post("/trigger/sub-check")
 def trigger_sub_check(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger — bypasses per-sub daily de-dup."""
     from app.services.notification_service import check_subscription_alerts
-    count = check_subscription_alerts(db)
+    count = check_subscription_alerts(db, force=True)
     return {"created": count}
 
 
 @router.post("/trigger/morning-briefing")
 def trigger_morning_briefing(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger — deletes today's existing briefing and creates a fresh one."""
     from app.services.notification_service import check_morning_briefing
-    count = check_morning_briefing(db)
+    count = check_morning_briefing(db, force=True)
     return {"created": count}
 
 
 @router.post("/trigger/budget-check")
 def trigger_budget_check(db: Session = Depends(get_db)) -> dict:
+    """Manual trigger — bypasses monthly de-dup."""
     from app.services.notification_service import check_budget_warnings
-    count = check_budget_warnings(db)
+    count = check_budget_warnings(db, force=True)
     return {"created": count}
 
 
