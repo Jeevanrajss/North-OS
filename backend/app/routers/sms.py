@@ -271,12 +271,17 @@ def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransact
         sender = row["handle_id"] or ""
         text = row["text"] or ""
 
-        # Pass ALL messages to the parser — it decides what's a transaction.
-        # We still skip clearly personal senders (phone numbers that are NOT bank alpha IDs)
-        # by checking if the parser thinks it's a bank transaction first.
-        # This is more permissive than the old BANK_SENDER_RE pre-filter.
-        if BANK_SENDER_RE.search(sender):
+        # Privacy & efficiency: only process messages from known bank alpha-sender IDs.
+        # Personal messages from friends/family (phone numbers like +91XXXXXXXXXX or
+        # contact names) are silently skipped — we never read personal conversations.
+        # The BANK_SENDER_RE matches Indian bank SMS sender IDs (HDFC, ICICI, etc.)
+        # The parser is the SECONDARY filter — it confirms the message is a transaction.
+        is_bank_sender = bool(BANK_SENDER_RE.search(sender.upper()))
+        if is_bank_sender:
             debug["bank_sender_matches"] += 1
+        else:
+            # Skip personal messages entirely — protect user privacy
+            continue
 
         # Convert Apple timestamp → Python datetime
         ts = datetime.utcfromtimestamp(row["date"] / 1_000_000_000 + APPLE_EPOCH_OFFSET)

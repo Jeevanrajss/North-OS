@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EmojiPickerPopover } from '@/components/habits/EmojiPickerPopover';
+import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
 type FinancialGoal = {
@@ -35,6 +36,7 @@ const L = ({ children }: { children: React.ReactNode }) => (
 );
 
 export function FinancialGoalForm({ initial, onSave, onCancel }: Props) {
+  const toast = useToast();
   const [emoji,    setEmoji]    = useState(initial?.emoji ?? '🎯');
   const [title,    setTitle]    = useState(initial?.title ?? '');
   const [goalType, setGoalType] = useState(initial?.goal_type ?? 'purchase');
@@ -82,12 +84,16 @@ export function FinancialGoalForm({ initial, onSave, onCancel }: Props) {
     try {
       if (initial) {
         await api.financialGoals.update(initial.id, payload);
+        toast.success(`🎯 "${title.trim()}" updated`);
       } else {
         await api.financialGoals.create(payload);
+        toast.success(`🎯 "${title.trim()}" goal created`);
       }
       onSave();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save.');
+      const msg = err instanceof Error ? err.message : 'Failed to save.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

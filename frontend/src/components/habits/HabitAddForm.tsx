@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useToast } from '@/contexts/ToastContext';
 import type { FrequencyKind, HabitIn } from '@/lib/api';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
 import { WeekdayChips } from './WeekdayChips';
@@ -22,6 +23,7 @@ const DEFAULT_EMOJI = '✅';
  * the number of selected weekdays.
  */
 export function HabitAddForm({ onCreate, disabled, alwaysExpanded, onCancel }: Props) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
@@ -58,11 +60,14 @@ export function HabitAddForm({ onCreate, disabled, alwaysExpanded, onCancel }: P
         frequency_kind: kind,
         weekdays: kind === 'weekly' ? weekdays : [],
       });
+      toast.success(`✅ "${trimmed}" habit added`);
       reset();
       setOpen(false);
       onCancel?.(); // close drawer if provided
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create habit.');
+      const msg = e instanceof Error ? e.message : 'Failed to create habit.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

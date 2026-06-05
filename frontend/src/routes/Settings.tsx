@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useToast } from '@/contexts/ToastContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, Eye, EyeOff, Loader2, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import {
@@ -1377,33 +1378,56 @@ function NotificationSettingsPanel() {
     setBrowserPermission(await Notification.requestPermission());
   }
 
+  const toast = useToast();
+
   async function handleTest(type: string) {
     setTesting(type);
     setTestResult(null);
     try {
+      let resultMsg = '';
       if (type === 'briefing') {
         const res = await api.notifications.triggerMorningBriefing();
-        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Already sent today');
+        resultMsg = res.created > 0 ? `☀️ Morning briefing created` : '— Already sent today';
       } else if (type === 'habit') {
         const res = await api.notifications.triggerHabitCheck();
-        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+        resultMsg = res.created > 0 ? `🔥 Habit reminder sent` : '— All habits done or already reminded';
       } else if (type === 'sub') {
         const res = await api.notifications.triggerSubCheck();
-        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+        resultMsg = res.created > 0 ? `🔄 ${res.created} subscription alert(s) sent` : '— No subscriptions due soon';
       } else if (type === 'weekly-review') {
         const res = await (fetch('/api/v1/notifications/trigger/weekly-review', { method: 'POST' }).then(r => r.json()) as Promise<{ created: boolean; body?: string; reason?: string }>);
-        setTestResult(res.created ? `✓ Weekly review created` : `— ${res.reason ?? 'Not created'}`);
+        resultMsg = res.created ? `📊 Weekly review generated` : `— ${res.reason ?? 'Already sent this week'}`;
       } else {
         const res = await api.notifications.triggerBudgetCheck();
-        setTestResult(res.created > 0 ? `✓ ${res.created} notification created` : '— Nothing pending');
+        resultMsg = res.created > 0 ? `💰 Budget warning sent` : '— All budgets within limit';
+      }
+      setTestResult(resultMsg);
+      if (resultMsg.startsWith('—')) {
+        toast.info(resultMsg.replace('— ', ''));
+      } else {
+        toast.success(resultMsg);
       }
       qc.invalidateQueries({ queryKey: ['notif-count'] });
       qc.invalidateQueries({ queryKey: ['notifications'] });
     } catch (e: unknown) {
-      setTestResult(`Error: ${e instanceof Error ? e.message : 'failed'}`);
+      const msg = `Notification test failed: ${e instanceof Error ? e.message : 'unknown error'}`;
+      setTestResult(msg);
+      toast.error(msg);
     } finally {
       setTesting(null);
     }
+  }
+
+  // Set notification time to "now + 1 min" so the scheduler fires immediately
+  async function handleSetToNow(key: string, setter: (v: string) => void) {
+    const now = new Date();
+    const soon = new Date(now.getTime() + 60_000); // 1 minute from now
+    const hhmm = `${String(soon.getHours()).padStart(2,'0')}:${String(soon.getMinutes()).padStart(2,'0')}`;
+    setter(hhmm);
+    await api.settings.update({ [key]: hhmm });
+    await fetch('/api/v1/notifications/reschedule', { method: 'POST' });
+    toast.success(`⏰ Set to ${hhmm} — notification fires in ~1 min`);
+    qc.invalidateQueries({ queryKey: ['settings'] });
   }
 
   const rowStyle: React.CSSProperties = {
@@ -1464,7 +1488,11 @@ function NotificationSettingsPanel() {
               A short summary of habits, journal and finance at the start of the day.
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 24, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 24, flexShrink: 0 }}>
+            <button type="button" onClick={() => void handleSetToNow('notif.morning_briefing_time', setBriefingTime)}
+              style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-elev)', color: 'var(--fg-3)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Set to now
+            </button>
             <input
               type="time"
               value={briefingTime}
@@ -1487,7 +1515,11 @@ function NotificationSettingsPanel() {
               One ping per day if there are still unchecked habits at {fmt12(habitTime)}.
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 24, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 24, flexShrink: 0 }}>
+            <button type="button" onClick={() => void handleSetToNow('notif.habit_reminder_time', setHabitTime)}
+              style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-elev)', color: 'var(--fg-3)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Set to now
+            </button>
             <input
               type="time"
               value={habitTime}

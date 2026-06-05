@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '@/contexts/ToastContext';
 import { type BillingCycle, type PaymentType, type SubscriptionIn } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { EmojiPickerPopover } from '@/components/habits/EmojiPickerPopover';
@@ -21,6 +22,7 @@ type Props = {
 const today = new Date().toISOString().slice(0, 10);
 
 export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
+  const toast = useToast();
   const [mode, setMode] = useState<Mode>('subscription');
 
   // Shared fields
@@ -111,8 +113,11 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
         });
       }
       reset();
+      toast.success(`🔄 "${name.trim()}" subscription added`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save.');
+      const msg = e instanceof Error ? e.message : 'Failed to save.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
