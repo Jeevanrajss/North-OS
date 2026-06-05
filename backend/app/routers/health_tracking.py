@@ -79,12 +79,13 @@ def list_logs(days: int = 30, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{log_date}", response_model=HealthLogOut)
+@router.get("/{log_date}", response_model=HealthLogOut | None)
 def get_log(log_date: date, db: Session = Depends(get_db)):
-    row = db.query(HealthLog).filter(HealthLog.log_date == log_date).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="No log for this date")
-    return row
+    """Return the log for this date, or null (200) if none exists.
+    Returning 404 caused the frontend error logger to fire on every
+    fresh Health page load before the user had logged anything.
+    """
+    return db.query(HealthLog).filter(HealthLog.log_date == log_date).first()
 
 
 @router.put("/{log_date}", response_model=HealthLogOut)

@@ -95,28 +95,31 @@ export function Health() {
   const [loaded,   setLoaded]   = useState(false);
 
   // Fetch today's log on mount
-  const todayQ = useQuery<HealthLog>({
+  // Backend now returns null (200) when no log exists — no more 404 errors in the logger
+  const todayQ = useQuery<HealthLog | null>({
     queryKey: ['health-log', TODAY],
     queryFn: () => api.healthLog.get(TODAY),
     retry: false,
     staleTime: 30_000,
   });
 
-  // Populate state when today's data loads
+  // Populate state when today's data loads (data may be null = no log yet)
   useEffect(() => {
-    if (todayQ.data && !loaded) {
+    if (todayQ.isSuccess && !loaded) {
       const d = todayQ.data;
-      setSleep(d.sleep_hours);
-      setEnergy(d.energy_level);
-      setExercise(d.exercise_minutes != null ? String(d.exercise_minutes) : '');
-      setExType(d.exercise_type ?? '');
-      setWater(d.water_glasses);
-      setNotes(d.notes ?? '');
-      setLoaded(true);
+      if (d) {
+        setSleep(d.sleep_hours);
+        setEnergy(d.energy_level);
+        setExercise(d.exercise_minutes != null ? String(d.exercise_minutes) : '');
+        setExType(d.exercise_type ?? '');
+        setWater(d.water_glasses);
+        setNotes(d.notes ?? '');
+      }
+      setLoaded(true); // null = fresh log, non-null = existing log
     } else if (todayQ.isError) {
-      setLoaded(true); // no log yet — start fresh
+      setLoaded(true); // network error — still let user log
     }
-  }, [todayQ.data, todayQ.isError, loaded]);
+  }, [todayQ.isSuccess, todayQ.isError, todayQ.data, loaded]);
 
   // History for charts
   const histQ = useQuery<HealthLog[]>({

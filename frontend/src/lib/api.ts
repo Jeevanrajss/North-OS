@@ -1174,7 +1174,7 @@ export const api = {
 
   healthLog: {
     list: (days = 30) => request<HealthLog[]>(`/health-log/?days=${days}`),
-    get: (date: string) => request<HealthLog>(`/health-log/${date}`),
+    get: (date: string) => request<HealthLog | null>(`/health-log/${date}`),
     upsert: (date: string, body: HealthLogIn) =>
       request<HealthLog>(`/health-log/${date}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (date: string) => request<void>(`/health-log/${date}`, { method: 'DELETE' }),

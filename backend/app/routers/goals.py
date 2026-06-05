@@ -33,7 +33,12 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
 
     if goal.goal_type == "habit_streak":
         from app.models.habit import Habit, HabitCheckin
-        habit = db.get(Habit, goal.linked_id) if goal.linked_id else None
+        # Use query() not db.get() — db.get() relies on identity-map cache
+        # which misses rows not loaded in the current session.
+        habit = (
+            db.query(Habit).filter(Habit.id == goal.linked_id).first()
+            if goal.linked_id else None
+        )
         if not habit:
             linked_missing = bool(goal.linked_id)
         else:
@@ -69,7 +74,10 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
 
     elif goal.goal_type == "habit_rate":
         from app.models.habit import Habit, HabitCheckin
-        habit = db.get(Habit, goal.linked_id) if goal.linked_id else None
+        habit = (
+            db.query(Habit).filter(Habit.id == goal.linked_id).first()
+            if goal.linked_id else None
+        )
         if not habit:
             linked_missing = bool(goal.linked_id)
         else:
