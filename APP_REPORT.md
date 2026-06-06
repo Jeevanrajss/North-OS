@@ -1,6 +1,6 @@
 # North OS — Current State Report
 
-_Updated: 2026-06-03 · Version: v1.0.20 · Live site: <https://north-os-eta.vercel.app/>_
+_Updated: 2026-06-06 · Version: v1.1.1 · Live site: <https://north-os-eta.vercel.app/>_
 
 ---
 
@@ -16,10 +16,10 @@ _Updated: 2026-06-03 · Version: v1.0.20 · Live site: <https://north-os-eta.ver
 This document reflects what is in `main` today **plus** the planned build queue. The full implementation spec lives in `IMPLEMENTATION_PLAN.md` — that is the source of truth for Claude Code. This file is the orientation document.
 
 **Build queue status:**
-- ✅ Phase 1–6: Cross-module analytics, Goals, Weekly digest, Morning briefing upgrade, Health tracking, Settings wiring — **ALL DONE** (committed to `main`)
-- ⏳ Phase 7: Finance Intelligence Layer — Debt/EMI tracking, Investment portfolio, Financial goals, CC statement EMI detection, Finance Advisor AI — **NOT STARTED**
+- ✅ Phase 1–7: All planned phases complete and committed to `main`
+- Next: no active build queue — see Section 10 for what's not built yet
 
-**⚠️ Phase 5 divergence:** The spec said "Metric Habits" (extend Habits with a numeric tracking type). What was actually built is a standalone **Health module** (`HealthLog` model, `/app/health` route, debounced quick-log for sleep/energy/exercise). Section 11 "Key architectural decisions" below reflects the original intent; the actual implementation diverged. If you plan to build Metric Habits properly, the Health module will need to be reconciled or replaced.
+**⚠️ Phase 5 divergence:** The spec said "Metric Habits" (extend Habits with a numeric tracking type). What was actually built is a standalone **Health module** (`HealthLog` model, `/app/health` route, debounced quick-log for sleep/energy/exercise). If Metric Habits is ever needed, the Health module will need to be reconciled or replaced first.
 
 ---
 
@@ -42,28 +42,24 @@ The look: dark, ink-toned palette, accent highlights, Tiptap-driven inputs, righ
 | **Dashboard** | `/` | Time-aware greeting, today's habit + journal status, upcoming subscription renewals, finance snapshot, AI morning briefing card, mini AI chat card |
 | **Journal** | `/journal` | Tiptap rich-text entries, mood + energy + highlights, AI tag suggestions, semantic search (sqlite-vec), month calendar, day view, streaks, mood sparkline, tag cloud, export popover with range presets |
 | **Habits** | `/habits` + `/habits/:id` | Daily/weekly habits with weekday picker, Today strip, 7-day grid (off-schedule cells dashed), schedule-aware streaks, per-habit page with GitHub-style heatmap + day-of-week chart + monthly trend + notes feed, keyboard shortcuts |
-| **Finance** | `/finance` | Income/expense tracking with categories, multi-account support, bank statement import (CSV / XLS / PDF) with AI categorisation, monthly reports (CSV + PDF export), category budgets with opt-in warnings, AI credit-card optimisation tips, SMS inbox parser |
+| **Finance** | `/finance` | 7-tab layout: Overview / Budget / Debt & EMI / My Wealth / Advisor / Accounts / Report. Income/expense/investment tracking, multi-account, bank import (CSV/XLS/PDF) with AI categorisation + EMI/SIP/CC-payment auto-detection, monthly reports (CSV + PDF). Debt & EMI tab: `Debt` model with outstanding balance, interest rate, avalanche/snowball payoff strategy. My Wealth tab: `Investment` + `InvestmentEntry` (actual invested amount, not NAV) + `FinancialGoal` with timeline/on-track status. Advisor tab: AI finance coach (cash flow, spending, debt priority, goal check — no investment recommendations). Finance Advisor notification schedulable weekly/monthly. |
 | **Subscriptions** | `/subscriptions` | Recurring payment tracking, autopay vs manual renewal with `Mark as Paid` flow, multi-currency, pause/resume, trial tracker, upcoming renewals strip, forecast card, AI insights, spending-by-category breakdown |
 | **AI Chat** | `/chat` | Conversational assistant with full read access to all personal data; floating chat available from any page |
 | **Settings** | `/settings` | AI provider config + test connection, notifications (with sound), app version + manual update check, danger-zone wipe-all-data, encryption status, theme tokens |
 
-### 2b. Planned — build queue
+### 2b. Completed phases (summary)
 
-| Module / Feature | Phase | What it adds |
-|---|---|---|
-| **Patterns** | Phase 1 | New `/patterns` route. `AnalyticsSnapshot` table (one row/day) stores pre-computed mood score, habit completion rate, daily expense. `analytics_engine.py` computes cross-module correlations (mood vs habits, expense vs mood, journal vs habits, best/worst weekday). Nightly scheduler job. AI chat gets correlation data appended to context. |
-| **Goals** | Phase 2 | New `/goals` route. `Goal` model with 5 types: habit_streak, habit_rate, finance_save, finance_spend, custom. Live progress computed from linked habit checkins or transactions. Dashboard card shows top 3 by deadline. Goals appear in AI chat context. |
-| **Weekly Review** | Phase 3 | Sunday 19:00 scheduler job generates AI cross-module digest and pushes as notification. De-duplicated per week. Opt-out toggle in Settings. |
-| **Morning Briefing upgrade** | Phase 4 | Upgrades existing briefing prompt to include pattern-aware nudge ("Today is historically your worst habit day"). Uses Phase 1 correlation data. |
-| **Metric Habits** | Phase 5 | Extends habits with `tracking_type: "binary" \| "metric"`. Metric habits log a number (e.g. 8 glasses water, 7.5 hrs sleep, 45 min exercise) instead of a checkbox. Replaces the previously planned separate Health module. Analytics engine reads metric values for correlations. |
-| **Settings wiring** | Phase 6 | Adds Patterns, Goals, Metric Habits as toggleable modules in Settings. |
-| **Finance — Debt & EMI** | Phase 7 | New `Debt` + `DebtPayment` models. Tracks loans with interest rate, outstanding balance, EMI amount, due day. `DebtPayment` records each payment and reduces outstanding. Avalanche vs snowball payoff strategy endpoint. Manual payment drawer. |
-| **Finance — Investments** | Phase 7 | New `Investment` + `InvestmentEntry` models. Tracks MF/FD/PPF/NPS/gold/RD with total amount invested (not NAV). SIP auto-detection from SMS/CC import. "Amount invested only — not market value" note shown to user. |
-| **Finance — Financial Goals** | Phase 7 | New `FinancialGoal` model. Short/medium/long timeline. Links to Investment records. Computes progress, days remaining, monthly amount needed, on-track status. |
-| **Finance — CC Import EMI Detection** | Phase 7 | New `import_detector.py` service. Classifies each import row as: normal / EMI / tax-fee / CC payment. EMI rows show loan dropdown in review UI (auto-matched by account_last4 or EMI amount ±5%). CC payment rows pre-checked skip with explanation. Tax rows auto-categorised as "Taxes & Fees". On confirm: creates DebtPayment + reduces Debt.outstanding. |
-| **Finance — Transaction extensions** | Phase 7 | Adds `tax_amount`, `debt_id`, `investment_id` to Transaction. Adds `"investment"` as 4th transaction type. |
-| **Finance — Advisor AI** | Phase 7 | New `/finance/advisor` endpoint. Reads 3-month transactions, all debts, investments, goals. Returns structured advice: real disposable income, spending to watch, debt priority (avalanche), goal check, one action this week. Explicitly no investment/stock recommendations. Schedulable weekly or monthly via Settings. |
-| **Finance — My Wealth tab** | Phase 7 | Finance page gains 5 tabs: Overview, Budget, Debt & EMI, My Wealth, Advisor. My Wealth shows investments + financial goals + in-hand-this-month figure. |
+All 7 phases are committed to `main`. See `IMPLEMENTATION_PLAN.md` for the full Phase 7 spec (still the reference for any future extension work).
+
+| Phase | Key additions |
+|---|---|
+| **1 — Analytics Engine** | `AnalyticsSnapshot` (one row/day), `analytics_engine.py` with 7 cross-module correlations, `/patterns` route, nightly scheduler job |
+| **2 — Goals** | `Goal` model (5 types), `/goals` route, live progress, `DashGoalsCard` |
+| **3 — Weekly Review** | Sunday 19:00 AI digest notification, de-dup, opt-out toggle in Settings |
+| **4 — Morning Briefing** | Pattern-aware nudge in briefing prompt, `DashAIBriefing` Refresh button + "Pattern-aware" badge |
+| **5 — Health tracking** | `HealthLog` model, `/app/health` route, debounced quick-log (sleep/energy/exercise/water), 30d trend charts, feeds analytics snapshots |
+| **6 — Settings wiring** | Patterns, Goals, Health as toggleable modules |
+| **7 — Finance Intelligence** | `Debt`/`DebtPayment`/`Investment`/`InvestmentEntry`/`FinancialGoal` models; `import_detector.py` (EMI/SIP/CC-payment/tax classification); 3 new routers; Finance Advisor AI; 7-tab Finance layout; snackbar system; notification de-dup bypass for manual triggers |
 
 Tutorials and Landing pages also exist (`/tutorials`, `Landing.tsx`) for the marketing site.
 
@@ -75,20 +71,24 @@ Routers under `backend/app/routers/`:
 
 ```
 accounts.py          ~250 lines  bank accounts + card tips
-ai.py                ~350 lines  chat / insights / morning briefing (last 3 months finance context)
+ai.py                ~400 lines  chat / insights / morning briefing (last 3 months, grouped by month)
 analytics.py         ~80  lines  GET /correlations, /snapshots, /backfill, /compute-today
-app_logs.py          ~90  lines  structured error log intake + ring buffer + file tail
+app_logs.py          ~140 lines  structured error log intake (POST), ring buffer (GET), file tail (GET)
 data.py              ~70  lines  wipe-all-data + diagnostics
+debt.py              ~290 lines  Debt CRUD + /payment + /summary + /payoff-strategy (avalanche/snowball)
 finance.py           ~420 lines  transactions, budgets, categories
+finance_advisor.py   ~130 lines  POST /advisor — AI finance coach with STRICT RULES (no buy/sell)
+financial_goals.py   ~170 lines  FinancialGoal CRUD + /achieve + computed progress fields
 goals.py             ~180 lines  Goal CRUD + live progress computation (5 goal types)
 habit.py             ~650 lines  habits + check-ins + per-habit detail
 health.py            ~45  lines  liveness + LLM status
 health_tracking.py   ~120 lines  HealthLog upsert/list/stats; auto-updates analytics snapshot
-import_router.py     ~420 lines  CSV/XLS/PDF bank import + monthly report export
+import_router.py     ~470 lines  CSV/XLS/PDF bank import + detection wiring + monthly report export
+investments.py       ~215 lines  Investment CRUD + /entry + /entries + /summary
 journal.py           ~715 lines  entries + summary fields + suggest-tags + stats
-notifications.py     ~140 lines  in-app notification feed + weekly-review trigger
+notifications.py     ~160 lines  in-app notification feed + trigger endpoints (force=True bypasses de-dup)
 settings.py          ~120 lines  AI provider settings (DB-stored, overrides .env)
-sms.py               ~700 lines  SMS inbox + iMessage scanner (timestamp bug fixed) + HTTP SMS sync
+sms.py               ~720 lines  SMS inbox + iMessage scanner (temp-file copy fix) + HTTP SMS sync
 subscription.py      ~270 lines  subs + renew endpoint + autopay logic
 ```
 
@@ -96,9 +96,10 @@ Services layer (`backend/app/services/`):
 - `llm_client.py` — multi-provider LLM abstraction; Qwen3 thinking-model fix (`max_tokens=4096`, `enable_thinking:false`)
 - `analytics_engine.py` — daily snapshot computation + 7 cross-module correlations
 - `csv_parser.py` — bank statement CSV parser (handles multiple bank formats incl. axis_alt)
+- `import_detector.py` — classifies import rows as normal/emi/tax_fee/cc_payment/investment using 80+ Indian-bank-tuned regex patterns; EMI/SIP auto-matched to active Debt/Investment records
 - `transaction_categorizer.py` — AI batch categorisation
 - `report_generator.py` — CSV + PDF monthly reports (fpdf2)
-- `notification_service.py` — subscription alerts (autopay informational vs manual action-required), weekly AI review, pattern-aware morning briefing, de-dup, cycle-aware
+- `notification_service.py` — subscription alerts (autopay informational vs manual action-required), weekly AI review, pattern-aware morning briefing, de-dup, cycle-aware; `force=True` param on all `check_*` functions for manual trigger bypass
 
 Stack: FastAPI · SQLAlchemy 2.0 · Pydantic v2 · SQLite (SQLCipher optional, off by default on Windows) · sqlite-vec for journal semantic search · pandas · fpdf2. Pre-Alembic auto-migrations run on startup from `db.py`.
 
@@ -113,15 +114,18 @@ Dashboard.tsx        397 lines
 Journal.tsx          304 lines
 Habits.tsx           558 lines
 HabitDetail.tsx      207 lines
-Finance.tsx          497 lines
+Finance.tsx          ~950 lines  ← 7-tab layout with Debt & EMI, My Wealth, Advisor sections
+Goals.tsx            ~200 lines
+Health.tsx           ~300 lines
+Patterns.tsx         ~180 lines
 Subscriptions.tsx    233 lines
 Chat.tsx             296 lines
-Settings.tsx       2,624 lines   ← largest by far — handles all provider config + danger zone
+Settings.tsx       2,700 lines   ← largest — provider config + notification timing + danger zone
 Tutorials.tsx        673 lines
 Landing.tsx          739 lines
 ```
 
-Component domains: `components/dashboard/`, `components/journal/`, `components/habits/`, `components/finance/`, `components/subscriptions/`, `components/editor/` (Tiptap), `components/ui/` (RightDrawer, primitives), plus top-level `Sidebar`, `Topbar`, `PageHeader`, `FloatingChat`, `NotificationPanel`, `LockScreen`, `AiPingCard`.
+Component domains: `components/dashboard/`, `components/journal/`, `components/habits/`, `components/finance/` (incl. `finance/debt/` and `finance/wealth/` subdirs), `components/subscriptions/`, `components/editor/` (Tiptap), `components/ui/` (RightDrawer, primitives), `contexts/` (ToastContext), plus top-level `Sidebar`, `Topbar`, `PageHeader`, `FloatingChat`, `NotificationPanel`, `ErrorBoundary`, `LockScreen`, `AiPingCard`.
 
 Stack: React 18 · TypeScript · Vite · Tailwind · React Query · React Router v6 · Tiptap · lucide-react.
 
@@ -144,24 +148,23 @@ The `website/` directory (deployed to `https://north-os-eta.vercel.app/`) has di
 
 ## 6. Recent activity
 
-~140 commits since v1.0.0. Latest themes (most recent first):
+~160 commits since v1.0.0. Latest themes (most recent first):
 
-1. **Intelligence layer (Phases 1–6)** — Analytics engine with daily snapshots + cross-module correlations, Goals module (5 goal types, live progress), Weekly AI review digest, pattern-aware morning briefing, Health tracking module, all new modules wired into Settings.
-2. **Qwen3 thinking-model fix** — `llm_client.py` raised default `max_tokens` to 4096 and added `enable_thinking:false`; Qwen3.5 9B now responds correctly.
-3. **iMessage timestamp fix** — Apple epoch offset was being added instead of subtracted, causing the scanner to look for messages in year 2088. All scan results were silently empty.
-4. **Error logging system** — `app_logs.py` router with structured error codes, React `ErrorBoundary`, React Query global error hooks.
-5. **AI chat context** — Finance context expanded from current-month-only to last 3 months so historical spending questions work.
-6. **Right-side drawers** — All add forms (Habits, Subscriptions, Finance) moved to Notion-style right drawer.
-7. **Autopay + Mark Paid** — Subscriptions track autopay vs manual; cycle-aware renewal notifications; "Mark as Paid" button advances billing date.
-8. **UX + QA pass** — Input tokens standardised, button hit areas fixed (Electron webkit-app-region), Finance KPI gradient text artifact fixed.
+1. **Finance Intelligence Layer (Phase 7)** — 5 new models (Debt, DebtPayment, Investment, InvestmentEntry, FinancialGoal), 3 new routers, Finance Advisor AI (STRICT RULES: no buy/sell), import_detector.py (EMI/SIP/CC-payment/tax classification with 80+ Indian-bank patterns), 7-tab Finance layout, CRUD forms with live payoff calculator and goal progress.
+2. **Global snackbar system** — `ToastContext` + `useToast()` hook; all forms now show success/error toasts instead of silent state changes.
+3. **Notification reliability** — "Set to now" button for each scheduled notification (fires in ~1 min); manual triggers always bypass de-dup via `force=True`; all trigger endpoints create fresh notifications guaranteed.
+4. **iMessage fixes** — Timestamp formula fixed (wrong: added Apple epoch, correct: subtract). IMSG-003: `shutil.copy2` to temp file before connecting (avoids write-lock from Messages.app). Bank-sender pre-filter re-applied (privacy: personal messages never reach the parser).
+5. **AI hallucination fix** — STRICT RULE added to morning briefing and weekly review system prompts: only use names/amounts/services that appear verbatim in the data context.
+6. **Intelligence layer (Phases 1–6)** — Analytics engine, Goals, Weekly review, Pattern-aware briefing, Health tracking, module toggles in Settings.
+7. **Error logging** — `app_logs.py` with structured error codes, React `ErrorBoundary`, React Query global error hooks.
 
 Most recent commits (top 5):
 ```
-31021f7 fix(imessage): correct Apple timestamp + add structured error logging
-bcab18a fix(ai): expand finance context from current-month-only to last 3 months
-5e4ff99 fix(llm): handle Qwen3 thinking models returning empty content
-1477701 feat(phase-4.2): upgrade DashAIBriefing + commit plan + seed scripts
-802acd7 feat(phase-5+6): Health tracking module + module system extended
+2b786b6 fix(notifications): manual triggers bypass de-dup to always create fresh notification
+cfa0ffe feat: global snackbar + notification timing + iMessage privacy fix
+181a105 fix(qa): two bugs found in QA session
+86555b5 fix: iMessage IMSG-003 + AI hallucination + z-index on tabs/CTAs
+c232638 chore: bump version to 1.1.0
 ```
 
 ---
@@ -232,11 +235,9 @@ All in `.env` at the repo root, or via the in-app Settings page (DB-stored value
 
 ## 10. What's notably not built yet
 
-**Phase 1–6 are complete** (see `IMPLEMENTATION_PLAN.md` — all phases committed to `main`).
+**All 7 phases are complete** (committed to `main`). There is no active build queue.
 
-**Phase 7** (Finance Intelligence Layer) is the next build queue. Items covered in `IMPLEMENTATION_PLAN.md`.
-
-Items outside the current build queue:
+Items not in any phase plan:
 - Mobile / PWA — desktop only today. **This is the single most impactful missing piece for commercial growth.** Without mobile, habit tracking and journal entry require opening a laptop.
 - Multi-device sync — local-first by design; sync would require a relay server model
 - Calendar / time-blocking module
@@ -279,4 +280,4 @@ These were explicitly decided during planning and should not be changed without 
 
 ---
 
-_Updated: 2026-06-03 (Session 9). Read in order: APP_REPORT.md → IMPLEMENTATION_PLAN.md. Sources: codebase sweep + active development sessions. Implementation spec: `IMPLEMENTATION_PLAN.md`._
+_Updated: 2026-06-06 (Session 13). Read in order: APP_REPORT.md → IMPLEMENTATION_PLAN.md. Sources: codebase sweep + active development sessions. Implementation spec: `IMPLEMENTATION_PLAN.md`._
