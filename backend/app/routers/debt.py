@@ -187,7 +187,7 @@ def payoff_strategy(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/")
+@router.get("")
 def list_debts(status: str | None = None, db: Session = Depends(get_db)):
     q = db.query(Debt)
     if status:
@@ -195,7 +195,7 @@ def list_debts(status: str | None = None, db: Session = Depends(get_db)):
     return [_debt_out(d) for d in q.order_by(Debt.sort_order, Debt.created_at).all()]
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 def create_debt(body: DebtIn, db: Session = Depends(get_db)):
     d = Debt(**body.model_dump())
     db.add(d)

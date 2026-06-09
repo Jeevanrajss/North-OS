@@ -114,7 +114,7 @@ def _goal_out(goal: FinancialGoal, db: Session) -> dict[str, Any]:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/")
+@router.get("")
 def list_goals(db: Session = Depends(get_db)):
     goals = db.query(FinancialGoal).filter(FinancialGoal.status != "paused").order_by(
         FinancialGoal.priority, FinancialGoal.sort_order
@@ -122,7 +122,7 @@ def list_goals(db: Session = Depends(get_db)):
     return [_goal_out(g, db) for g in goals]
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 def create_goal(body: FinancialGoalIn, db: Session = Depends(get_db)):
     data = body.model_dump()
     linked = data.pop("linked_investment_ids", None) or []

@@ -117,12 +117,12 @@ def investment_summary(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/")
+@router.get("")
 def list_investments(db: Session = Depends(get_db)):
     return [_inv_out(i) for i in db.query(Investment).order_by(Investment.sort_order, Investment.created_at).all()]
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 def create_investment(body: InvestmentIn, db: Session = Depends(get_db)):
     inv = Investment(**body.model_dump())
     db.add(inv)
