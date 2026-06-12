@@ -13,9 +13,9 @@ Read these two files in this order. Do not skip either.
 
 These are the source of truth. If something in the codebase contradicts the spec, check `APP_REPORT.md` section 11 (Key architectural decisions) before deciding which way to go.
 
-## Your task — build Phase 7
+## Status
 
-Phases 1–6 are done and committed to `main`. Phase 7 (Finance Intelligence Layer) is not started.
+All 7 phases (including Phase 7 — Finance Intelligence Layer) are done and committed to `main` (shipped in v1.1.0/v1.1.1). The build-order steps below are kept as a historical reference for how Phase 7 was implemented and as a template for any future Finance module extensions — there is no active build queue.
 
 **Build in this exact order — do not skip ahead:**
 

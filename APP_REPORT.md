@@ -188,7 +188,7 @@ The old handoff (still in the repo, also at the top of this folder) reflects a s
 - Demo data seeder (`backend/seed_demo.py`) for fresh installs
 - Wipe-all-data flow
 
-The archived-habits view and note-popover that were listed as "pending" in the old handoff are not in main yet but are no longer the project's centre of gravity — they're paper cuts. The product is in active polish-and-distribute mode, not feature-build mode.
+The archived-habits view and note-popover that were listed as "pending" in the old `HANDOFF.md` were completed back in Session 2 (both are in `main`). `HANDOFF.md` and `docs/WEEK-1.md` are historical artifacts from Weeks 1–3 and no longer reflect current state — see Section 10 for what's actually outstanding. The product is in active polish-and-distribute mode, not feature-build mode.
 
 ---
 

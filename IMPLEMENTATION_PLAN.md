@@ -25,7 +25,7 @@ Phases 1–6 are committed to `main`. Do not re-implement them. This table exist
 
 ## Phase 7 — Finance Intelligence Layer
 
-**Status:** Not started.  
+**Status:** ✅ Done (shipped in v1.1.0/v1.1.1). Kept below as the reference spec for any future Finance module extensions.  
 **Goal:** Turn the Finance module from a cash-flow tracker into a full personal finance advisor. The user sees their complete financial picture — what they owe, what they're building, where they're going — and gets AI guidance on how to get there faster.
 
 **Hard rules for this phase:**
