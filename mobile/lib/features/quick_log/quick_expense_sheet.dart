@@ -12,13 +12,40 @@ class QuickExpenseSheet extends ConsumerStatefulWidget {
 
 class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
   final _amountCtl = TextEditingController();
+  final _notesCtl = TextEditingController();
   String _category = 'Food & Dining';
   bool _saving = false;
+  List<String> _categories = [];
+  bool _loadingCats = true;
 
-  static const _categories = [
-    'Food & Dining', 'Transport', 'Shopping', 'Bills & Utilities',
-    'Entertainment', 'Health', 'Education', 'Groceries', 'Other',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final res = await ref.read(dioProvider).get('/finance/meta');
+      final data = res.data as Map<String, dynamic>;
+      final cats = (data['expense_categories'] as List?)?.cast<String>() ?? [];
+      if (cats.isNotEmpty) {
+        setState(() {
+          _categories = cats;
+          _category = cats.first;
+          _loadingCats = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() {
+      _categories = [
+        'Food & Dining', 'Transport', 'Shopping', 'Bills & Utilities',
+        'Entertainment', 'Health', 'Education', 'Groceries', 'Other',
+      ];
+      _loadingCats = false;
+    });
+  }
 
   Future<void> _save(String type) async {
     final amount = double.tryParse(_amountCtl.text.trim());
@@ -32,17 +59,18 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
         'date': today,
         'category': _category,
         'currency': 'INR',
+        'notes': _notesCtl.text.trim().isNotEmpty ? _notesCtl.text.trim() : null,
       });
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved ${NumberFormat('#,##0').format(amount)}')),
+          SnackBar(content: Text('Saved ${NumberFormat('#,##0').format(amount)} as $type')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
+          SnackBar(content: Text('Failed to save'), backgroundColor: NorthColors.red),
         );
       }
     }
@@ -76,34 +104,47 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
                 border: InputBorder.none,
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: _categories.map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(c, style: const TextStyle(fontSize: 12)),
-                    selected: _category == c,
-                    selectedColor: NorthColors.accentMuted,
-                    onSelected: (_) => setState(() => _category = c),
-                  ),
-                )).toList(),
+            const SizedBox(height: 8),
+            if (!_loadingCats)
+              SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: _categories.map((c) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(c, style: const TextStyle(fontSize: 11)),
+                      selected: _category == c,
+                      selectedColor: NorthColors.accentMuted,
+                      onSelected: (_) => setState(() => _category = c),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  )).toList(),
+                ),
               ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notesCtl,
+              decoration: const InputDecoration(
+                hintText: 'Notes (optional)',
+                isDense: true,
+              ),
+              style: const TextStyle(fontSize: 14, color: NorthColors.fg3),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Row(children: [
-              Expanded(child: ElevatedButton(
+              Expanded(child: ElevatedButton.icon(
                 onPressed: _saving ? null : () => _save('expense'),
                 style: ElevatedButton.styleFrom(backgroundColor: NorthColors.red.withValues(alpha: 0.8)),
-                child: const Text('Expense'),
+                icon: const Icon(Icons.arrow_downward, size: 16),
+                label: const Text('Expense'),
               )),
               const SizedBox(width: 12),
-              Expanded(child: ElevatedButton(
+              Expanded(child: ElevatedButton.icon(
                 onPressed: _saving ? null : () => _save('income'),
                 style: ElevatedButton.styleFrom(backgroundColor: NorthColors.green.withValues(alpha: 0.8)),
-                child: const Text('Income'),
+                icon: const Icon(Icons.arrow_upward, size: 16),
+                label: const Text('Income'),
               )),
             ]),
           ],
