@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.financial_goal import FinancialGoal
 from app.models.investment import Investment
 
@@ -115,15 +117,15 @@ def _goal_out(goal: FinancialGoal, db: Session) -> dict[str, Any]:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("")
-def list_goals(db: Session = Depends(get_db)):
-    goals = db.query(FinancialGoal).filter(FinancialGoal.status != "paused").order_by(
+def list_goals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goals = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id).filter(FinancialGoal.status != "paused").order_by(
         FinancialGoal.priority, FinancialGoal.sort_order
     ).all()
     return [_goal_out(g, db) for g in goals]
 
 
 @router.post("", status_code=201)
-def create_goal(body: FinancialGoalIn, db: Session = Depends(get_db)):
+def create_goal(body: FinancialGoalIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = body.model_dump()
     linked = data.pop("linked_investment_ids", None) or []
     goal = FinancialGoal(**data, linked_investment_ids=json.dumps(linked) if linked else None)
@@ -134,8 +136,8 @@ def create_goal(body: FinancialGoalIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/{goal_id}")
-def patch_goal(goal_id: str, body: FinancialGoalPatch, db: Session = Depends(get_db)):
-    goal = db.get(FinancialGoal, goal_id)
+def patch_goal(goal_id: str, body: FinancialGoalPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id).filter(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
     data = body.model_dump(exclude_unset=True)
@@ -150,8 +152,8 @@ def patch_goal(goal_id: str, body: FinancialGoalPatch, db: Session = Depends(get
 
 
 @router.delete("/{goal_id}", status_code=204)
-def archive_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(FinancialGoal, goal_id)
+def archive_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id).filter(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
     goal.status = "paused"
@@ -159,8 +161,8 @@ def archive_goal(goal_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{goal_id}/achieve")
-def achieve_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(FinancialGoal, goal_id)
+def achieve_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(FinancialGoal).filter(FinancialGoal.user_id == current_user.id).filter(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
     goal.status = "achieved"

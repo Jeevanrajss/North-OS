@@ -20,6 +20,7 @@ class Investment(Base):
     __tablename__ = "investments"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     emoji: Mapped[str] = mapped_column(String(10), nullable=False, default="📈")
 

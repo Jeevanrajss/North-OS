@@ -28,6 +28,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/logs", tags=["logs"])

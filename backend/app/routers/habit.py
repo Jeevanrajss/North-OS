@@ -26,6 +26,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.habit import Habit, HabitCheckin
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.schemas.habit import (
     HabitCheckinIn,
     HabitCheckinOut,
@@ -51,16 +53,16 @@ router = APIRouter(prefix="/api/v1/habits", tags=["habits"])
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _get_habit_or_404(db: Session, habit_id: str) -> Habit:
-    habit = db.get(Habit, habit_id)
+def _get_habit_or_404(db: Session, habit_id: str, user_id: str) -> Habit:
+    habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == user_id).first()
     if habit is None:
         raise HTTPException(404, "Habit not found")
     return habit
 
 
-def _next_sort_order(db: Session) -> int:
+def _next_sort_order(db: Session, user_id: str) -> int:
     """Return max(sort_order)+1 so newly-created habits land at the bottom."""
-    max_so = db.query(Habit).order_by(Habit.sort_order.desc()).first()
+    max_so = db.query(Habit).filter(Habit.user_id == user_id).order_by(Habit.sort_order.desc()).first()
     return (max_so.sort_order + 1) if max_so else 0
 
 
@@ -137,22 +139,24 @@ def _longest_streak(
 def list_habits(
     include_archived: bool = Query(False, description="Include archived habits"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Habit)
+    q = db.query(Habit).filter(Habit.user_id == current_user.id)
     if not include_archived:
         q = q.filter(Habit.archived_at.is_(None))
     return q.order_by(Habit.sort_order, Habit.created_at).all()
 
 
 @router.post("", response_model=HabitOut, status_code=201)
-def create_habit(payload: HabitIn, db: Session = Depends(get_db)):
+def create_habit(payload: HabitIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     habit = Habit(
         name=payload.name,
         emoji=payload.emoji or "✅",
         frequency_kind=payload.frequency_kind,
         frequency_target=payload.frequency_target,
         weekdays=weekdays_to_str(payload.weekdays),
-        sort_order=_next_sort_order(db),
+        sort_order=_next_sort_order(db, current_user.id),
+        user_id=current_user.id,
     )
     db.add(habit)
     db.commit()
@@ -164,11 +168,12 @@ def create_habit(payload: HabitIn, db: Session = Depends(get_db)):
 def habits_today(
     date: date_cls | None = Query(None, description="ISO date. Defaults to today."),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     d = date or date_cls.today()
     habits = (
         db.query(Habit)
-        .filter(Habit.archived_at.is_(None))
+        .filter(Habit.user_id == current_user.id, Habit.archived_at.is_(None))
         .order_by(Habit.sort_order, Habit.created_at)
         .all()
     )
@@ -199,13 +204,14 @@ def habits_today(
 def habits_stats(
     days: int = Query(30, ge=7, le=365),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     today = date_cls.today()
     start = today - timedelta(days=days - 1)
 
     habits = (
         db.query(Habit)
-        .filter(Habit.archived_at.is_(None))
+        .filter(Habit.user_id == current_user.id, Habit.archived_at.is_(None))
         .order_by(Habit.sort_order, Habit.created_at)
         .all()
     )
@@ -327,21 +333,10 @@ def habit_detail(
     habit_id: str,
     days: int = Query(90, ge=14, le=730),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Single-shot payload for the per-habit detail page.
-
-    Returns:
-      - daily bits (for the heatmap) across the window
-      - streak + completion stats for the window
-      - day-of-week breakdown (opportunity-aware)
-      - 12-month trend (opportunity-aware)
-      - up to 10 most-recent check-ins with notes
-
-    "Opportunity-aware" means weekly habits are rated against their
-    scheduled days only — a Tue/Fri habit ticked both days that week is
-    100%, not 2/7.
-    """
-    habit = _get_habit_or_404(db, habit_id)
+    """Single-shot payload for the per-habit detail page."""
+    habit = _get_habit_or_404(db, habit_id, current_user.id)
 
     today = date_cls.today()
     start = today - timedelta(days=days - 1)
@@ -508,13 +503,13 @@ def habit_detail(
 
 
 @router.get("/{habit_id}", response_model=HabitOut)
-def get_habit(habit_id: str, db: Session = Depends(get_db)):
-    return _get_habit_or_404(db, habit_id)
+def get_habit(habit_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _get_habit_or_404(db, habit_id, current_user.id)
 
 
 @router.patch("/{habit_id}", response_model=HabitOut)
-def update_habit(habit_id: str, patch: HabitPatch, db: Session = Depends(get_db)):
-    habit = _get_habit_or_404(db, habit_id)
+def update_habit(habit_id: str, patch: HabitPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    habit = _get_habit_or_404(db, habit_id, current_user.id)
     data = patch.model_dump(exclude_unset=True)
 
     # Convert weekdays list[int] → comma-string for DB storage.
@@ -553,9 +548,9 @@ def update_habit(habit_id: str, patch: HabitPatch, db: Session = Depends(get_db)
 
 
 @router.delete("/{habit_id}", response_model=HabitOut)
-def archive_habit(habit_id: str, db: Session = Depends(get_db)):
+def archive_habit(habit_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Soft-archive the habit. Historical check-ins are preserved."""
-    habit = _get_habit_or_404(db, habit_id)
+    habit = _get_habit_or_404(db, habit_id, current_user.id)
     if habit.archived_at is None:
         habit.archived_at = datetime.now(timezone.utc)
         db.commit()
@@ -564,8 +559,8 @@ def archive_habit(habit_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{habit_id}/restore", response_model=HabitOut)
-def restore_habit(habit_id: str, db: Session = Depends(get_db)):
-    habit = _get_habit_or_404(db, habit_id)
+def restore_habit(habit_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    habit = _get_habit_or_404(db, habit_id, current_user.id)
     if habit.archived_at is not None:
         habit.archived_at = None
         db.commit()
@@ -582,8 +577,9 @@ def list_checkins(
     from_: date_cls = Query(..., alias="from"),
     to: date_cls = Query(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    _get_habit_or_404(db, habit_id)
+    _get_habit_or_404(db, habit_id, current_user.id)
     if to < from_:
         raise HTTPException(400, "'to' must be >= 'from'")
     rows = (
@@ -605,10 +601,10 @@ def upsert_checkin(
     d: date_cls,
     payload: HabitCheckinIn | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Idempotent tick. If a check-in already exists for (habit, day), it's
-    updated; otherwise created."""
-    _get_habit_or_404(db, habit_id)
+    """Idempotent tick."""
+    _get_habit_or_404(db, habit_id, current_user.id)
     body = payload or HabitCheckinIn()
 
     existing = (
@@ -622,6 +618,7 @@ def upsert_checkin(
             day_date=d,
             value=body.value,
             note=body.note,
+            user_id=current_user.id,
         )
         db.add(existing)
     else:
@@ -634,8 +631,8 @@ def upsert_checkin(
 
 
 @router.delete("/{habit_id}/checkins/{d}", status_code=204)
-def delete_checkin(habit_id: str, d: date_cls, db: Session = Depends(get_db)):
-    _get_habit_or_404(db, habit_id)
+def delete_checkin(habit_id: str, d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _get_habit_or_404(db, habit_id, current_user.id)
     row = (
         db.query(HabitCheckin)
         .filter(HabitCheckin.habit_id == habit_id, HabitCheckin.day_date == d)

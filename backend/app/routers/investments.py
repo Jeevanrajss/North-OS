@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.investment import Investment
 from app.models.investment_entry import InvestmentEntry
 
@@ -81,7 +83,7 @@ def _recompute_goal(db: Session, goal_id: str) -> None:
         linked = goal.linked_ids()
         if goal_id not in linked:
             linked.append(goal_id)
-        invs = db.query(Investment).filter(Investment.id.in_(linked)).all()
+        invs = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id.in_(linked)).all()
         goal.current_amount = round(sum(i.total_invested for i in invs), 2)
         db.flush()
     except Exception as e:
@@ -91,8 +93,8 @@ def _recompute_goal(db: Session, goal_id: str) -> None:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/summary")
-def investment_summary(db: Session = Depends(get_db)):
-    invs = db.query(Investment).filter(Investment.status == "active").all()
+def investment_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    invs = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.status == "active").all()
     by_type: dict[str, float] = {}
     for inv in invs:
         by_type[inv.investment_type] = by_type.get(inv.investment_type, 0) + inv.total_invested
@@ -102,7 +104,7 @@ def investment_summary(db: Session = Depends(get_db)):
     for inv in invs:
         if inv.sip_amount:
             # Count entries this month
-            entries = db.query(InvestmentEntry).filter(
+            entries = db.query(InvestmentEntry).filter(InvestmentEntry.user_id == current_user.id).filter(
                 InvestmentEntry.investment_id == inv.id,
                 InvestmentEntry.entry_date >= today.replace(day=1),
             ).all()
@@ -118,12 +120,12 @@ def investment_summary(db: Session = Depends(get_db)):
 
 
 @router.get("")
-def list_investments(db: Session = Depends(get_db)):
-    return [_inv_out(i) for i in db.query(Investment).order_by(Investment.sort_order, Investment.created_at).all()]
+def list_investments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return [_inv_out(i) for i in db.query(Investment).filter(Investment.user_id == current_user.id).order_by(Investment.sort_order, Investment.created_at).all()]
 
 
 @router.post("", status_code=201)
-def create_investment(body: InvestmentIn, db: Session = Depends(get_db)):
+def create_investment(body: InvestmentIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     inv = Investment(**body.model_dump())
     db.add(inv)
     db.commit()
@@ -132,8 +134,8 @@ def create_investment(body: InvestmentIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/{inv_id}")
-def patch_investment(inv_id: str, body: InvestmentPatch, db: Session = Depends(get_db)):
-    inv = db.get(Investment, inv_id)
+def patch_investment(inv_id: str, body: InvestmentPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investment not found")
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -144,8 +146,8 @@ def patch_investment(inv_id: str, body: InvestmentPatch, db: Session = Depends(g
 
 
 @router.delete("/{inv_id}", status_code=204)
-def redeem_investment(inv_id: str, db: Session = Depends(get_db)):
-    inv = db.get(Investment, inv_id)
+def redeem_investment(inv_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investment not found")
     inv.status = "redeemed"
@@ -153,10 +155,10 @@ def redeem_investment(inv_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{inv_id}/entry", status_code=201)
-def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db)):
+def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance import Transaction
 
-    inv = db.get(Investment, inv_id)
+    inv = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Investment not found")
 
@@ -200,10 +202,10 @@ def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{inv_id}/entries")
-def list_entries(inv_id: str, db: Session = Depends(get_db)):
-    if not db.get(Investment, inv_id):
+def list_entries(inv_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first():
         raise HTTPException(status_code=404, detail="Investment not found")
-    entries = db.query(InvestmentEntry).filter(InvestmentEntry.investment_id == inv_id).order_by(InvestmentEntry.entry_date.desc()).all()
+    entries = db.query(InvestmentEntry).filter(InvestmentEntry.user_id == current_user.id).filter(InvestmentEntry.investment_id == inv_id).order_by(InvestmentEntry.entry_date.desc()).all()
     return [
         {
             "id": e.id, "amount": e.amount, "entry_date": e.entry_date.isoformat(),

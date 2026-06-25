@@ -23,6 +23,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.journal import JournalDay, JournalEntry, MoodCode, Tag
 from app.schemas.journal import (
     AnnualOut,
@@ -76,12 +78,12 @@ def _avg_valence(codes: list[str], valence_map: dict[str, int]) -> float | None:
 # Reference endpoints
 # ---------------------------------------------------------------------------
 @router.get("/moods", response_model=list[MoodCodeOut])
-def list_moods(db: Session = Depends(get_db)):
+def list_moods(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(MoodCode).order_by(MoodCode.sort_order).all()
 
 
 @router.get("/tags", response_model=list[TagOut])
-def list_tags(db: Session = Depends(get_db)):
+def list_tags(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Tag).order_by(Tag.seeded.desc(), Tag.name).all()
 
 
@@ -92,7 +94,7 @@ def list_tags(db: Session = Depends(get_db)):
 def calendar(
     start: date_cls = Query(..., description="Inclusive start date (YYYY-MM-DD)"),
     end: date_cls = Query(..., description="Inclusive end date (YYYY-MM-DD)"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     if end < start:
         raise HTTPException(400, "end must be >= start")
@@ -147,7 +149,7 @@ def calendar(
 @router.get("/stats", response_model=StatsOut)
 def stats(
     days: int = Query(30, ge=7, le=365, description="Window size in days"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     today = date_cls.today()
     start = today - timedelta(days=days - 1)
@@ -234,13 +236,13 @@ def stats(
 # Days
 # ---------------------------------------------------------------------------
 @router.get("/days/{d}", response_model=DayOut)
-def get_day(d: date_cls, db: Session = Depends(get_db)):
+def get_day(d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     day = _get_or_create_day(db, d)
     return _serialize_day(day)
 
 
 @router.patch("/days/{d}", response_model=DayOut)
-def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db)):
+def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     day = _get_or_create_day(db, d)
 
     if patch.mood_codes is not None:
@@ -279,12 +281,13 @@ def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db)):
 # Entries
 # ---------------------------------------------------------------------------
 @router.post("/days/{d}/entries", response_model=EntryOut, status_code=201)
-async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_db)):
+async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     _get_or_create_day(db, d)
     entry = JournalEntry(
         day_date=d,
         content_json=payload.content_json,
         content_text=payload.content_text,
+        user_id=current_user.id,
     )
     db.add(entry)
     db.commit()
@@ -300,8 +303,8 @@ async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_
 
 
 @router.put("/entries/{entry_id}", response_model=EntryOut)
-async def update_entry(entry_id: str, payload: EntryIn, db: Session = Depends(get_db)):
-    entry = db.get(JournalEntry, entry_id)
+async def update_entry(entry_id: str, payload: EntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    entry = db.query(JournalEntry).filter(JournalEntry.id == entry_id, JournalEntry.user_id == current_user.id).first()
     if entry is None:
         raise HTTPException(404, "Entry not found")
     entry.content_json = payload.content_json
@@ -319,8 +322,8 @@ async def update_entry(entry_id: str, payload: EntryIn, db: Session = Depends(ge
 
 
 @router.delete("/entries/{entry_id}", status_code=204)
-def delete_entry(entry_id: str, db: Session = Depends(get_db)):
-    entry = db.get(JournalEntry, entry_id)
+def delete_entry(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    entry = db.query(JournalEntry).filter(JournalEntry.id == entry_id, JournalEntry.user_id == current_user.id).first()
     if entry is None:
         raise HTTPException(404, "Entry not found")
     db.delete(entry)
@@ -332,7 +335,7 @@ def delete_entry(entry_id: str, db: Session = Depends(get_db)):
 # AI tag suggestions (day-level)
 # ---------------------------------------------------------------------------
 @router.post("/days/{d}/suggest-tags", response_model=TagSuggestionOut)
-async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_db)):
+async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Suggest tags for the whole day — reads moods + existing tags + summary
     + all entries and asks the LLM for 3–5 topic tags. Transient (not saved)."""
     day = _get_or_create_day(db, d)
@@ -367,7 +370,7 @@ async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_d
 # AI daily summary (auto-fill the 4 structured fields)
 # ---------------------------------------------------------------------------
 @router.post("/days/{d}/summarize", response_model=DayOut)
-async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db)):
+async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Ask the LLM to fill in highlights / wins / learnings / gratitude from
     today's entries + moods. Overwrites existing summary fields. Gracefully
     returns the unchanged day if LM Studio is offline."""
@@ -403,7 +406,7 @@ async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db)):
 # Semantic search over embedded journal entries
 # ---------------------------------------------------------------------------
 @router.post("/search", response_model=list[JournalSearchResult])
-async def search_journal(body: JournalSearchRequest, db: Session = Depends(get_db)):
+async def search_journal(body: JournalSearchRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Embed the query and run KNN against stored journal entry embeddings.
 
     Returns up to `limit` results ordered by cosine similarity. Falls back to
@@ -450,7 +453,7 @@ async def search_journal(body: JournalSearchRequest, db: Session = Depends(get_d
         if source_id in seen:
             continue
         seen.add(source_id)
-        entry = db.get(JournalEntry, source_id)
+        entry = db.query(JournalEntry).filter(JournalEntry.id == source_id, JournalEntry.user_id == current_user.id).first()
         if entry is None:
             continue
         results.append(
@@ -471,7 +474,7 @@ async def search_journal(body: JournalSearchRequest, db: Session = Depends(get_d
 # Annual review — 12 monthly buckets
 # ---------------------------------------------------------------------------
 @router.get("/annual", response_model=AnnualOut)
-def annual_review(db: Session = Depends(get_db)):
+def annual_review(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return the last 12 complete months of journal activity.
 
     Each bucket has: active_days, total_entries, avg valence, top 3 tags.
@@ -548,7 +551,7 @@ def annual_review(db: Session = Depends(get_db)):
 @router.get("/mood-habits", response_model=MoodHabitOut)
 def mood_habit_correlation(
     days: int = Query(90, ge=14, le=365),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Cross-reference habit check-ins with daily mood valence.
 
@@ -579,7 +582,7 @@ def mood_habit_correlation(
 
     habits = (
         db.query(Habit)
-        .filter(Habit.archived_at.is_(None))
+        .filter(Habit.user_id == current_user.id, Habit.archived_at.is_(None))
         .order_by(Habit.sort_order)
         .all()
     )
@@ -587,6 +590,7 @@ def mood_habit_correlation(
     checkins = (
         db.query(HabitCheckin)
         .filter(
+            HabitCheckin.user_id == current_user.id,
             HabitCheckin.day_date >= start,
             HabitCheckin.day_date <= today,
         )
@@ -637,7 +641,7 @@ def mood_habit_correlation(
 def export_journal(
     start: date_cls = Query(..., description="Start date YYYY-MM-DD"),
     end: date_cls = Query(..., description="End date YYYY-MM-DD"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Export journal entries as a Markdown document.
 

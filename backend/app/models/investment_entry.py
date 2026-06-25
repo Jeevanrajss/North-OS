@@ -20,6 +20,7 @@ class InvestmentEntry(Base):
     __tablename__ = "investment_entries"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     investment_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     transaction_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 

@@ -21,6 +21,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
 
     # "income" | "expense" | "transfer" | "investment"
     # "investment" is a 4th type — SIP/MF debits are NOT expenses; they build net worth.

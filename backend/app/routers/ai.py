@@ -11,6 +11,8 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.services import llm_client
 from app.services.llm_client import LLMError
 
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 # ---------------------------------------------------------------------------
 # Shared helper — builds a rich text snapshot of the user's data
 # ---------------------------------------------------------------------------
-def _build_data_context(db: Session) -> str:
+def _build_data_context(db: Session, user_id: str = "") -> str:
     from app.models.habit import Habit, HabitCheckin
     from app.models.journal import JournalDay
     from app.models.subscription import Subscription
@@ -33,12 +35,13 @@ def _build_data_context(db: Session) -> str:
     # --- Habits ---
     habits = (
         db.query(Habit)
-        .filter(Habit.archived_at.is_(None))
+        .filter(Habit.user_id == user_id, Habit.archived_at.is_(None))
         .order_by(Habit.sort_order)
         .all()
     )
     window_start = today - timedelta(days=30)
     checkins_30d = db.query(HabitCheckin).filter(
+        HabitCheckin.user_id == user_id,
         HabitCheckin.day_date >= window_start,
         HabitCheckin.day_date <= today,
     ).all()
@@ -103,7 +106,7 @@ def _build_data_context(db: Session) -> str:
         lines.append("\n## Journal\nNo entries in the last 21 days.")
 
     # --- Subscriptions ---
-    subs = db.query(Subscription).filter(Subscription.cancelled_at.is_(None)).all()
+    subs = db.query(Subscription).filter(Subscription.user_id == user_id, Subscription.cancelled_at.is_(None)).all()
     if subs:
         lines.append("\n## Subscriptions")
         for s in subs:
@@ -130,6 +133,7 @@ def _build_data_context(db: Session) -> str:
         months.append((y, m))
 
     all_recent_txns = db.query(TxnModel).filter(
+        TxnModel.user_id == user_id,
         TxnModel.date >= (today - timedelta(days=92)),
     ).all()
 
@@ -170,7 +174,7 @@ def _build_data_context(db: Session) -> str:
     try:
         from app.models.goal import Goal
         active_goals = db.query(Goal).filter(
-            Goal.status == "active", Goal.archived_at.is_(None)
+            Goal.user_id == user_id, Goal.status == "active", Goal.archived_at.is_(None)
         ).order_by(Goal.sort_order).all()
         if active_goals:
             lines.append("\n## Active Goals")
@@ -263,7 +267,7 @@ class HabitInsightsResponse(BaseModel):
 
 
 @router.post("/habit-insights", response_model=HabitInsightsResponse)
-async def habit_insights(db: Session = Depends(get_db)):
+async def habit_insights(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Analyse the last 30 days of habit data and return 3–4 insight strings.
     Returns an empty list (not an error) if LM Studio is offline or no habits exist."""
     from app.services.habit_insights import generate_insights
@@ -281,14 +285,14 @@ class SubInsightsResponse(BaseModel):
 
 
 @router.post("/subscription-insights", response_model=SubInsightsResponse)
-async def subscription_insights(db: Session = Depends(get_db)):
+async def subscription_insights(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Analyse active subscriptions and return spending insights."""
     from datetime import date
     import re
     from app.models.subscription import Subscription
     from app.schemas.subscription import MONTHLY_MULT
 
-    subs = db.query(Subscription).filter(Subscription.cancelled_at.is_(None)).all()
+    subs = db.query(Subscription).filter(Subscription.user_id == current_user.id, Subscription.cancelled_at.is_(None)).all()
     if not subs:
         return SubInsightsResponse(insights=[], model="chat")
 
@@ -376,9 +380,9 @@ GUIDELINES:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def data_chat(req: ChatRequest, db: Session = Depends(get_db)):
+async def data_chat(req: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Conversational AI that answers questions about the user's personal data."""
-    context = _build_data_context(db)
+    context = _build_data_context(db, user_id=current_user.id)
     system = CHAT_SYSTEM.format(context=context)
 
     # Keep last 12 turns to avoid blowing the context window.

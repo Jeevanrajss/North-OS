@@ -14,6 +14,8 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.account import Account
 from app.models.budget import Budget
 from app.models.finance import Transaction
@@ -181,7 +183,7 @@ async def import_preview(
     account_id: str = Form(...),
     bank_key: str | None = Form(default=None),
     column_mapping: str | None = Form(default=None),   # JSON string
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
     if not content:
@@ -235,8 +237,8 @@ async def import_preview(
     from app.models.debt import Debt as DebtModel
     from app.models.investment import Investment as InvModel
     from app.services.import_detector import detect_row
-    active_debts = db.query(DebtModel).filter(DebtModel.status == "active").all()
-    active_investments = db.query(InvModel).filter(InvModel.status == "active").all()
+    active_debts = db.query(DebtModel).filter(DebtModel.user_id == current_user.id, DebtModel.status == "active").all()
+    active_investments = db.query(InvModel).filter(InvModel.user_id == current_user.id, InvModel.status == "active").all()
 
     # Duplicate detection + Phase 7 row classification
     preview_rows: list[ImportPreviewRow] = []
@@ -297,7 +299,7 @@ async def import_preview(
 # POST /finance/import/confirm — create transactions from confirmed rows
 # ---------------------------------------------------------------------------
 @router.post("/import/confirm", response_model=ImportConfirmResponse)
-def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
+def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     imported = 0
     skipped = 0
     batch_id = str(uuid.uuid4())
@@ -333,6 +335,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
             tax_amount=row.tax_amount,
             debt_id=row.debt_id,
             investment_id=getattr(row, 'investment_id', None),
+            user_id=current_user.id,
         )
         db.add(t)
         db.flush()  # need t.id before creating child records
@@ -348,6 +351,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
                     amount=row.amount,
                     payment_date=date_cls.fromisoformat(row.date),
                     outstanding_after=outstanding_after,
+                    user_id=current_user.id,
                 ))
                 debt.outstanding = outstanding_after
                 if outstanding_after == 0.0:
@@ -371,6 +375,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
                     amount=row.amount,
                     entry_date=date_cls.fromisoformat(row.date),
                     entry_type="sip",
+                    user_id=current_user.id,
                 ))
                 inv.total_invested = round(inv.total_invested + row.amount, 2)
             else:
@@ -389,10 +394,11 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db)):
 # GET /finance/report/{year}/{month} — full monthly report JSON
 # ---------------------------------------------------------------------------
 @router.get("/report/{year}/{month}", response_model=MonthlyReportResponse)
-def monthly_report(year: int, month: int, db: Session = Depends(get_db)):
+def monthly_report(year: int, month: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     txns = (
         db.query(Transaction)
         .filter(
+            Transaction.user_id == current_user.id,
             extract("year", Transaction.date) == year,
             extract("month", Transaction.date) == month,
         )
@@ -479,7 +485,7 @@ def monthly_report(year: int, month: int, db: Session = Depends(get_db)):
 # GET /finance/report/{year}/{month}/export — download CSV or PDF
 # ---------------------------------------------------------------------------
 @router.get("/report/{year}/{month}/export")
-def export_report(year: int, month: int, format: str = "csv", db: Session = Depends(get_db)):
+def export_report(year: int, month: int, format: str = "csv", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if format not in ("csv", "pdf"):
         raise HTTPException(status_code=400, detail="format must be 'csv' or 'pdf'")
 

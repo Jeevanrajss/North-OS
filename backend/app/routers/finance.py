@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.budget import Budget
 from app.models.finance import Transaction
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.schemas.budget import BudgetIn, BudgetOut, BudgetPatch, BudgetProgress
 from app.schemas.finance import (
     ACCOUNT_SUGGESTIONS,
@@ -31,7 +33,7 @@ router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _budget_for(db: Session, year: int, month: int, category: str | None) -> float | None:
+def _budget_for(db: Session, year: int, month: int, category: str | None, user_id: str = "") -> float | None:
     """Return the applicable budget amount for (year, month, category).
 
     Lookup order:
@@ -40,14 +42,14 @@ def _budget_for(db: Session, year: int, month: int, category: str | None) -> flo
     """
     b = (
         db.query(Budget)
-        .filter(Budget.year == year, Budget.month == month, Budget.category == category)
+        .filter(Budget.user_id == user_id, Budget.year == year, Budget.month == month, Budget.category == category)
         .first()
     )
     if b:
         return float(b.amount)
     b = (
         db.query(Budget)
-        .filter(Budget.year.is_(None), Budget.month.is_(None), Budget.category == category)
+        .filter(Budget.user_id == user_id, Budget.year.is_(None), Budget.month.is_(None), Budget.category == category)
         .first()
     )
     return float(b.amount) if b else None
@@ -57,7 +59,7 @@ def _budget_for(db: Session, year: int, month: int, category: str | None) -> flo
 # Meta — category lists + emoji map
 # ---------------------------------------------------------------------------
 @router.get("/meta", response_model=FinanceMeta)
-def meta(db: Session = Depends(get_db)):
+def meta(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance_category import FinanceCategory as FCat
     cats = db.query(FCat).order_by(FCat.sort_order, FCat.name).all()
     if not cats:
@@ -88,7 +90,7 @@ from app.schemas.finance_category import FinanceCategoryIn, FinanceCategoryOut, 
 
 
 @router.get("/categories", response_model=list[FinanceCategoryOut])
-def list_categories(db: Session = Depends(get_db)):
+def list_categories(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance_category import FinanceCategory
     return (
         db.query(FinanceCategory)
@@ -98,7 +100,7 @@ def list_categories(db: Session = Depends(get_db)):
 
 
 @router.post("/categories", response_model=FinanceCategoryOut, status_code=201)
-def create_category(payload: FinanceCategoryIn, db: Session = Depends(get_db)):
+def create_category(payload: FinanceCategoryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import uuid as _uuid
     from app.models.finance_category import FinanceCategory
     if db.query(FinanceCategory).filter(FinanceCategory.name == payload.name).first():
@@ -118,7 +120,7 @@ def create_category(payload: FinanceCategoryIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/categories/{cat_id}", response_model=FinanceCategoryOut)
-def update_category(cat_id: str, patch: FinanceCategoryPatch, db: Session = Depends(get_db)):
+def update_category(cat_id: str, patch: FinanceCategoryPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance_category import FinanceCategory
     cat = db.get(FinanceCategory, cat_id)
     if cat is None:
@@ -131,7 +133,7 @@ def update_category(cat_id: str, patch: FinanceCategoryPatch, db: Session = Depe
 
 
 @router.delete("/categories/{cat_id}", status_code=204)
-def delete_category(cat_id: str, db: Session = Depends(get_db)):
+def delete_category(cat_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance_category import FinanceCategory
     cat = db.get(FinanceCategory, cat_id)
     if cat is None:
@@ -150,8 +152,9 @@ def list_transactions(
     year: int | None = None,
     month: int | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Transaction)
+    q = db.query(Transaction).filter(Transaction.user_id == current_user.id)
     if year is not None:
         q = q.filter(extract("year", Transaction.date) == year)
     if month is not None:
@@ -160,8 +163,8 @@ def list_transactions(
 
 
 @router.post("/transactions", response_model=TransactionOut, status_code=201)
-def create_transaction(payload: TransactionIn, db: Session = Depends(get_db)):
-    t = Transaction(**payload.model_dump())
+def create_transaction(payload: TransactionIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    t = Transaction(**payload.model_dump(), user_id=current_user.id)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -169,8 +172,8 @@ def create_transaction(payload: TransactionIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/transactions/{txn_id}", response_model=TransactionOut)
-def update_transaction(txn_id: str, patch: TransactionPatch, db: Session = Depends(get_db)):
-    t = db.get(Transaction, txn_id)
+def update_transaction(txn_id: str, patch: TransactionPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    t = db.query(Transaction).filter(Transaction.id == txn_id, Transaction.user_id == current_user.id).first()
     if t is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     for k, v in patch.model_dump(exclude_unset=True).items():
@@ -181,8 +184,8 @@ def update_transaction(txn_id: str, patch: TransactionPatch, db: Session = Depen
 
 
 @router.delete("/transactions/{txn_id}", status_code=204)
-def delete_transaction(txn_id: str, db: Session = Depends(get_db)):
-    t = db.get(Transaction, txn_id)
+def delete_transaction(txn_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    t = db.query(Transaction).filter(Transaction.id == txn_id, Transaction.user_id == current_user.id).first()
     if t is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     db.delete(t)
@@ -197,10 +200,11 @@ def list_budgets(
     year: int | None = None,
     month: int | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return all budgets. Optionally filter to rows that apply to year/month
     (returns both exact-match rows and recurring rows)."""
-    q = db.query(Budget)
+    q = db.query(Budget).filter(Budget.user_id == current_user.id)
     if year is not None and month is not None:
         from sqlalchemy import or_, and_
         q = q.filter(
@@ -213,11 +217,12 @@ def list_budgets(
 
 
 @router.post("/budgets", response_model=BudgetOut, status_code=201)
-def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db)):
+def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create or replace a budget entry for the given year/month/category combo."""
     existing = (
         db.query(Budget)
         .filter(
+            Budget.user_id == current_user.id,
             Budget.year == payload.year,
             Budget.month == payload.month,
             Budget.category == payload.category,
@@ -229,7 +234,7 @@ def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(existing)
         return existing
-    b = Budget(**payload.model_dump())
+    b = Budget(**payload.model_dump(), user_id=current_user.id)
     db.add(b)
     db.commit()
     db.refresh(b)
@@ -237,8 +242,8 @@ def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/budgets/{budget_id}", response_model=BudgetOut)
-def update_budget(budget_id: str, patch: BudgetPatch, db: Session = Depends(get_db)):
-    b = db.get(Budget, budget_id)
+def update_budget(budget_id: str, patch: BudgetPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    b = db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     if b is None:
         raise HTTPException(status_code=404, detail="Budget not found")
     for k, v in patch.model_dump(exclude_unset=True).items():
@@ -249,8 +254,8 @@ def update_budget(budget_id: str, patch: BudgetPatch, db: Session = Depends(get_
 
 
 @router.delete("/budgets/{budget_id}", status_code=204)
-def delete_budget(budget_id: str, db: Session = Depends(get_db)):
-    b = db.get(Budget, budget_id)
+def delete_budget(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    b = db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     if b is None:
         raise HTTPException(status_code=404, detail="Budget not found")
     db.delete(b)
@@ -261,10 +266,11 @@ def delete_budget(budget_id: str, db: Session = Depends(get_db)):
 # Monthly summary  (now includes budget progress)
 # ---------------------------------------------------------------------------
 @router.get("/summary/{year}/{month}", response_model=MonthlySummary)
-def monthly_summary(year: int, month: int, db: Session = Depends(get_db)):
+def monthly_summary(year: int, month: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     txns = (
         db.query(Transaction)
         .filter(
+            Transaction.user_id == current_user.id,
             extract("year", Transaction.date) == year,
             extract("month", Transaction.date) == month,
         )
@@ -298,7 +304,7 @@ def monthly_summary(year: int, month: int, db: Session = Depends(get_db)):
     )
 
     # Budget progress — overall
-    overall_budget_amt = _budget_for(db, year, month, None)
+    overall_budget_amt = _budget_for(db, year, month, None, user_id=current_user.id)
     budget_overall: BudgetProgress | None = None
     if overall_budget_amt is not None:
         budget_overall = BudgetProgress(
@@ -311,7 +317,7 @@ def monthly_summary(year: int, month: int, db: Session = Depends(get_db)):
     # Budget progress — per category
     budget_by_category: list[BudgetProgress] = []
     for cs in by_category:
-        bamt = _budget_for(db, year, month, cs.category)
+        bamt = _budget_for(db, year, month, cs.category, user_id=current_user.id)
         if bamt is not None:
             budget_by_category.append(
                 BudgetProgress(
@@ -339,7 +345,7 @@ def monthly_summary(year: int, month: int, db: Session = Depends(get_db)):
 # AI insights
 # ---------------------------------------------------------------------------
 @router.post("/insights")
-async def finance_insights(db: Session = Depends(get_db)):
+async def finance_insights(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Generate AI insights comparing current vs previous month spending."""
     import re
     from datetime import date
@@ -356,6 +362,7 @@ async def finance_insights(db: Session = Depends(get_db)):
         return (
             db.query(Transaction)
             .filter(
+                Transaction.user_id == current_user.id,
                 extract("year", Transaction.date) == y,
                 extract("month", Transaction.date) == m,
             )

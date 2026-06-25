@@ -8,8 +8,13 @@ log = logging.getLogger(__name__)
 _scheduler: BackgroundScheduler | None = None
 
 
+def _get_active_users(db):
+    from app.models.user import User
+    return db.query(User).filter(User.is_active == True).all()
+
+
 # ---------------------------------------------------------------------------
-# Job runners — each reads its own enabled setting to allow hot-toggle
+# Job runners — each iterates over active users
 # ---------------------------------------------------------------------------
 
 def _run_morning_briefing() -> None:
@@ -17,10 +22,14 @@ def _run_morning_briefing() -> None:
     from app.models.setting import Setting
     from app.services.notification_service import check_morning_briefing
     with SessionLocal() as db:
-        s = db.query(Setting).filter(Setting.key == "notif.morning_briefing_enabled").first()
-        if s and s.value == "false":
-            return
-        check_morning_briefing(db)
+        for user in _get_active_users(db):
+            try:
+                s = db.query(Setting).filter(Setting.key == "notif.morning_briefing_enabled", Setting.user_id == user.id).first()
+                if s and s.value == "false":
+                    continue
+                check_morning_briefing(db, user_id=user.id)
+            except Exception as e:
+                log.error("Morning briefing failed for user %s: %s", user.id, e)
 
 
 def _run_habit_reminders() -> None:
@@ -28,10 +37,14 @@ def _run_habit_reminders() -> None:
     from app.models.setting import Setting
     from app.services.notification_service import check_habit_reminders
     with SessionLocal() as db:
-        s = db.query(Setting).filter(Setting.key == "notif.habit_reminder_enabled").first()
-        if s and s.value == "false":
-            return
-        check_habit_reminders(db)
+        for user in _get_active_users(db):
+            try:
+                s = db.query(Setting).filter(Setting.key == "notif.habit_reminder_enabled", Setting.user_id == user.id).first()
+                if s and s.value == "false":
+                    continue
+                check_habit_reminders(db, user_id=user.id)
+            except Exception as e:
+                log.error("Habit reminders failed for user %s: %s", user.id, e)
 
 
 def _run_subscription_alerts() -> None:
@@ -39,10 +52,14 @@ def _run_subscription_alerts() -> None:
     from app.models.setting import Setting
     from app.services.notification_service import check_subscription_alerts
     with SessionLocal() as db:
-        s = db.query(Setting).filter(Setting.key == "notif.sub_alert_enabled").first()
-        if s and s.value == "false":
-            return
-        check_subscription_alerts(db)
+        for user in _get_active_users(db):
+            try:
+                s = db.query(Setting).filter(Setting.key == "notif.sub_alert_enabled", Setting.user_id == user.id).first()
+                if s and s.value == "false":
+                    continue
+                check_subscription_alerts(db, user_id=user.id)
+            except Exception as e:
+                log.error("Sub alerts failed for user %s: %s", user.id, e)
 
 
 def _run_budget_warnings() -> None:
@@ -50,79 +67,82 @@ def _run_budget_warnings() -> None:
     from app.models.setting import Setting
     from app.services.notification_service import check_budget_warnings
     with SessionLocal() as db:
-        # Budget warnings are opt-IN (default disabled). Only run when explicitly
-        # set to "true" — treat missing setting the same as "false".
-        s = db.query(Setting).filter(Setting.key == "notif.budget_warning_enabled").first()
-        if not s or s.value != "true":
-            return
-        check_budget_warnings(db)
+        for user in _get_active_users(db):
+            try:
+                s = db.query(Setting).filter(Setting.key == "notif.budget_warning_enabled", Setting.user_id == user.id).first()
+                if not s or s.value != "true":
+                    continue
+                check_budget_warnings(db, user_id=user.id)
+            except Exception as e:
+                log.error("Budget warnings failed for user %s: %s", user.id, e)
 
 
 def _run_weekly_review() -> None:
-    """Run Sunday 19:00. Generates AI weekly review notification."""
     from app.db import SessionLocal
     from app.models.setting import Setting
     with SessionLocal() as db:
-        s = db.query(Setting).filter(Setting.key == "notif.weekly_review_enabled").first()
-        if s and s.value == "false":
-            return
-        from app.services.notification_service import generate_weekly_review
-        result = generate_weekly_review(db)
-        if result:
-            log.info("Weekly review notification created")
-        else:
-            log.info("Weekly review skipped or failed")
+        for user in _get_active_users(db):
+            try:
+                s = db.query(Setting).filter(Setting.key == "notif.weekly_review_enabled", Setting.user_id == user.id).first()
+                if s and s.value == "false":
+                    continue
+                from app.services.notification_service import generate_weekly_review
+                result = generate_weekly_review(db, user_id=user.id)
+                if result:
+                    log.info("Weekly review notification created for user %s", user.id)
+            except Exception as e:
+                log.error("Weekly review failed for user %s: %s", user.id, e)
 
 
 def _run_finance_advisor() -> None:
-    """Weekly (Sunday 10:00) or monthly (1st 10:00) — reads finance.advisor_schedule setting."""
     import asyncio
     from app.db import SessionLocal
     from app.models.setting import Setting
 
     with SessionLocal() as db:
-        s = db.query(Setting).filter(Setting.key == "finance.advisor_schedule").first()
-        if not s or s.value == "manual":
-            return
-
-    async def _inner():
-        from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
-        from app.services.llm_client import generate as llm_generate, LLMError
-        from app.services.notification_service import create_notification
-        with SessionLocal() as db:
-            context = await _build_finance_context(db)
+        for user in _get_active_users(db):
             try:
-                response = await llm_generate(
-                    context, purpose="insights",
-                    system=ADVISOR_SYSTEM, temperature=0.4, max_tokens=600,
-                )
-            except LLMError:
-                return
-            if response:
-                create_notification(
-                    db=db, type="finance_advisor",
-                    title="Your finance check-in 💰",
-                    body=response.strip(), skip_quiet=True,
-                )
+                s = db.query(Setting).filter(Setting.key == "finance.advisor_schedule", Setting.user_id == user.id).first()
+                if not s or s.value == "manual":
+                    continue
 
-    try:
-        asyncio.run(_inner())
-    except Exception as e:
-        log.warning("Finance advisor job failed: %s", e)
+                async def _inner(uid):
+                    from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
+                    from app.services.llm_client import generate as llm_generate, LLMError
+                    from app.services.notification_service import create_notification
+                    with SessionLocal() as inner_db:
+                        context = await _build_finance_context(inner_db, user_id=uid)
+                        try:
+                            response = await llm_generate(
+                                context, purpose="insights",
+                                system=ADVISOR_SYSTEM, temperature=0.4, max_tokens=600,
+                            )
+                        except LLMError:
+                            return
+                        if response:
+                            create_notification(
+                                db=inner_db, type="finance_advisor",
+                                title="Your finance check-in",
+                                body=response.strip(), skip_quiet=True,
+                                user_id=uid,
+                            )
+
+                asyncio.run(_inner(user.id))
+            except Exception as e:
+                log.warning("Finance advisor job failed for user %s: %s", user.id, e)
 
 
 def _run_analytics_snapshot() -> None:
-    """Compute today's (and yesterday's) analytics snapshot at 00:05 daily."""
     from datetime import date, timedelta
     from app.db import SessionLocal
     from app.services.analytics_engine import compute_snapshot_for_date
     with SessionLocal() as db:
-        try:
-            compute_snapshot_for_date(db, date.today())
-            # Also recompute yesterday — catches late-night journal/transactions
-            compute_snapshot_for_date(db, date.today() - timedelta(days=1))
-        except Exception as e:
-            log.warning("Analytics snapshot job failed: %s", e)
+        for user in _get_active_users(db):
+            try:
+                compute_snapshot_for_date(db, date.today(), user_id=user.id)
+                compute_snapshot_for_date(db, date.today() - timedelta(days=1), user_id=user.id)
+            except Exception as e:
+                log.warning("Analytics snapshot failed for user %s: %s", user.id, e)
     log.info("Analytics snapshot computed")
 
 
@@ -178,50 +198,47 @@ def start_scheduler() -> None:
 
     _scheduler = BackgroundScheduler(daemon=True)
 
+    GRACE = 4 * 3600
+
     _scheduler.add_job(
         _run_morning_briefing,
         CronTrigger(hour=bh, minute=bm),
-        id="morning_briefing", replace_existing=True,
+        id="morning_briefing", replace_existing=True, misfire_grace_time=GRACE,
     )
     _scheduler.add_job(
         _run_habit_reminders,
         CronTrigger(hour=hh, minute=hm),
-        id="habit_reminders", replace_existing=True,
+        id="habit_reminders", replace_existing=True, misfire_grace_time=GRACE,
     )
     _scheduler.add_job(
         _run_subscription_alerts,
         CronTrigger(hour=sh, minute=sm),
-        id="subscription_alerts", replace_existing=True,
+        id="subscription_alerts", replace_existing=True, misfire_grace_time=GRACE,
     )
-    # Budget warnings: run at morning alongside sub check
     _scheduler.add_job(
         _run_budget_warnings,
         CronTrigger(hour=sh, minute=sm),
-        id="budget_warnings", replace_existing=True,
+        id="budget_warnings", replace_existing=True, misfire_grace_time=GRACE,
     )
-    # Analytics snapshot: fixed at 00:05 daily — not user-configurable
     _scheduler.add_job(
         _run_analytics_snapshot,
         CronTrigger(hour=0, minute=5),
-        id="analytics_snapshot", replace_existing=True,
+        id="analytics_snapshot", replace_existing=True, misfire_grace_time=GRACE,
     )
-    # Weekly review: Sunday 19:00
     _scheduler.add_job(
         _run_weekly_review,
         CronTrigger(day_of_week="sun", hour=19, minute=0),
-        id="weekly_review", replace_existing=True,
+        id="weekly_review", replace_existing=True, misfire_grace_time=GRACE,
     )
-    # Finance advisor: Sunday 10:00 (weekly) and 1st of month 10:00 (monthly)
-    # Both check the setting on every run — skip silently if "manual"
     _scheduler.add_job(
         _run_finance_advisor,
         CronTrigger(day_of_week="sun", hour=10, minute=0),
-        id="finance_advisor_weekly", replace_existing=True,
+        id="finance_advisor_weekly", replace_existing=True, misfire_grace_time=GRACE,
     )
     _scheduler.add_job(
         _run_finance_advisor,
         CronTrigger(day=1, hour=10, minute=0),
-        id="finance_advisor_monthly", replace_existing=True,
+        id="finance_advisor_monthly", replace_existing=True, misfire_grace_time=GRACE,
     )
 
     _scheduler.start()
@@ -239,7 +256,6 @@ def stop_scheduler() -> None:
 
 
 def reschedule_jobs() -> None:
-    """Re-read job times from DB and reschedule without restarting."""
     global _scheduler
     if not _scheduler or not _scheduler.running:
         return

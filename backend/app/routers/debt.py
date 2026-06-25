@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.debt import Debt
 from app.models.debt_payment import DebtPayment
 
@@ -132,8 +134,8 @@ def _debt_out(d: Debt, payments: list[DebtPayment] | None = None) -> dict[str, A
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/summary")
-def debt_summary(db: Session = Depends(get_db)):
-    debts = db.query(Debt).filter(Debt.status == "active").all()
+def debt_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    debts = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.status == "active").all()
     return {
         "active_count": len(debts),
         "total_outstanding": round(sum(d.outstanding for d in debts), 2),
@@ -143,8 +145,8 @@ def debt_summary(db: Session = Depends(get_db)):
 
 
 @router.get("/payoff-strategy")
-def payoff_strategy(db: Session = Depends(get_db)):
-    debts = db.query(Debt).filter(Debt.status == "active", Debt.outstanding > 0).all()
+def payoff_strategy(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    debts = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.status == "active", Debt.outstanding > 0).all()
     if not debts:
         return {"avalanche": [], "snowball": [], "summary": {}}
 
@@ -188,15 +190,15 @@ def payoff_strategy(db: Session = Depends(get_db)):
 
 
 @router.get("")
-def list_debts(status: str | None = None, db: Session = Depends(get_db)):
-    q = db.query(Debt)
+def list_debts(status: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Debt).filter(Debt.user_id == current_user.id)
     if status:
         q = q.filter(Debt.status == status)
     return [_debt_out(d) for d in q.order_by(Debt.sort_order, Debt.created_at).all()]
 
 
 @router.post("", status_code=201)
-def create_debt(body: DebtIn, db: Session = Depends(get_db)):
+def create_debt(body: DebtIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     d = Debt(**body.model_dump())
     db.add(d)
     db.commit()
@@ -205,17 +207,17 @@ def create_debt(body: DebtIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{debt_id}")
-def get_debt(debt_id: str, db: Session = Depends(get_db)):
-    d = db.get(Debt, debt_id)
+def get_debt(debt_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    d = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.id == debt_id, Debt.user_id == current_user.id).first()
     if not d:
         raise HTTPException(status_code=404, detail="Debt not found")
-    payments = db.query(DebtPayment).filter(DebtPayment.debt_id == debt_id).all()
+    payments = db.query(DebtPayment).filter(DebtPayment.user_id == current_user.id).filter(DebtPayment.debt_id == debt_id).all()
     return _debt_out(d, payments)
 
 
 @router.patch("/{debt_id}")
-def patch_debt(debt_id: str, body: DebtPatch, db: Session = Depends(get_db)):
-    d = db.get(Debt, debt_id)
+def patch_debt(debt_id: str, body: DebtPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    d = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.id == debt_id, Debt.user_id == current_user.id).first()
     if not d:
         raise HTTPException(status_code=404, detail="Debt not found")
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -226,8 +228,8 @@ def patch_debt(debt_id: str, body: DebtPatch, db: Session = Depends(get_db)):
 
 
 @router.delete("/{debt_id}", status_code=204)
-def close_debt(debt_id: str, db: Session = Depends(get_db)):
-    d = db.get(Debt, debt_id)
+def close_debt(debt_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    d = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.id == debt_id, Debt.user_id == current_user.id).first()
     if not d:
         raise HTTPException(status_code=404, detail="Debt not found")
     d.status = "closed"
@@ -235,9 +237,9 @@ def close_debt(debt_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{debt_id}/payment", status_code=201)
-def record_payment(debt_id: str, body: PaymentIn, db: Session = Depends(get_db)):
+def record_payment(debt_id: str, body: PaymentIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models.finance import Transaction
-    d = db.get(Debt, debt_id)
+    d = db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.id == debt_id, Debt.user_id == current_user.id).first()
     if not d:
         raise HTTPException(status_code=404, detail="Debt not found")
     if d.status != "active":
@@ -273,10 +275,10 @@ def record_payment(debt_id: str, body: PaymentIn, db: Session = Depends(get_db))
 
 
 @router.get("/{debt_id}/payments")
-def list_payments(debt_id: str, db: Session = Depends(get_db)):
-    if not db.get(Debt, debt_id):
+def list_payments(debt_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not db.query(Debt).filter(Debt.user_id == current_user.id).filter(Debt.id == debt_id, Debt.user_id == current_user.id).first():
         raise HTTPException(status_code=404, detail="Debt not found")
-    payments = db.query(DebtPayment).filter(DebtPayment.debt_id == debt_id).order_by(DebtPayment.payment_date.desc()).all()
+    payments = db.query(DebtPayment).filter(DebtPayment.user_id == current_user.id).filter(DebtPayment.debt_id == debt_id).order_by(DebtPayment.payment_date.desc()).all()
     return [
         {
             "id": p.id, "amount": p.amount,

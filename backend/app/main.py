@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import accounts, ai, analytics, app_logs, data, debt, finance, finance_advisor, financial_goals, goals, habit, health, health_tracking, investments, journal, settings, subscription, notifications
+from app.routers import accounts, ai, analytics, app_logs, auth, data, debt, finance, finance_advisor, financial_goals, goals, habit, health, health_tracking, investments, journal, settings, subscription, notifications
 from app.routers import import_router, sms
 
 logging.basicConfig(
@@ -51,20 +51,18 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — local dev allows Vite on 5173. Tighten in prod.
+    # CORS — allow all origins since auth is handled via JWT Bearer tokens.
+    # Electron desktop and Flutter mobile apps need to connect from any origin.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            f"http://{cfg.app_host}:{cfg.app_port}",
-        ],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(ai.router)
     app.include_router(journal.router)
     app.include_router(habit.router)

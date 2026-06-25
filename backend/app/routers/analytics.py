@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.services.analytics_engine import (
     backfill_snapshots,
     compute_snapshot_for_date,
@@ -37,7 +39,7 @@ class CorrelationsResponse(BaseModel):
 @router.get("/correlations", response_model=CorrelationsResponse)
 def correlations(
     days: int = Query(default=30, ge=7, le=365),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Return cross-module correlation data for the last N days."""
     return get_correlations(db, days=days)
@@ -47,7 +49,7 @@ def correlations(
 def snapshots(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Return raw daily snapshots for charting on the frontend."""
     from app.models.analytics import AnalyticsSnapshot
@@ -58,7 +60,7 @@ def snapshots(
         to_date = date.today()
 
     rows = (
-        db.query(AnalyticsSnapshot)
+        db.query(AnalyticsSnapshot).filter(AnalyticsSnapshot.user_id == current_user.id)
         .filter(
             AnalyticsSnapshot.computed_date >= from_date,
             AnalyticsSnapshot.computed_date <= to_date,
@@ -87,7 +89,7 @@ def snapshots(
 @router.post("/backfill")
 def trigger_backfill(
     days: int = Query(default=90, ge=1, le=365),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Manually trigger a backfill. Exposed for the Settings UI / testing."""
     count = backfill_snapshots(db, days=days)
@@ -95,7 +97,7 @@ def trigger_backfill(
 
 
 @router.post("/compute-today")
-def compute_today(db: Session = Depends(get_db)):
+def compute_today(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Recompute today's snapshot on demand."""
     compute_snapshot_for_date(db, date.today())
     return {"ok": True, "date": date.today().isoformat()}

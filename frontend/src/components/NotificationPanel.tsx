@@ -68,7 +68,7 @@ export function NotificationBell() {
   const seenIdsRef = useRef<Set<string>>(new Set());
 
   // Poll unread count every 30s
-  const { data: countData } = useQuery({
+  const { data: countData, dataUpdatedAt: countUpdatedAt } = useQuery({
     queryKey: ['notif-count'],
     queryFn: api.notifications.unreadCount,
     refetchInterval: 30_000,
@@ -85,36 +85,38 @@ export function NotificationBell() {
 
   const unread = countData?.count ?? 0;
 
-  // Fire browser notification + sound only for genuinely new notifications.
+  // Fire browser notification + sound for genuinely new notifications.
+  // IMPORTANT: this checks the actual list of unread IDs against what we've
+  // already seen — NOT just whether the total unread count went up. A new
+  // notification can arrive in the same tick that an old one is read/deleted
+  // (e.g. de-dup replacing a stale entry), leaving the total count unchanged
+  // or even lower. Comparing raw counts missed those — this doesn't.
   useEffect(() => {
-    if (prevCountRef.current === -1) {
-      // First poll — silently seed seenIdsRef with all current unread IDs
-      // so they never trigger popups on subsequent polls.
-      if (unread > 0) {
-        api.notifications.list().then((notifs) => {
-          notifs.filter((n) => !n.read).forEach((n) => seenIdsRef.current.add(n.id));
-        }).catch(() => {});
-      }
-      prevCountRef.current = unread;
-      return;
-    }
+    if (countUpdatedAt === 0) return;
 
-    if (unread > prevCountRef.current) {
-      // Count went up — fetch the full list and fire only for IDs we haven't seen yet.
-      api.notifications.list().then((notifs) => {
-        const newOnes = notifs.filter((n) => !n.read && !seenIdsRef.current.has(n.id));
-        if (newOnes.length > 0) {
-          playNotificationSound();
-          newOnes.slice(0, 3).forEach((n) => {
-            fireBrowserNotification(n.title, n.body, n.type, n.id);
-          });
-        }
-        // Mark ALL current unread as seen so they won't fire again later.
-        notifs.filter((n) => !n.read).forEach((n) => seenIdsRef.current.add(n.id));
-      }).catch(() => {});
-    }
-    prevCountRef.current = unread;
-  }, [unread]);
+    api.notifications.list().then((notifs) => {
+      const unreadNotifs = notifs.filter((n) => !n.read);
+
+      if (prevCountRef.current === -1) {
+        // First poll — silently seed seenIdsRef so existing unread items
+        // never trigger popups on app open.
+        unreadNotifs.forEach((n) => seenIdsRef.current.add(n.id));
+        prevCountRef.current = unread;
+        return;
+      }
+
+      const newOnes = unreadNotifs.filter((n) => !seenIdsRef.current.has(n.id));
+      if (newOnes.length > 0) {
+        playNotificationSound();
+        newOnes.slice(0, 3).forEach((n) => {
+          fireBrowserNotification(n.title, n.body, n.type, n.id);
+        });
+      }
+      // Mark ALL current unread as seen so they won't fire again later.
+      unreadNotifs.forEach((n) => seenIdsRef.current.add(n.id));
+      prevCountRef.current = unread;
+    }).catch(() => {});
+  }, [countUpdatedAt, unread]);
 
   // Close on outside click
   useEffect(() => {

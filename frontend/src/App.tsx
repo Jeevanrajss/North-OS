@@ -45,6 +45,16 @@ function AppShell() {
 
   return (
     <div className="flex h-full">
+      {/* Always-present drag handle strip at the very top edge of the window.
+          Guarantees the macOS title bar is draggable even on routes (e.g.
+          Journal) that don't render the Topbar, and even if other elements
+          on a given page happen to cover the Topbar's drag region. Buttons/
+          links keep their own no-drag (set globally), so this thin strip
+          never blocks clicks — it only adds a drag handle. */}
+      <div
+        className="drag-region"
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 12, zIndex: 999999 }}
+      />
       <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
       <main className="flex-1 overflow-hidden min-w-0 flex flex-col">
         {!isJournal && <Topbar />}

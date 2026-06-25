@@ -20,6 +20,7 @@ class HealthLog(Base):
     __tablename__ = "health_logs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     log_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True, index=True)
 
     # Sleep hours e.g. 7.5

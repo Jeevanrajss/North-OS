@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.subscription import Subscription
 from app.schemas.subscription import (
     MONTHLY_MULT,
@@ -26,9 +28,9 @@ router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
 # /stats MUST be defined before /{sub_id} so FastAPI does not treat the
 # literal string "stats" as a path parameter.
 @router.get("/stats", response_model=SubscriptionStatsResponse)
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     today = date.today()
-    subs = db.query(Subscription).filter(Subscription.cancelled_at.is_(None)).all()
+    subs = db.query(Subscription).filter(Subscription.user_id == current_user.id, Subscription.cancelled_at.is_(None)).all()
     monthly_total = sum(s.amount * MONTHLY_MULT.get(s.billing_cycle, 1.0) for s in subs)
     cutoff = today + timedelta(days=30)
     upcoming = [
@@ -49,7 +51,7 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/forecast", response_model=ForecastResponse)
-def billing_forecast(db: Session = Depends(get_db)):
+def billing_forecast(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Compute billing events for the next 12 months from active subscriptions.
 
     For each subscription, advances the billing date by its cycle until we
@@ -64,6 +66,7 @@ def billing_forecast(db: Session = Depends(get_db)):
     subs = (
         db.query(Subscription)
         .filter(
+            Subscription.user_id == current_user.id,
             Subscription.cancelled_at.is_(None),
             Subscription.paused_at.is_(None),
         )
@@ -128,17 +131,17 @@ def billing_forecast(db: Session = Depends(get_db)):
 @router.get("", response_model=list[SubscriptionOut])
 def list_subscriptions(
     include_cancelled: bool = False,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Subscription)
+    q = db.query(Subscription).filter(Subscription.user_id == current_user.id)
     if not include_cancelled:
         q = q.filter(Subscription.cancelled_at.is_(None))
     return q.order_by(Subscription.next_billing_date).all()
 
 
 @router.post("", response_model=SubscriptionOut, status_code=201)
-def create_subscription(body: SubscriptionIn, db: Session = Depends(get_db)):
-    sub = Subscription(id=str(uuid.uuid4()), **body.model_dump())
+def create_subscription(body: SubscriptionIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = Subscription(id=str(uuid.uuid4()), **body.model_dump(), user_id=current_user.id)
     db.add(sub)
     db.commit()
     db.refresh(sub)
@@ -146,16 +149,16 @@ def create_subscription(body: SubscriptionIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{sub_id}", response_model=SubscriptionOut)
-def get_subscription(sub_id: str, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def get_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     return sub
 
 
 @router.patch("/{sub_id}", response_model=SubscriptionOut)
-def patch_subscription(sub_id: str, body: SubscriptionPatch, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def patch_subscription(sub_id: str, body: SubscriptionPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -166,8 +169,8 @@ def patch_subscription(sub_id: str, body: SubscriptionPatch, db: Session = Depen
 
 
 @router.delete("/{sub_id}", response_model=SubscriptionOut)
-def cancel_subscription(sub_id: str, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def cancel_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     sub.cancelled_at = datetime.now(timezone.utc)
@@ -177,8 +180,8 @@ def cancel_subscription(sub_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{sub_id}/restore", response_model=SubscriptionOut)
-def restore_subscription(sub_id: str, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def restore_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     sub.cancelled_at = None
@@ -188,8 +191,8 @@ def restore_subscription(sub_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{sub_id}/pause", response_model=SubscriptionOut)
-def pause_subscription(sub_id: str, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def pause_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     if sub.paused_at is None:
@@ -200,8 +203,8 @@ def pause_subscription(sub_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{sub_id}/unpause", response_model=SubscriptionOut)
-def unpause_subscription(sub_id: str, db: Session = Depends(get_db)):
-    sub = db.get(Subscription, sub_id)
+def unpause_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     sub.paused_at = None
@@ -233,7 +236,7 @@ def _advance_billing_date(d: date, cycle: str) -> date:
 
 
 @router.post("/{sub_id}/renew", response_model=SubscriptionOut)
-def renew_subscription(sub_id: str, db: Session = Depends(get_db)):
+def renew_subscription(sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Mark a non-autopay subscription as manually paid for the current cycle.
 
     Records today as last_renewed_at and advances next_billing_date by one
@@ -241,7 +244,7 @@ def renew_subscription(sub_id: str, db: Session = Depends(get_db)):
     """
     from app.services.notification_service import create_notification
 
-    sub = db.get(Subscription, sub_id)
+    sub = db.query(Subscription).filter(Subscription.id == sub_id, Subscription.user_id == current_user.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
@@ -257,7 +260,7 @@ def renew_subscription(sub_id: str, db: Session = Depends(get_db)):
 
     # Confirmation notification
     create_notification(
-        db,
+        db, user_id=current_user.id,
         type="sub_renewed",
         title="Subscription Renewed ✅",
         body=f"{sub.emoji} {sub.name} marked as paid. Next renewal: {sub.next_billing_date}.",

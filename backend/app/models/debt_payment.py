@@ -20,6 +20,7 @@ class DebtPayment(Base):
     __tablename__ = "debt_payments"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     debt_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     transaction_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # nullable for manual payments
 

@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.goal import Goal
 from app.schemas.goal import GoalIn, GoalOut, GoalPatch
 
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/api/v1/goals", tags=["goals"])
 # Progress computation
 # ---------------------------------------------------------------------------
 
-def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
+def _compute_progress(goal: Goal, db: Session, user_id: str = "") -> dict[str, Any]:
     """
     Returns a dict with:
       progress_pct      float | None   0–100
@@ -33,10 +35,8 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
 
     if goal.goal_type == "habit_streak":
         from app.models.habit import Habit, HabitCheckin
-        # Use query() not db.get() — db.get() relies on identity-map cache
-        # which misses rows not loaded in the current session.
         habit = (
-            db.query(Habit).filter(Habit.id == goal.linked_id).first()
+            db.query(Habit).filter(Habit.id == goal.linked_id, Habit.user_id == user_id).first()
             if goal.linked_id else None
         )
         if not habit:
@@ -75,7 +75,7 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
     elif goal.goal_type == "habit_rate":
         from app.models.habit import Habit, HabitCheckin
         habit = (
-            db.query(Habit).filter(Habit.id == goal.linked_id).first()
+            db.query(Habit).filter(Habit.id == goal.linked_id, Habit.user_id == user_id).first()
             if goal.linked_id else None
         )
         if not habit:
@@ -109,6 +109,7 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
     elif goal.goal_type == "finance_save":
         from app.models.finance import Transaction
         txns = db.query(Transaction).filter(
+            Transaction.user_id == user_id,
             Transaction.type == "income",
             Transaction.date >= goal.created_at.date() if goal.created_at else date(2000, 1, 1),
         ).all()
@@ -123,6 +124,7 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
         month_start = today.replace(day=1)
         category_filter = goal.linked_id  # linked_id holds the category name
         query = db.query(Transaction).filter(
+            Transaction.user_id == user_id,
             Transaction.type == "expense",
             Transaction.date >= month_start,
         )
@@ -146,9 +148,9 @@ def _compute_progress(goal: Goal, db: Session) -> dict[str, Any]:
     }
 
 
-def _build_out(goal: Goal, db: Session) -> GoalOut:
+def _build_out(goal: Goal, db: Session, user_id: str = "") -> GoalOut:
     today = date.today()
-    progress = _compute_progress(goal, db)
+    progress = _compute_progress(goal, db, user_id=user_id)
 
     days_remaining: int | None = None
     overdue = False
@@ -175,49 +177,49 @@ def _build_out(goal: Goal, db: Session) -> GoalOut:
 @router.get("/", response_model=list[GoalOut])
 def list_goals(
     status: str | None = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Goal).filter(Goal.archived_at.is_(None))
+    q = db.query(Goal).filter(Goal.user_id == current_user.id, Goal.archived_at.is_(None))
     if status:
         q = q.filter(Goal.status == status)
     else:
         q = q.filter(Goal.status != "abandoned")
     goals = q.order_by(Goal.sort_order, Goal.created_at).all()
-    return [_build_out(g, db) for g in goals]
+    return [_build_out(g, db, user_id=current_user.id) for g in goals]
 
 
 @router.post("/", response_model=GoalOut, status_code=201)
-def create_goal(body: GoalIn, db: Session = Depends(get_db)):
-    goal = Goal(**body.model_dump())
+def create_goal(body: GoalIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = Goal(**body.model_dump(), user_id=current_user.id)
     db.add(goal)
     db.commit()
     db.refresh(goal)
-    return _build_out(goal, db)
+    return _build_out(goal, db, user_id=current_user.id)
 
 
 @router.get("/{goal_id}", response_model=GoalOut)
-def get_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(Goal, goal_id)
+def get_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
     if not goal or goal.archived_at:
         raise HTTPException(status_code=404, detail="Goal not found")
-    return _build_out(goal, db)
+    return _build_out(goal, db, user_id=current_user.id)
 
 
 @router.patch("/{goal_id}", response_model=GoalOut)
-def patch_goal(goal_id: str, body: GoalPatch, db: Session = Depends(get_db)):
-    goal = db.get(Goal, goal_id)
+def patch_goal(goal_id: str, body: GoalPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
     if not goal or goal.archived_at:
         raise HTTPException(status_code=404, detail="Goal not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(goal, k, v)
     db.commit()
     db.refresh(goal)
-    return _build_out(goal, db)
+    return _build_out(goal, db, user_id=current_user.id)
 
 
 @router.delete("/{goal_id}", status_code=204)
-def delete_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(Goal, goal_id)
+def delete_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     from datetime import datetime
@@ -226,22 +228,22 @@ def delete_goal(goal_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{goal_id}/complete", response_model=GoalOut)
-def complete_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(Goal, goal_id)
+def complete_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     goal.status = "completed"
     db.commit()
     db.refresh(goal)
-    return _build_out(goal, db)
+    return _build_out(goal, db, user_id=current_user.id)
 
 
 @router.post("/{goal_id}/abandon", response_model=GoalOut)
-def abandon_goal(goal_id: str, db: Session = Depends(get_db)):
-    goal = db.get(Goal, goal_id)
+def abandon_goal(goal_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
     goal.status = "abandoned"
     db.commit()
     db.refresh(goal)
-    return _build_out(goal, db)
+    return _build_out(goal, db, user_id=current_user.id)

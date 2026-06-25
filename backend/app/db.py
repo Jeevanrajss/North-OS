@@ -189,6 +189,29 @@ def _dev_migrate_accounts(conn) -> None:
                 log.warning("Could not add accounts.%s: %s", col, e)
 
 
+def _dev_migrate_users(conn) -> None:
+    """Add Phase 8 columns to users table if missing."""
+    try:
+        rows = conn.execute(text("PRAGMA table_info(users)")).all()
+    except Exception as e:
+        log.debug("users PRAGMA failed: %s", e)
+        return
+    existing_cols = {r[1] for r in rows}
+    new_cols = [
+        ("password_hash",    "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("invite_code_used", "VARCHAR(100)"),
+        ("is_active",        "BOOLEAN NOT NULL DEFAULT 1"),
+        ("last_login_at",    "DATETIME"),
+    ]
+    for col, col_type in new_cols:
+        if col not in existing_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                log.info("Dev migration: added users.%s column", col)
+            except Exception as e:
+                log.warning("Could not add users.%s: %s", col, e)
+
+
 def _dev_migrate_subscriptions(conn) -> None:
     """Add payment_type and account_name to subscriptions if missing."""
     try:
@@ -213,6 +236,22 @@ def _dev_migrate_subscriptions(conn) -> None:
                 log.info("Dev migration: added subscriptions.%s column", col)
             except Exception as e:
                 log.warning("Could not add subscriptions.%s: %s", col, e)
+
+
+def _dev_migrate_add_user_id(conn, table_name: str) -> None:
+    """Generic helper — add user_id VARCHAR(36) to any table if missing."""
+    try:
+        rows = conn.execute(text(f"PRAGMA table_info({table_name})")).all()
+    except Exception as e:
+        log.debug("PRAGMA failed for %s: %s", table_name, e)
+        return
+    existing_cols = {r[1] for r in rows}
+    if "user_id" not in existing_cols:
+        try:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id VARCHAR(36) NOT NULL DEFAULT ''"))
+            log.info("Dev migration: added %s.user_id column", table_name)
+        except Exception as e:
+            log.warning("Could not add %s.user_id: %s", table_name, e)
 
 
 def init_db() -> None:
@@ -243,6 +282,17 @@ def init_db() -> None:
         _dev_migrate_subscriptions(conn)
         _dev_migrate_accounts(conn)
         _dev_migrate_transactions(conn)
+        _dev_migrate_users(conn)
+
+        _tables_needing_user_id = [
+            "transactions", "budgets", "habits", "habit_checkins",
+            "journal_entries", "subscriptions", "goals", "health_logs",
+            "notifications", "analytics_snapshots", "debts", "debt_payments",
+            "investments", "investment_entries", "financial_goals",
+            "settings", "sms_transactions", "accounts",
+        ]
+        for t in _tables_needing_user_id:
+            _dev_migrate_add_user_id(conn, t)
 
     with SessionLocal() as session:
         seed_all(session)

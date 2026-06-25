@@ -451,10 +451,10 @@ export function SmsInbox({ queryKey }: Props) {
   return (
     <div className="card" style={{ padding: 20 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <MessageSquare style={{ width: 15, height: 15, color: 'var(--primary-300)' }} />
-          <h3 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <MessageSquare style={{ width: 15, height: 15, color: 'var(--primary-300)', flexShrink: 0 }} />
+          <h3 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)', whiteSpace: 'nowrap' }}>
             SMS Transactions
           </h3>
           {pending.length > 0 && (
@@ -463,6 +463,7 @@ export function SmsInbox({ queryKey }: Props) {
               padding: '2px 7px', borderRadius: 999,
               background: 'rgba(139,124,255,0.15)', color: 'var(--primary-300)',
               border: '1px solid rgba(139,124,255,0.30)',
+              whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               {pending.length} pending
             </span>

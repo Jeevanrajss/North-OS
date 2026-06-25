@@ -57,6 +57,7 @@ def create_notification(
     body: str,
     data: dict | None = None,
     skip_quiet: bool = False,
+    user_id: str = "",
 ) -> Notification | None:
     """Persist a notification. Returns None (and skips) if quiet hours are active."""
     if not skip_quiet and _is_quiet_hours(db):
@@ -68,6 +69,7 @@ def create_notification(
         title=title,
         body=body,
         data=json.dumps(data) if data else None,
+        user_id=user_id,
     )
     db.add(notif)
     db.commit()
@@ -80,7 +82,7 @@ def create_notification(
 # Morning briefing
 # ---------------------------------------------------------------------------
 
-def check_morning_briefing(db: Session, force: bool = False) -> int:
+def check_morning_briefing(db: Session, force: bool = False, user_id: str = '') -> int:
     """
     Pattern-aware morning briefing. Calls LLM when available; falls back to
     a simple static summary so the notification always fires even offline.
@@ -111,7 +113,7 @@ def check_morning_briefing(db: Session, force: bool = False) -> int:
         from app.services.analytics_engine import get_correlations
         from app.routers.ai import _build_data_context
 
-        context = _build_data_context(db)
+        context = _build_data_context(db, user_id=user_id)
         correlations = get_correlations(db, days=30)
 
         # Build pattern nudge lines
@@ -178,6 +180,7 @@ Under 80 words total. Direct and warm. No filler."""
             create_notification(
                 db, "morning_briefing", title, body.strip(),
                 {"date": str(today), "ai_powered": True}, skip_quiet=True,
+                user_id=user_id,
             )
             return 1
 
@@ -227,7 +230,7 @@ Under 80 words total. Direct and warm. No filler."""
 # Weekly AI Review Digest (Phase 3)
 # ---------------------------------------------------------------------------
 
-def generate_weekly_review(db: Session) -> "Notification | None":
+def generate_weekly_review(db: Session, user_id: str = '') -> "Notification | None":
     """
     Generate a weekly AI review and persist it as a 'weekly_review' notification.
     De-duplicates: skips if one was already created in the last 6 days.
@@ -321,7 +324,7 @@ Under 100 words total. Warm and personal. Use real numbers from the data."""
 # Habit reminders
 # ---------------------------------------------------------------------------
 
-def check_habit_reminders(db: Session, force: bool = False) -> int:
+def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -> int:
     from app.models.habit import Habit, HabitCheckin
 
     today = date.today()
@@ -373,7 +376,7 @@ def check_habit_reminders(db: Session, force: bool = False) -> int:
 # Subscription alerts
 # ---------------------------------------------------------------------------
 
-def check_subscription_alerts(db: Session, force: bool = False) -> int:
+def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '') -> int:
     from app.models.subscription import Subscription
     from app.models.setting import Setting
 
@@ -441,7 +444,7 @@ def check_subscription_alerts(db: Session, force: bool = False) -> int:
 # Budget warnings
 # ---------------------------------------------------------------------------
 
-def check_budget_warnings(db: Session, force: bool = False) -> int:
+def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -> int:
     """Fire a notification when any category exceeds 80% of its monthly budget."""
     from app.models.budget import Budget
     from datetime import date as date_cls

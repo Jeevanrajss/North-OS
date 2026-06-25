@@ -44,6 +44,7 @@ class Habit(Base):
     __tablename__ = "habits"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     emoji: Mapped[str] = mapped_column(String(8), nullable=False, default="✅")
 
@@ -92,6 +93,7 @@ class HabitCheckin(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     habit_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("habits.id", ondelete="CASCADE"), nullable=False, index=True
     )

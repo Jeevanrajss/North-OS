@@ -13,6 +13,7 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), nullable=False, index=True, default="")
     # Auto-generated display name: "{bank} {variant}" or "{bank} {type}"
     # Always set by the backend — never required from the user.
     name = Column(String(160), nullable=False)

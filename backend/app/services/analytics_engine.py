@@ -87,7 +87,7 @@ def _habits_for_date(db: Session, target: date) -> tuple[int, int, dict[str, boo
     return scheduled, done, detail
 
 
-def compute_snapshot_for_date(db: Session, target: date) -> None:
+def compute_snapshot_for_date(db: Session, target: date, user_id: str = "") -> None:
     """
     Compute and upsert the analytics snapshot for `target`.
     Safe to call multiple times (upsert by computed_date).

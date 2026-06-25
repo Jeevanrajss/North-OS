@@ -126,6 +126,7 @@ class JournalEntry(Base):
     __tablename__ = "journal_entries"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     day_date: Mapped[date_cls] = mapped_column(
         Date, ForeignKey("journal_days.date", ondelete="CASCADE"), nullable=False, index=True
     )

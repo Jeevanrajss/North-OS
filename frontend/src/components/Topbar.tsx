@@ -41,9 +41,11 @@ export function Topbar() {
         className="max-w-[1240px] mx-auto px-12 flex items-center gap-4"
         style={{ height: 56 }}
       >
-        {/* Breadcrumb — drag-region inherited from header */}
+        {/* Breadcrumb — drag-region inherited from header. pointer-events:none
+            means it never intercepts clicks, and it must NOT be no-drag —
+            that would subtract this rect from the draggable area. */}
         <div
-          className="no-drag font-medium text-[13px]"
+          className="font-medium text-[13px]"
           style={{ color: 'var(--fg-4)', pointerEvents: 'none' }}
         >
           North OS{' '}

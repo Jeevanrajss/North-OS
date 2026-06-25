@@ -13,6 +13,7 @@ class SmsTransaction(Base):
     __tablename__ = "sms_transactions"
 
     id            = Column(String,  primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id       = Column(String(36),  nullable=False, index=True, default="")
     source        = Column(String(20),  nullable=False)          # "android" | "imessage"
     sender        = Column(String(100), nullable=True)           # e.g. "HDFCBK"
     raw_body      = Column(Text,        nullable=False)

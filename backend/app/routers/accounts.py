@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.account import Account
 from app.schemas.account import (
     BANKS_LIST,
@@ -94,20 +96,21 @@ def get_bank_catalog(bank_name: str):
 # CRUD
 # ---------------------------------------------------------------------------
 @router.get("", response_model=list[AccountOut])
-def list_accounts(include_inactive: bool = False, db: Session = Depends(get_db)):
-    q = db.query(Account)
+def list_accounts(include_inactive: bool = False, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Account).filter(Account.user_id == current_user.id)
     if not include_inactive:
         q = q.filter(Account.is_active.is_(True))
     return q.order_by(Account.created_at.asc()).all()
 
 
 @router.post("", response_model=AccountOut, status_code=201)
-def create_account(payload: AccountIn, db: Session = Depends(get_db)):
+def create_account(payload: AccountIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = payload.model_dump()
     # Auto-generate display name and benefits
     data["name"] = _auto_name(payload)
     if not data.get("benefits_json"):
         data["benefits_json"] = _auto_benefits(payload)
+    data["user_id"] = current_user.id
     acct = Account(**data)
     db.add(acct)
     db.commit()
@@ -116,7 +119,7 @@ def create_account(payload: AccountIn, db: Session = Depends(get_db)):
 
 
 @router.get("/{acct_id}", response_model=AccountOut)
-def get_account(acct_id: str, db: Session = Depends(get_db)):
+def get_account(acct_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
     if acct is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -124,7 +127,7 @@ def get_account(acct_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{acct_id}", response_model=AccountOut)
-def update_account(acct_id: str, patch: AccountPatch, db: Session = Depends(get_db)):
+def update_account(acct_id: str, patch: AccountPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
     if acct is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -145,7 +148,7 @@ def update_account(acct_id: str, patch: AccountPatch, db: Session = Depends(get_
 
 
 @router.delete("/{acct_id}", status_code=204)
-def delete_account(acct_id: str, db: Session = Depends(get_db)):
+def delete_account(acct_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
     if acct is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -157,7 +160,7 @@ def delete_account(acct_id: str, db: Session = Depends(get_db)):
 # AI card-tip
 # ---------------------------------------------------------------------------
 @router.post("/card-tip", response_model=CardTipResponse)
-def card_tip(req: CardTipRequest, db: Session = Depends(get_db)):
+def card_tip(req: CardTipRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Check whether a registered credit card would earn better rewards for
     the given transaction category than the card that was actually used."""
     credit_cards = (

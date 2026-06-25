@@ -28,6 +28,10 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   server: {
+    // Bind to 127.0.0.1 explicitly — without this, newer Node resolves
+    // "localhost" to ::1 (IPv6) only, so http://127.0.0.1:5173 refuses
+    // to connect even while the server is running.
+    host: '127.0.0.1',
     port: 5173,
     strictPort: true,
     proxy: {

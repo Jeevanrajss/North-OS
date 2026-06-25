@@ -1743,6 +1743,156 @@ function UpdateChecker() {
 
 // ── Settings page ────────────────────────────────────────────────────────────
 
+// ---------------------------------------------------------------------------
+// Cloud connection section
+// ---------------------------------------------------------------------------
+function CloudConnectionSection() {
+  const toast = useToast();
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('server_url') || '');
+  const [mode, setMode] = useState<'local' | 'cloud'>(() => serverUrl ? 'cloud' : 'local');
+  const [testing, setTesting] = useState(false);
+  const [testOk, setTestOk] = useState<boolean | null>(null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem('access_token'));
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestOk(null);
+    try {
+      const base = mode === 'cloud' ? serverUrl.replace(/\/$/, '') : '';
+      const res = await fetch(`${base}/api/v1/health`);
+      setTestOk(res.ok);
+      if (res.ok) toast.success('Connected successfully');
+      else toast.error(`Server returned ${res.status}`);
+    } catch {
+      setTestOk(false);
+      toast.error('Cannot reach server');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setLoggingIn(true);
+    try {
+      const base = serverUrl.replace(/\/$/, '');
+      const res = await fetch(`${base}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPass }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.detail || `Login failed (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('refresh_token', data.refresh_token);
+      localStorage.setItem('server_url', serverUrl);
+      setLoggedIn(true);
+      toast.success('Signed in');
+    } catch (e: any) {
+      toast.error(e.message || 'Login failed');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleModeChange = (m: 'local' | 'cloud') => {
+    setMode(m);
+    if (m === 'local') {
+      localStorage.removeItem('server_url');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      setServerUrl('');
+      setLoggedIn(false);
+      setTestOk(null);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setLoggedIn(false);
+    toast.success('Signed out');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
+        {(['local', 'cloud'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => handleModeChange(m)}
+            className={cn(
+              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              mode === m ? 'bg-accent-purple/20 text-accent-purple' : 'text-ink-400 hover:text-ink-200',
+            )}
+          >
+            {m === 'local' ? '● Local' : '○ Cloud'}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'cloud' && (
+        <>
+          <div>
+            <Label>Server URL</Label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className={inputCls}
+                style={{ background: 'var(--bg-3)', border: '1px solid var(--border-2)' }}
+                placeholder="https://your-app.railway.app"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                disabled={!serverUrl || testing}
+                onClick={handleTest}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-accent-purple/10 text-accent-purple hover:bg-accent-purple/20 disabled:opacity-40 transition-colors whitespace-nowrap"
+              >
+                {testing ? 'Testing…' : 'Test'}
+              </button>
+            </div>
+            {testOk === true && <p className="text-xs text-green-400 mt-1">Connected</p>}
+            {testOk === false && <p className="text-xs text-red-400 mt-1">Not reachable</p>}
+          </div>
+
+          {!loggedIn ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8, borderTop: '1px solid var(--border-2)' }}>
+              <Label>Sign in</Label>
+              <input className={inputCls} style={{ background: 'var(--bg-3)', border: '1px solid var(--border-2)' }} placeholder="Email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+              <input className={inputCls} style={{ background: 'var(--bg-3)', border: '1px solid var(--border-2)' }} type="password" placeholder="Password" value={loginPass} onChange={(e) => setLoginPass(e.target.value)} />
+              <button
+                type="button"
+                disabled={!loginEmail || !loginPass || !serverUrl || loggingIn}
+                onClick={handleLogin}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-accent-purple text-white hover:bg-accent-purple/90 disabled:opacity-40 transition-colors"
+              >
+                {loggingIn ? 'Signing in…' : 'Sign in'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 8, borderTop: '1px solid var(--border-2)' }}>
+              <Check className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-ink-300">Signed in</span>
+              <button type="button" onClick={handleLogout} className="ml-auto text-xs text-ink-500 hover:text-red-400 transition-colors">
+                Sign out
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 export function Settings() {
   const qc = useQueryClient();
 
@@ -1979,6 +2129,7 @@ export function Settings() {
         <nav style={{ position: 'sticky', top: 88, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {([
             { id: 'profile',       label: 'Profile',       icon: '👤' },
+            { id: 'connection',    label: 'Connection',    icon: '🌐' },
             { id: 'ai',            label: 'AI Provider',   icon: '🤖' },
             { id: 'notifications', label: 'Notifications', icon: '🔔' },
             { id: 'sms',           label: 'SMS Config',    icon: '💬' },
@@ -2109,6 +2260,14 @@ export function Settings() {
                 </span>
               )}
             </div>
+          </div>
+        </section>
+
+        {/* ── Connection (cloud mode) ──────────────────────────── */}
+        <section id="sec-connection" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
+          <SectionHead title="Connection" desc="Switch between local backend and a cloud server." />
+          <div className="card" style={{ padding: 20 }}>
+            <CloudConnectionSection />
           </div>
         </section>
 

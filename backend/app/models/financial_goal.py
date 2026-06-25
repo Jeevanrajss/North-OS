@@ -21,6 +21,7 @@ class FinancialGoal(Base):
     __tablename__ = "financial_goals"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     emoji: Mapped[str] = mapped_column(String(10), nullable=False, default="🎯")
 

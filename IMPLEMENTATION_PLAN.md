@@ -1042,3 +1042,1112 @@ Below existing income/expense summary, add (only when data exists):
 ---
 
 _Updated: 2026-06-06. All 7 phases shipped. Phase 7 spec above is the reference for Finance module extensions. Read APP_REPORT.md first._
+
+---
+
+## Phase 8 — Multi-User Cloud Backend
+
+**Status:** 🔲 Not started  
+**Goal:** Convert North OS from a single-user local app into a multi-user cloud-ready backend. One Railway instance hosts everything. Each user has their own isolated data. The Electron desktop app and the Flutter mobile app (Phase 9) both connect to this backend.
+
+**Architecture decision (locked):**
+- SQLite stays — WAL mode is already enabled in `db.py`. Railway volume at `/data` persists the file across deploys. No PostgreSQL needed for the expected user count.
+- Auth model: invite-only registration. `INVITE_CODE` env var controls who can sign up. No public self-service registration.
+- AI default: Gemini 1.5 Flash via `GEMINI_API_KEY` env var. User's BYOAI key in Settings overrides it. If neither is set, AI features degrade gracefully (same as before).
+- The existing `User` model in `backend/app/models/user.py` is a week-1 placeholder. It needs extending — do not replace it, extend it.
+
+**New env vars for Railway:**
+
+| Var | Example | Notes |
+|---|---|---|
+| `JWT_SECRET` | `openssl rand -hex 32` | Long random string. Never commit. |
+| `JWT_ALGORITHM` | `HS256` | Don't change. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | 1-hour access tokens |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | 30-day refresh tokens |
+| `INVITE_CODE` | `northos-2024` | Share this with people you want to let in |
+| `GEMINI_API_KEY` | `AIza...` | Get from Google AI Studio (free) |
+| `DB_PATH` | `/data/northos.db` | Points to the Railway volume |
+
+**Build order within Phase 8:**
+1. Railway deploy + Dockerfile (8.1)
+2. User model extension + auth service + auth router (8.2)
+3. Add `user_id` to all models + dev migrations (8.3)
+4. Update all routers to filter by user (8.4)
+5. Multi-user scheduler (8.5)
+6. Gemini Flash default (8.6)
+7. Electron cloud-mode update (8.7)
+8. Testing checklist (8.8)
+
+---
+
+### 8.1 Railway Deployment Setup
+
+**Goal:** Get the FastAPI backend running on Railway with the SQLite volume, before any auth changes. Verify it starts cleanly first.
+
+#### `Dockerfile` (repo root)
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps for SQLCipher and sqlite-vec
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libsqlcipher-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./
+
+# Data dir for SQLite volume
+RUN mkdir -p /data
+
+ENV DB_PATH=/data/northos.db
+ENV DB_ENCRYPTION=false
+ENV APP_ENV=prod
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### `railway.toml` (repo root)
+
+```toml
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[volumes]]
+mountPath = "/data"
+```
+
+On Railway: add this repo, Railway auto-detects the `Dockerfile`. Add a volume mounted at `/data`. Set all env vars from the table above. The existing Node.js admin portal is a separate service — do not touch it.
+
+**Verify:** `GET /api/v1/health` returns `{"status":"ok"}` on the Railway URL before proceeding.
+
+---
+
+### 8.2 User Model Extension + Auth Layer
+
+**Goal:** Extend the existing `User` placeholder into a real auth-capable model. Add JWT auth service and routes.
+
+#### Extend `backend/app/models/user.py`
+
+The placeholder has `id`, `name`, `email`, `created_at`, `updated_at`. Add:
+
+```python
+"""User model — extended for multi-user auth (Phase 8)."""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db import Base
+
+
+def _uuid_str() -> str:
+    return str(uuid.uuid4())
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid_str)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+
+    # bcrypt hash of the user's password
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Invite code used at registration — for auditing who let who in
+    invite_code_used: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+```
+
+Add `_dev_migrate_users` to `db.py` to add the new columns to existing `users` tables (follow the same ALTER TABLE pattern as `_dev_migrate_habits`). Call it inside `init_db()`.
+
+```python
+def _dev_migrate_users(conn) -> None:
+    """Add Phase 8 columns to users table if missing."""
+    try:
+        rows = conn.execute(text("PRAGMA table_info(users)")).all()
+    except Exception as e:
+        log.debug("users PRAGMA failed: %s", e)
+        return
+    existing_cols = {r[1] for r in rows}
+    new_cols = [
+        ("password_hash",   "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("invite_code_used","VARCHAR(100)"),
+        ("is_active",       "BOOLEAN NOT NULL DEFAULT 1"),
+        ("last_login_at",   "DATETIME"),
+    ]
+    for col, col_type in new_cols:
+        if col not in existing_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                log.info("Dev migration: added users.%s column", col)
+            except Exception as e:
+                log.warning("Could not add users.%s: %s", col, e)
+```
+
+#### New packages — add to `backend/requirements.txt`
+
+```
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+passlib[bcrypt]>=1.7.4
+google-generativeai>=0.7.0
+```
+
+#### New `backend/app/services/auth_service.py`
+
+```python
+"""JWT auth helpers for Phase 8 multi-user."""
+from __future__ import annotations
+
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models.user import User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bearer_scheme = HTTPBearer()
+
+JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+REFRESH_EXPIRE = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+
+def hash_password(plain: str) -> str:
+    return pwd_context.hash(plain)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+
+def _make_token(data: dict, expires_delta: timedelta) -> str:
+    payload = data.copy()
+    payload["exp"] = datetime.now(timezone.utc) + expires_delta
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def create_access_token(user_id: str) -> str:
+    return _make_token({"sub": user_id, "type": "access"}, timedelta(minutes=ACCESS_EXPIRE))
+
+
+def create_refresh_token(user_id: str) -> str:
+    return _make_token({"sub": user_id, "type": "refresh"}, timedelta(days=REFRESH_EXPIRE))
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """FastAPI dependency — inject into any route that needs auth."""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise JWTError("Wrong token type")
+        user_id: str = payload["sub"]
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return user
+```
+
+#### New `backend/app/routers/auth.py`
+
+```python
+"""Auth routes — register (invite-only), login, refresh, me."""
+from __future__ import annotations
+
+import os
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import (
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+    JWT_SECRET,
+    JWT_ALGORITHM,
+)
+from jose import JWTError, jwt
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+INVITE_CODE = os.getenv("INVITE_CODE", "")
+
+
+class RegisterIn(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    invite_code: str
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: str
+    name: str
+    email: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+@router.post("/register", response_model=TokenOut, status_code=201)
+def register(body: RegisterIn, db: Session = Depends(get_db)):
+    if INVITE_CODE and body.invite_code != INVITE_CODE:
+        raise HTTPException(status_code=403, detail="Invalid invite code")
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user = User(
+        name=body.name,
+        email=body.email,
+        password_hash=hash_password(body.password),
+        invite_code_used=body.invite_code or None,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return TokenOut(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/login", response_model=TokenOut)
+def login(body: LoginIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+    return TokenOut(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh(body: RefreshIn, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(body.refresh_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise JWTError()
+        user_id: str = payload["sub"]
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return TokenOut(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.get("/me", response_model=UserOut)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user
+```
+
+Register the router in `backend/app/main.py`:
+```python
+from app.routers import auth
+app.include_router(auth.router)
+```
+
+The `/auth/register` and `/auth/login` routes are the only routes that do NOT require a Bearer token. All other routes require it via `Depends(get_current_user)`.
+
+---
+
+### 8.3 Add `user_id` to All Models
+
+**Goal:** Every data table gets a `user_id` column. This is the biggest step — touches 16 models. Follow the dev-migration pattern already established in `db.py`.
+
+#### Models to update
+
+Add this column to each model class:
+
+```python
+user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
+```
+
+Use `default=""` temporarily so existing rows don't break. After migration the column will be populated.
+
+**Full list of models:**
+
+| Model file | Table name |
+|---|---|
+| `models/finance.py` | `transactions` |
+| `models/budget.py` | `budgets` |
+| `models/habit.py` | `habits`, `habit_checkins` |
+| `models/journal.py` | `journal_entries` |
+| `models/subscription.py` | `subscriptions` |
+| `models/goal.py` | `goals` |
+| `models/health_log.py` | `health_logs` |
+| `models/notification.py` | `notifications` |
+| `models/analytics.py` | `analytics_snapshots` |
+| `models/debt.py` | `debts` |
+| `models/debt_payment.py` | `debt_payments` |
+| `models/investment.py` | `investments` |
+| `models/investment_entry.py` | `investment_entries` |
+| `models/financial_goal.py` | `financial_goals` |
+| `models/setting.py` | `settings` |
+| `models/sms_transaction.py` | `sms_transactions` |
+| `models/account.py` | `accounts` |
+
+#### Add dev migrations to `db.py`
+
+Add one migration function per table, all following the same pattern as `_dev_migrate_transactions`. Add all calls inside `init_db()`:
+
+```python
+def _dev_migrate_add_user_id(conn, table_name: str) -> None:
+    """Generic helper — add user_id VARCHAR(36) to any table if missing."""
+    try:
+        rows = conn.execute(text(f"PRAGMA table_info({table_name})")).all()
+    except Exception as e:
+        log.debug("PRAGMA failed for %s: %s", table_name, e)
+        return
+    existing_cols = {r[1] for r in rows}
+    if "user_id" not in existing_cols:
+        try:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN user_id VARCHAR(36) NOT NULL DEFAULT ''"))
+            log.info("Dev migration: added %s.user_id column", table_name)
+        except Exception as e:
+            log.warning("Could not add %s.user_id: %s", table_name, e)
+```
+
+In `init_db()`, after existing migrations:
+
+```python
+_tables_needing_user_id = [
+    "transactions", "budgets", "habits", "habit_checkins",
+    "journal_entries", "subscriptions", "goals", "health_logs",
+    "notifications", "analytics_snapshots", "debts", "debt_payments",
+    "investments", "investment_entries", "financial_goals",
+    "settings", "sms_transactions", "accounts",
+]
+for t in _tables_needing_user_id:
+    _dev_migrate_add_user_id(conn, t)
+```
+
+---
+
+### 8.4 Update All Routers to Filter by User
+
+**Goal:** Every router that reads or writes data must scope to `current_user.id`. This prevents any user from seeing another user's data.
+
+**The pattern — apply to every router:**
+
+```python
+# BEFORE (single-user):
+@router.get("/")
+def list_habits(db: Session = Depends(get_db)):
+    return db.query(Habit).filter(Habit.archived_at.is_(None)).all()
+
+# AFTER (multi-user):
+from app.services.auth_service import get_current_user
+from app.models.user import User
+
+@router.get("/")
+def list_habits(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(Habit).filter(
+        Habit.user_id == current_user.id,
+        Habit.archived_at.is_(None),
+    ).all()
+
+# On CREATE — inject user_id:
+@router.post("/")
+def create_habit(body: HabitIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    habit = Habit(**body.model_dump(), user_id=current_user.id)
+    ...
+```
+
+**Routers to update (all of them):**
+
+| Router file | What to scope |
+|---|---|
+| `routers/finance.py` | All transaction queries + budget queries |
+| `routers/habit.py` | Habits + HabitCheckins |
+| `routers/journal.py` | JournalEntry queries |
+| `routers/subscription.py` | Subscription queries |
+| `routers/goals.py` | Goal queries (including `_compute_progress` — pass `user_id` to habit/transaction sub-queries) |
+| `routers/health_tracking.py` | HealthLog queries |
+| `routers/notifications.py` | Notification queries |
+| `routers/analytics.py` | AnalyticsSnapshot queries |
+| `routers/debt.py` | Debt + DebtPayment queries |
+| `routers/investments.py` | Investment + InvestmentEntry queries |
+| `routers/financial_goals.py` | FinancialGoal queries |
+| `routers/finance_advisor.py` | AI context queries (pass `user_id` filter to every sub-query that builds context) |
+| `routers/ai.py` | All data-context queries (journal, habits, finance) inside prompt builders |
+| `routers/settings.py` | Setting queries (each user has their own settings) |
+| `routers/accounts.py` | Account queries |
+| `routers/sms.py` | SmsTransaction queries |
+| `routers/import_router.py` | Transaction inserts on confirm; preview is stateless |
+| `routers/data.py` | Wipe-all-data — scope to `current_user.id` only (never wipe other users' data) |
+
+**Special cases:**
+
+`routers/goals.py` — `_compute_progress()` makes sub-queries to `Habit`, `HabitCheckin`, and `Transaction`. These sub-queries must also filter by `user_id`. Add `user_id: str` parameter to `_compute_progress()` and pass it through.
+
+`routers/ai.py` — The morning briefing and chat context builders query multiple tables. Each sub-query needs `.filter(Model.user_id == user_id)`. Pass `current_user.id` into the context builder functions.
+
+`routers/settings.py` — Currently settings are global key-value. After Phase 8, each user has their own settings. On first lookup for a key, if the user has no row for that key, fall back to the global default. On write, always write with `user_id = current_user.id`.
+
+---
+
+### 8.5 Multi-User Scheduler
+
+**Goal:** Background jobs (morning briefing, weekly review, analytics snapshot, finance advisor) currently run for all data globally. With multi-user they must run per user.
+
+In `backend/app/scheduler.py`, update each `_run_*` function:
+
+```python
+# Pattern for every scheduled job:
+def _run_morning_briefing():
+    from app.db import SessionLocal
+    from app.models.user import User
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(User.is_active == True).all()
+        for user in users:
+            try:
+                _run_morning_briefing_for_user(db, user.id)
+            except Exception as e:
+                log.error("Morning briefing failed for user %s: %s", user.id, e)
+    finally:
+        db.close()
+
+def _run_morning_briefing_for_user(db, user_id: str):
+    # All existing logic, but every query filtered by user_id
+    ...
+```
+
+Apply the same per-user iteration pattern to:
+- `_run_morning_briefing`
+- `_run_weekly_review`
+- `_run_analytics_snapshot`
+- `_run_finance_advisor`
+
+The `reschedule_jobs()` function needs no changes — timing logic is per-user settings. Read the `finance.advisor_schedule` setting with `user_id` filter.
+
+---
+
+### 8.6 Gemini Flash as Default LLM
+
+**Goal:** When no user-configured AI provider is set, default to Gemini 1.5 Flash. Zero setup for new users.
+
+In `backend/app/services/llm_client.py`, add Gemini Flash support:
+
+```python
+import os
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+def _call_gemini(prompt: str, system: str = "", model: str = "gemini-1.5-flash") -> str:
+    """Call Google Gemini Flash. Falls back gracefully if key not set."""
+    if not GEMINI_API_KEY:
+        return ""
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        m = genai.GenerativeModel(
+            model_name=model,
+            system_instruction=system or None,
+        )
+        response = m.generate_content(prompt)
+        return response.text or ""
+    except Exception as e:
+        log.warning("Gemini call failed: %s", e)
+        return ""
+```
+
+In the main `call_llm()` function, add Gemini as the fallback when no provider is configured:
+
+```python
+# At the end of call_llm(), before returning empty string:
+if GEMINI_API_KEY:
+    return _call_gemini(prompt, system=system)
+return ""
+```
+
+The Gemini provider also becomes selectable from Settings (`provider = "gemini"` with a `GEMINI_API_KEY` field). Add it to `settings.py` alongside existing providers.
+
+---
+
+### 8.7 Electron Cloud-Mode Update
+
+**Goal:** Electron users can switch between local (localhost:8000) and cloud (their Railway URL). Add a login screen.
+
+**Changes to `frontend/src/routes/Settings.tsx`:**
+
+Add a new "Connection" section (above the AI Provider section):
+
+```
+Server URL: [text input, default: http://localhost:8000]
+Mode: ● Local  ○ Cloud
+[Test Connection] button → GET /api/v1/health → shows ✓ or ✗
+```
+
+When Cloud mode is selected and Server URL is changed, show a Login form:
+```
+Email: [input]
+Password: [input]
+[Sign in] button → POST /auth/login → stores JWT in localStorage
+```
+
+**Changes to `frontend/src/lib/api.ts`:**
+
+Add `Authorization: Bearer <token>` header to every API call:
+
+```typescript
+// In the axios/fetch base config:
+const getAuthHeader = () => {
+  const token = localStorage.getItem("access_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+```
+
+Add auto-refresh: if any request returns 401, call `POST /auth/refresh` with the stored refresh token, store the new access token, retry the original request.
+
+Add auth API functions:
+```typescript
+export const login = (email: string, password: string) =>
+  api.post("/auth/login", { email, password });
+
+export const register = (name: string, email: string, password: string, invite_code: string) =>
+  api.post("/auth/register", { name, email, password, invite_code });
+
+export const refreshToken = (refresh_token: string) =>
+  api.post("/auth/refresh", { refresh_token });
+```
+
+When running locally (localhost), auth is optional — the dev experience stays the same. Auth is only required when the server URL is a cloud URL.
+
+---
+
+### 8.8 Phase 8 Testing Checklist
+
+**Deploy & connectivity:**
+- [ ] `GET <railway-url>/api/v1/health` returns `{"status":"ok"}`
+- [ ] SQLite file persists at `/data/northos.db` across Railway redeploys (volume working)
+- [ ] WAL mode confirmed: `PRAGMA journal_mode` returns `wal` on the deployed DB
+
+**Auth:**
+- [ ] `POST /auth/register` with wrong invite code → 403
+- [ ] `POST /auth/register` with correct invite code → 201, returns `access_token` + `refresh_token`
+- [ ] `POST /auth/register` same email twice → 409
+- [ ] `POST /auth/login` correct credentials → 200, tokens returned
+- [ ] `POST /auth/login` wrong password → 401
+- [ ] `GET /auth/me` with valid token → returns user object
+- [ ] `GET /auth/me` with no token → 401
+- [ ] `POST /auth/refresh` with valid refresh token → new access token returned
+- [ ] Expired access token + valid refresh token → Electron auto-refreshes silently
+
+**Data isolation:**
+- [ ] Register two users (User A, User B) with different invite codes or same code
+- [ ] User A creates a habit → User B cannot see it (GET /habits returns empty for B)
+- [ ] User A creates a transaction → User A's finance totals correct, User B sees zero
+- [ ] User A's settings do not bleed into User B's AI provider config
+
+**Scheduler:**
+- [ ] Morning briefing job runs for all active users (check logs show per-user execution)
+- [ ] Analytics snapshot computed per user (separate rows in `analytics_snapshots` with different `user_id`)
+
+**Gemini fallback:**
+- [ ] With `GEMINI_API_KEY` set and no user provider configured → morning briefing generates successfully
+- [ ] With `GEMINI_API_KEY` unset and no user provider → AI features return empty/graceful degradation, app does not crash
+
+**Electron cloud mode:**
+- [ ] Change Server URL to Railway URL → connection test passes
+- [ ] Login with registered credentials → all data loads from cloud
+- [ ] Switch back to localhost → local dev data loads
+
+---
+
+## Phase 9 — Flutter Mobile App
+
+**Status:** 🔲 Not started (requires Phase 8 complete)  
+**Goal:** Build a native iOS + Android app that connects to the Phase 8 cloud backend. Must-have features: Finance (full) and Quick Logging. The backend is already built — Flutter is purely a client.
+
+**Architecture decisions (locked):**
+- Flutter is a thin client. Zero business logic lives in Flutter. All computation stays in FastAPI.
+- Auth: JWT stored in `flutter_secure_storage`. Auto-refresh on 401.
+- Offline: v1 is online-only. Offline queue is a Phase 10 concern.
+- AI calls: Flutter never calls Gemini directly. All AI goes through the backend (`/api/v1/ai/*`).
+- State management: Riverpod 2.x (ref-based, testable, no BuildContext dependency).
+- Navigation: go_router with typed routes.
+- Target: iOS 14+ and Android 7+ (API 24+).
+
+**Flutter project location:** `mobile/` directory in the repo root (alongside `backend/`, `frontend/`, `electron/`).
+
+---
+
+### 9.1 Project Setup + Dependencies
+
+#### Create the project
+
+```bash
+cd <repo-root>
+flutter create --org com.northos --project-name north_os mobile
+cd mobile
+```
+
+#### `mobile/pubspec.yaml` — key dependencies
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP + auth
+  dio: ^5.4.0
+  flutter_secure_storage: ^9.0.0
+
+  # State management
+  flutter_riverpod: ^2.5.0
+  riverpod_annotation: ^2.3.0
+
+  # Navigation
+  go_router: ^14.0.0
+
+  # UI
+  lucide_icons: ^0.0.3
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  fl_chart: ^0.68.0          # Charts for Finance overview
+  intl: ^0.19.0              # Currency + date formatting
+
+  # Storage
+  shared_preferences: ^2.2.3  # Non-sensitive prefs (theme, server URL)
+
+dev_dependencies:
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.0
+  flutter_lints: ^4.0.0
+```
+
+#### Project structure
+
+```
+mobile/lib/
+  main.dart                    # App entry point
+  app.dart                     # GoRouter setup, MaterialApp
+  core/
+    api/
+      api_client.dart          # Dio instance with auth interceptor
+      api_endpoints.dart       # All endpoint constants
+    auth/
+      auth_provider.dart       # Riverpod: token storage + refresh
+      auth_state.dart          # AuthState sealed class
+    models/                    # Dart data classes (mirror backend schemas)
+      user.dart
+      transaction.dart
+      habit.dart
+      debt.dart
+      investment.dart
+      financial_goal.dart
+      journal_entry.dart
+      notification.dart
+    storage/
+      secure_storage.dart      # flutter_secure_storage wrapper
+      prefs.dart               # SharedPreferences wrapper
+  features/
+    auth/
+      login_screen.dart
+      setup_screen.dart        # First-launch: enter server URL
+    dashboard/
+      dashboard_screen.dart
+      widgets/
+        briefing_card.dart
+        habit_ring.dart
+        finance_summary_card.dart
+        goal_cards.dart
+    finance/
+      finance_screen.dart      # Bottom tab: Finance
+      tabs/
+        overview_tab.dart
+        transactions_tab.dart
+        debt_tab.dart
+        wealth_tab.dart
+        goals_tab.dart
+      widgets/
+        transaction_tile.dart
+        debt_card.dart
+        investment_card.dart
+        quick_add_transaction.dart
+    quick_log/
+      quick_log_fab.dart       # Floating action button
+      habit_checkin_sheet.dart # Bottom sheet: check in today's habits
+      quick_expense_sheet.dart # Bottom sheet: log expense fast
+      quick_journal_sheet.dart # Bottom sheet: quick journal + mood
+    settings/
+      settings_screen.dart
+      widgets/
+        server_config_tile.dart
+        account_tile.dart
+```
+
+---
+
+### 9.2 Auth + Server Configuration
+
+#### `core/api/api_client.dart`
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+final dioProvider = Provider<Dio>((ref) {
+  final dio = Dio();
+
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final storage = const FlutterSecureStorage();
+        final token = await storage.read(key: 'access_token');
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        handler.next(options);
+      },
+      onError: (error, handler) async {
+        // Auto-refresh on 401
+        if (error.response?.statusCode == 401) {
+          final storage = const FlutterSecureStorage();
+          final refreshToken = await storage.read(key: 'refresh_token');
+          if (refreshToken != null) {
+            try {
+              final serverUrl = await storage.read(key: 'server_url') ?? 'http://localhost:8000';
+              final response = await Dio().post(
+                '$serverUrl/api/v1/auth/refresh',
+                data: {'refresh_token': refreshToken},
+              );
+              final newToken = response.data['access_token'];
+              await storage.write(key: 'access_token', value: newToken);
+              // Retry original request
+              error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              final retryResponse = await Dio().fetch(error.requestOptions);
+              handler.resolve(retryResponse);
+              return;
+            } catch (_) {
+              // Refresh failed — user must log in again
+              await storage.deleteAll();
+            }
+          }
+        }
+        handler.next(error);
+      },
+    ),
+  );
+
+  return dio;
+});
+```
+
+The `server_url` is stored in secure storage. First-launch flow:
+
+1. App opens → check if `server_url` + `access_token` exist in secure storage
+2. If not → show `SetupScreen` (enter server URL → test connection → login/register)
+3. If yes → go to Dashboard
+
+#### `features/auth/setup_screen.dart`
+
+Three steps on first launch:
+1. **Server URL input** — text field with `https://your-app.railway.app` placeholder. "Test Connection" button → `GET /api/v1/health`. Shows ✓ Connected or ✗ error.
+2. **Login / Register toggle** — two tabs. Login: email + password. Register: name + email + password + invite code.
+3. On success → store tokens, navigate to Dashboard.
+
+---
+
+### 9.3 Finance Module (Full)
+
+The Finance screen is a `DefaultTabController` with 5 tabs. All data from existing backend endpoints — no new backend code needed.
+
+#### Tab 1 — Overview
+
+Data: `GET /api/v1/finance/summary` (or compute from transactions if no summary endpoint exists).
+
+Show:
+- Month selector (← current month →)
+- Income vs Expense donut or bar chart (use `fl_chart`)
+- Savings rate: `(income - expenses) / income * 100`
+- Top 5 spending categories (horizontal bar chart)
+- Month-over-month comparison (this month vs last month spend)
+
+#### Tab 2 — Transactions
+
+Data: `GET /api/v1/finance/transactions?page=1&per_page=30`
+
+UI:
+- Search bar at top
+- Filter chips: All / Income / Expense / Investment
+- Infinite scroll list of `TransactionTile` (date, payee, amount coloured by type, category chip)
+- FAB → `QuickAddTransaction` bottom sheet (amount, type toggle, category picker, date, notes)
+
+`QuickAddTransaction` bottom sheet fields:
+```
+Amount (numeric keyboard, auto-focus)
+Type: Income | Expense | Investment  (segmented control)
+Category (dropdown of user's existing categories)
+Date (defaults to today, datepicker available)
+Notes (optional)
+[Save]
+```
+
+#### Tab 3 — Debt & EMI
+
+Data: `GET /api/v1/debt/` and `GET /api/v1/debt/summary`
+
+UI:
+- Total outstanding banner (sum of all active debts)
+- Avalanche recommendation card: "Pay ₹X more on [highest interest debt] to save ₹Y in interest"
+- List of `DebtCard` widgets:
+  - Lender name + emoji
+  - Outstanding / Principal progress bar
+  - Interest rate + EMI amount
+  - Next due day chip (red if ≤3 days, amber if ≤7)
+  - Tap → DebtDetailSheet (payment history, manual payment entry)
+- "Add Debt" button → form bottom sheet (mirrors desktop form fields)
+
+#### Tab 4 — My Wealth
+
+Data: `GET /api/v1/investments/` and `GET /api/v1/investments/summary`
+
+UI:
+- Total invested banner
+- "⚠️ Amounts shown are what you've put in, not current market value" — persistent info chip
+- List of `InvestmentCard`:
+  - Fund/instrument name + emoji + type chip
+  - Total invested amount
+  - Monthly SIP amount (if set)
+  - Last entry date
+  - Tap → InvestmentDetailSheet (entry history, manual add entry)
+- "Add Investment" → form bottom sheet
+
+#### Tab 5 — Financial Goals
+
+Data: `GET /api/v1/financial-goals/`
+
+UI:
+- List of `FinancialGoalCard`:
+  - Goal name + emoji + target amount
+  - Progress bar (`current_amount / target_amount`)
+  - Days remaining chip
+  - Monthly needed vs this month's investment
+  - `is_on_track` badge (green "On track" / red "Behind")
+- "Add Goal" → form bottom sheet
+
+---
+
+### 9.4 Quick Logging
+
+The most important UX feature on mobile. Reachable from any screen via a persistent FAB.
+
+#### `features/quick_log/quick_log_fab.dart`
+
+A `SpeedDial` style FAB that expands into 3 options:
+```
+✅ Habits   → HabitCheckinSheet
+💸 Expense  → QuickExpenseSheet
+📓 Journal  → QuickJournalSheet
+```
+
+The FAB is part of the app shell (not per-screen) so it's always accessible.
+
+#### `HabitCheckinSheet` — bottom sheet
+
+Data: `GET /api/v1/habits/?today=true` (today's due habits only)
+
+UI:
+- Title: "Today's habits"
+- List of due habits with name + emoji
+- Each row: habit name + `[✓ Done]` toggle
+- Already checked-in habits show green ✓
+- On tap → `POST /api/v1/habits/{id}/checkin` with today's date
+- Optimistic UI: mark green immediately, revert on error
+
+This must work in under 3 taps from anywhere in the app.
+
+#### `QuickExpenseSheet` — bottom sheet
+
+```
+₹ [amount input — numeric keyboard, auto-focus]
+Category: [horizontal scroll of category chips]
+[Save as Expense]  [Save as Income]
+```
+
+On submit → `POST /api/v1/finance/transactions` with `type="expense"` (or income), amount, category, today's date. Dismiss sheet on success + show snackbar "Saved ₹X".
+
+Speed target: user can log an expense in under 10 seconds from anywhere in the app.
+
+#### `QuickJournalSheet` — bottom sheet
+
+```
+[Multi-line text field — "What's on your mind?"]
+Mood: 😢 😐 🙂 😊 😄  (5 emoji buttons)
+[Save]
+```
+
+On submit → `POST /api/v1/journal/entries` with `content`, `mood_score` (1–5 from emoji selection), today's date.
+
+---
+
+### 9.5 Dashboard
+
+Data: Multiple parallel calls on load (use `Future.wait`):
+- `GET /api/v1/ai/briefing` — morning briefing text
+- `GET /api/v1/habits/?today=true` — today's habits
+- `GET /api/v1/finance/summary?month=current` — finance snapshot
+- `GET /api/v1/goals/?status=active` — active goals
+
+UI layout (scrollable column):
+```
+[Greeting] "Good morning, Jeevan" (time-aware)
+[AI Briefing Card] — text from /ai/briefing, shimmer while loading
+[Habits Ring] — circular progress of today's habits (done/total)
+[Finance Summary] — income, expenses, savings rate for current month
+[Goal Cards] — horizontal scroll of active goal cards with progress
+```
+
+Pull-to-refresh reloads all.
+
+---
+
+### 9.6 Settings Screen
+
+```
+Account
+  Name: Jeevan
+  Email: jeevan@...
+  [Change Password]
+  [Sign Out]
+
+Connection
+  Server URL: https://north-os.railway.app
+  [Test Connection] → shows latency or error
+  Status: ✓ Connected
+
+AI
+  Provider: Gemini Flash (default) / Custom
+  [Your API Key — optional override]
+
+Notifications (future Phase 10)
+  Morning briefing: 08:00
+  Weekly review: Sunday 19:00
+```
+
+---
+
+### 9.7 Phase 9 Testing Checklist
+
+**Auth + Setup:**
+- [ ] Fresh install → setup screen appears
+- [ ] Invalid server URL → test connection shows error, cannot proceed
+- [ ] Valid server URL + correct credentials → login succeeds, navigates to dashboard
+- [ ] Invalid credentials → 401 shown as user-friendly message
+- [ ] Expired access token → silent refresh, user never sees an error
+- [ ] Refresh token expired → user redirected to login screen
+
+**Finance — Full:**
+- [ ] Overview tab shows correct month totals matching desktop app
+- [ ] Switching months (← →) loads correct data
+- [ ] Transaction list loads and paginates
+- [ ] Quick-add transaction → appears in list immediately (optimistic or after refresh)
+- [ ] Debt cards show correct outstanding balance
+- [ ] Adding a manual debt payment → outstanding reduces correctly
+- [ ] Investment cards show total_invested (not market value)
+- [ ] Financial goal progress bars match backend `progress_pct`
+
+**Quick Logging:**
+- [ ] FAB accessible from Finance, Dashboard, and Settings screens
+- [ ] HabitCheckinSheet: today's due habits listed correctly
+- [ ] Check in a habit → green ✓ immediately, confirmed on reload
+- [ ] QuickExpense: amount entry → category selection → save → snackbar shown
+- [ ] Expense appears in Finance → Transactions tab
+- [ ] QuickJournal: text + mood → save → entry appears in desktop app journal
+- [ ] All quick log actions complete in ≤3 taps
+
+**Dashboard:**
+- [ ] AI briefing loads (may be slow — show shimmer while loading)
+- [ ] Habit ring shows correct done/total ratio
+- [ ] Finance summary matches Overview tab
+- [ ] Pull-to-refresh reloads all cards
+
+**Cross-device sync:**
+- [ ] Add expense on mobile → appears on desktop app (same backend)
+- [ ] Check in habit on desktop → mobile habit ring updates on refresh
+- [ ] Data never crosses between two different user accounts
+
+---
+
+_Updated: 2026-06-25. Phases 1–7 shipped. Phase 8 (multi-user cloud) and Phase 9 (Flutter mobile) are the active build queue. Read APP_REPORT.md first._

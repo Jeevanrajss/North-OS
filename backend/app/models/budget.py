@@ -13,6 +13,7 @@ class Budget(Base):
     __tablename__ = "budgets"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), nullable=False, index=True, default="")
     # NULL year / NULL month → recurring (applies every month)
     # specific year+month → overrides recurring for that period
     year = Column(Integer, nullable=True)

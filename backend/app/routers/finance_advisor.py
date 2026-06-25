@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 
 log = logging.getLogger(__name__)
 # Use prefix="/api/v1/finance" so the endpoint registers as POST /api/v1/finance/advisor
@@ -46,7 +48,7 @@ Keep the entire response under 250 words. Use actual numbers. Do not fabricate. 
 """
 
 
-async def _build_finance_context(db: Session) -> str:
+async def _build_finance_context(db: Session, user_id: str = "") -> str:
     from app.models.finance import Transaction
     from app.models.debt import Debt
     from app.models.investment import Investment
@@ -58,7 +60,7 @@ async def _build_finance_context(db: Session) -> str:
     for _ in range(2):
         three_months_ago = (three_months_ago - timedelta(days=1)).replace(day=1)
 
-    txns = db.query(Transaction).filter(Transaction.date >= three_months_ago).all()
+    txns = db.query(Transaction).filter(Transaction.user_id == user_id, Transaction.date >= three_months_ago).all()
     income_txns  = [t for t in txns if t.type == "income"]
     expense_txns = [t for t in txns if t.type == "expense"]
     invest_txns  = [t for t in txns if t.type == "investment"]
@@ -81,7 +83,7 @@ async def _build_finance_context(db: Session) -> str:
     top = sorted(cat_totals.items(), key=lambda x: -x[1])[:8]
     lines.append("Top expense categories (monthly avg): " + ", ".join(f"{c}: {v:.0f}" for c, v in top))
 
-    debts = db.query(Debt).filter(Debt.status == "active").all()
+    debts = db.query(Debt).filter(Debt.user_id == user_id, Debt.status == "active").all()
     if debts:
         lines.append(f"\n## Active debts ({len(debts)} loans)")
         lines.append(f"Total outstanding: {sum(d.outstanding for d in debts):.0f}")
@@ -89,7 +91,7 @@ async def _build_finance_context(db: Session) -> str:
         for d in sorted(debts, key=lambda x: -x.interest_rate):
             lines.append(f"- {d.name}: outstanding={d.outstanding:.0f}, EMI={d.emi_amount:.0f}/mo, rate={d.interest_rate}% p.a.")
 
-    investments = db.query(Investment).filter(Investment.status == "active").all()
+    investments = db.query(Investment).filter(Investment.user_id == user_id, Investment.status == "active").all()
     if investments:
         lines.append(f"\n## Investments ({len(investments)})")
         lines.append(f"Total invested: {sum(i.total_invested for i in investments):.0f}")
@@ -97,7 +99,7 @@ async def _build_finance_context(db: Session) -> str:
         for inv in investments:
             lines.append(f"- {inv.name} ({inv.investment_type}): invested={inv.total_invested:.0f}")
 
-    goals = db.query(FinancialGoal).filter(FinancialGoal.status == "active").all()
+    goals = db.query(FinancialGoal).filter(FinancialGoal.user_id == user_id, FinancialGoal.status == "active").all()
     if goals:
         lines.append(f"\n## Financial goals ({len(goals)} active)")
         for g in sorted(goals, key=lambda x: x.priority):
@@ -112,10 +114,10 @@ async def _build_finance_context(db: Session) -> str:
 
 
 @router.post("/advisor")
-async def finance_advisor(db: Session = Depends(get_db)):
+async def finance_advisor(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Generate full AI financial advice on demand."""
     from app.services.llm_client import generate as llm_generate, LLMError
-    context = await _build_finance_context(db)
+    context = await _build_finance_context(db, user_id=current_user.id)
     try:
         response = await llm_generate(
             context, purpose="insights", system=ADVISOR_SYSTEM,

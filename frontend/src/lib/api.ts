@@ -1,17 +1,58 @@
-// Minimal fetch client. All API calls route through /api (Vite proxy in dev).
+// Minimal fetch client with auth support for cloud mode.
 
-const BASE = '/api/v1';
+function getBaseUrl(): string {
+  const serverUrl = localStorage.getItem('server_url');
+  if (serverUrl) return `${serverUrl.replace(/\/$/, '')}/api/v1`;
+  return '/api/v1';
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+let _refreshing: Promise<boolean> | null = null;
+
+async function _tryRefresh(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return false;
+  try {
+    const base = getBaseUrl().replace('/api/v1', '');
+    const res = await fetch(`${base}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    ...init,
-  });
+  const url = `${getBaseUrl()}${path}`;
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(init?.headers ?? {}) };
+
+  let res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401 && localStorage.getItem('refresh_token')) {
+    if (!_refreshing) _refreshing = _tryRefresh();
+    const refreshed = await _refreshing;
+    _refreshing = null;
+    if (refreshed) {
+      const retryHeaders = { 'Content-Type': 'application/json', ...getAuthHeaders(), ...(init?.headers ?? {}) };
+      res = await fetch(url, { ...init, headers: retryHeaders });
+    }
+  }
+
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`API ${res.status}: ${body}`);
   }
-  // 204 No Content
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
@@ -1014,7 +1055,7 @@ export const api = {
     importBanks: () =>
       request<{ banks: { key: string; name: string }[] }>('/finance/import/banks'),
     importPreview: (form: FormData) =>
-      fetch('/api/v1/finance/import/preview', { method: 'POST', body: form }).then(async (r) => {
+      fetch(`${getBaseUrl()}/finance/import/preview`, { method: 'POST', body: form, headers: getAuthHeaders() }).then(async (r) => {
         if (!r.ok) { const b = await r.text(); throw new Error(`API ${r.status}: ${b}`); }
         return r.json() as Promise<ImportPreviewResponse>;
       }),
@@ -1210,5 +1251,23 @@ export const api = {
       request<{ processed: number }>(`/analytics/backfill?days=${days}`, { method: 'POST' }),
     computeToday: () =>
       request<{ ok: boolean; date: string }>('/analytics/compute-today', { method: 'POST' }),
+  },
+
+  auth: {
+    login: (email: string, password: string) =>
+      request<{ access_token: string; refresh_token: string; token_type: string }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    register: (name: string, email: string, password: string, invite_code: string) =>
+      request<{ access_token: string; refresh_token: string; token_type: string }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, invite_code }),
+      }),
+    me: () => request<{ id: string; name: string; email: string; created_at: string }>('/auth/me'),
+    logout: () => {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    },
   },
 };

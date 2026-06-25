@@ -6,6 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.account import Account
 from app.models.budget import Budget
 from app.models.finance import Transaction
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/api/v1/data", tags=["data"])
 
 
 @router.delete("/wipe")
-def wipe_all_data(db: Session = Depends(get_db)):
+def wipe_all_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Permanently delete all user-generated data.
 
     Preserves: settings, system finance categories, seed data (mood_codes,
@@ -30,27 +32,16 @@ def wipe_all_data(db: Session = Depends(get_db)):
                notifications, SMS transactions, and all vector embeddings.
     """
     try:
-        # Children before parents to satisfy FK constraints.
-        # (ondelete=CASCADE at the DB level handles checkins/entries when their
-        #  parent row is deleted, but bulk DELETE via ORM skips Python-side
-        #  cascades so we delete children explicitly first.)
-        db.query(Embedding).delete(synchronize_session=False)
-        db.query(JournalEntry).delete(synchronize_session=False)
-        db.query(JournalDay).delete(synchronize_session=False)
-        # User-created tags only — preserve the built-in seeded vocabulary
-        db.query(Tag).filter(Tag.seeded.is_(False)).delete(synchronize_session=False)
-        db.query(HabitCheckin).delete(synchronize_session=False)
-        db.query(Habit).delete(synchronize_session=False)
-        db.query(Transaction).delete(synchronize_session=False)
-        db.query(Budget).delete(synchronize_session=False)
-        # Finance categories: delete user-created ones, preserve system categories
-        db.query(FinanceCategory).filter(FinanceCategory.is_system.is_(False)).delete(
-            synchronize_session=False
-        )
-        db.query(Account).delete(synchronize_session=False)
-        db.query(Subscription).delete(synchronize_session=False)
-        db.query(Notification).delete(synchronize_session=False)
-        db.query(SmsTransaction).delete(synchronize_session=False)
+        uid = current_user.id
+        db.query(JournalEntry).filter(JournalEntry.user_id == uid).delete(synchronize_session=False)
+        db.query(HabitCheckin).filter(HabitCheckin.user_id == uid).delete(synchronize_session=False)
+        db.query(Habit).filter(Habit.user_id == uid).delete(synchronize_session=False)
+        db.query(Transaction).filter(Transaction.user_id == uid).delete(synchronize_session=False)
+        db.query(Budget).filter(Budget.user_id == uid).delete(synchronize_session=False)
+        db.query(Account).filter(Account.user_id == uid).delete(synchronize_session=False)
+        db.query(Subscription).filter(Subscription.user_id == uid).delete(synchronize_session=False)
+        db.query(Notification).filter(Notification.user_id == uid).delete(synchronize_session=False)
+        db.query(SmsTransaction).filter(SmsTransaction.user_id == uid).delete(synchronize_session=False)
 
         # Clear the sqlite-vec virtual table (may not exist in all environments)
         try:

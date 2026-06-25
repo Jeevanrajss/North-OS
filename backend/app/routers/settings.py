@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.setting import Setting
 from app.schemas.setting import (
     PROVIDER_PRESETS,
@@ -26,8 +28,8 @@ AI_KEYS = {"provider", "api_base", "api_key", "chat_model", "fast_model", "embed
 # GET /settings — return all stored settings (API key masked)
 # ---------------------------------------------------------------------------
 @router.get("")
-def get_settings_all(db: Session = Depends(get_db)):
-    rows = db.query(Setting).all()
+def get_settings_all(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    rows = db.query(Setting).filter(Setting.user_id == current_user.id).all()
     result: dict[str, str] = {r.key: (r.value or "") for r in rows}
     # Mask key for transport
     if "ai.api_key" in result and result["ai.api_key"]:
@@ -47,7 +49,7 @@ def get_providers():
 # PUT /settings — bulk upsert
 # ---------------------------------------------------------------------------
 @router.put("")
-def update_settings(body: SettingsBulkUpdate, db: Session = Depends(get_db)):
+def update_settings(body: SettingsBulkUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     for key, value in body.settings.items():
         # Don't overwrite existing API key with a masked placeholder
         if key == "ai.api_key" and set(value) <= {"•"}:
@@ -75,7 +77,7 @@ def update_settings(body: SettingsBulkUpdate, db: Session = Depends(get_db)):
 # POST /settings/test-llm — fire one real request with current config
 # ---------------------------------------------------------------------------
 @router.post("/test-llm", response_model=LLMTestResult)
-async def test_llm(db: Session = Depends(get_db)):
+async def test_llm(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Send a trivial prompt with the currently configured provider/model."""
     llm_client.invalidate_config_cache()  # force fresh load
     cfg = llm_client._load_config()

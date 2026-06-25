@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.health_log import HealthLog
 
 log = logging.getLogger(__name__)
@@ -49,10 +51,10 @@ class HealthStatsOut(BaseModel):
 @router.get("/stats", response_model=HealthStatsOut)
 def health_stats(
     days: int = 30,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     cutoff = date.today() - timedelta(days=days - 1)
-    logs = db.query(HealthLog).filter(HealthLog.log_date >= cutoff).all()
+    logs = db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date >= cutoff).all()
 
     sleep_vals   = [l.sleep_hours for l in logs if l.sleep_hours is not None]
     energy_vals  = [l.energy_level for l in logs if l.energy_level is not None]
@@ -69,10 +71,10 @@ def health_stats(
 
 
 @router.get("/", response_model=list[HealthLogOut])
-def list_logs(days: int = 30, db: Session = Depends(get_db)):
+def list_logs(days: int = 30, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cutoff = date.today() - timedelta(days=days - 1)
     return (
-        db.query(HealthLog)
+        db.query(HealthLog).filter(HealthLog.user_id == current_user.id)
         .filter(HealthLog.log_date >= cutoff)
         .order_by(HealthLog.log_date.asc())
         .all()
@@ -80,23 +82,23 @@ def list_logs(days: int = 30, db: Session = Depends(get_db)):
 
 
 @router.get("/{log_date}", response_model=HealthLogOut | None)
-def get_log(log_date: date, db: Session = Depends(get_db)):
+def get_log(log_date: date, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return the log for this date, or null (200) if none exists.
     Returning 404 caused the frontend error logger to fire on every
     fresh Health page load before the user had logged anything.
     """
-    return db.query(HealthLog).filter(HealthLog.log_date == log_date).first()
+    return db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date == log_date).first()
 
 
 @router.put("/{log_date}", response_model=HealthLogOut)
-def upsert_log(log_date: date, body: HealthLogIn, db: Session = Depends(get_db)):
+def upsert_log(log_date: date, body: HealthLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     today = date.today()
     if log_date > today + timedelta(days=1):
         raise HTTPException(status_code=422, detail="Cannot log health data for a future date.")
     if log_date < today - timedelta(days=365):
         raise HTTPException(status_code=422, detail="Date is too far in the past.")
 
-    row = db.query(HealthLog).filter(HealthLog.log_date == log_date).first()
+    row = db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date == log_date).first()
     if row is None:
         row = HealthLog(log_date=log_date)
         db.add(row)
@@ -120,8 +122,8 @@ def upsert_log(log_date: date, body: HealthLogIn, db: Session = Depends(get_db))
 
 
 @router.delete("/{log_date}", status_code=204)
-def delete_log(log_date: date, db: Session = Depends(get_db)):
-    row = db.query(HealthLog).filter(HealthLog.log_date == log_date).first()
+def delete_log(log_date: date, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    row = db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date == log_date).first()
     if row:
         db.delete(row)
         db.commit()

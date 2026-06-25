@@ -29,6 +29,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.models.user import User
+from app.services.auth_service import get_current_user
 from app.models.finance import Transaction
 from app.models.setting import Setting
 from app.models.sms_transaction import SmsTransaction
@@ -125,7 +127,7 @@ def _sms_to_out(row: SmsTransaction) -> SmsTransactionOut:
 def _already_seen(db: Session, body: str) -> bool:
     """Deduplicate: same raw body ever seen (any status, any age)."""
     return (
-        db.query(SmsTransaction)
+        db.query(SmsTransaction).filter(SmsTransaction.user_id == current_user.id)
         .filter(SmsTransaction.raw_body == body)
         .first()
     ) is not None
@@ -312,7 +314,7 @@ def _resolve_body(body: str, encrypted: bool, db: Session) -> str:
 
 
 @router.post("/inbound", status_code=201)
-def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db)):
+def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Webhook called by Android SMS forwarder apps (HTTP SMS, SMS Forwarder, etc.).
     Accept any POST with { body, sender?, received_at?, encrypted? }.
@@ -332,7 +334,7 @@ def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db)):
 
 
 @router.post("/scan-imessage")
-def scan_imessage(days_back: int = 7, db: Session = Depends(get_db)):
+def scan_imessage(days_back: int = 7, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Scan macOS Messages.db for recent bank SMS (read-only)."""
     ingested, debug = _scan_imessage_db(db, days_back)
     if debug.get("error"):
@@ -352,10 +354,10 @@ def scan_imessage(days_back: int = 7, db: Session = Depends(get_db)):
 
 
 @router.get("/pending", response_model=list[SmsTransactionOut])
-def list_pending(db: Session = Depends(get_db)):
+def list_pending(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return all pending (not yet confirmed/dismissed) SMS transactions."""
     rows = (
-        db.query(SmsTransaction)
+        db.query(SmsTransaction).filter(SmsTransaction.user_id == current_user.id)
         .filter(SmsTransaction.status == "pending", SmsTransaction.parsed_ok == True)  # noqa: E712
         .order_by(SmsTransaction.received_at.desc())
         .all()
@@ -368,9 +370,9 @@ class ConfirmSmsBody(BaseModel):
 
 
 @router.post("/pending/{sms_id}/confirm", status_code=201)
-def confirm_sms(sms_id: str, body: ConfirmSmsBody = ConfirmSmsBody(), db: Session = Depends(get_db)):
+def confirm_sms(sms_id: str, body: ConfirmSmsBody = ConfirmSmsBody(), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Confirm a parsed SMS → creates a Transaction record. Returns the full transaction."""
-    row = db.query(SmsTransaction).filter(SmsTransaction.id == sms_id).first()
+    row = db.query(SmsTransaction).filter(SmsTransaction.user_id == current_user.id).filter(SmsTransaction.id == sms_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="SMS not found")
     if row.status != "pending":
@@ -422,9 +424,9 @@ def confirm_sms(sms_id: str, body: ConfirmSmsBody = ConfirmSmsBody(), db: Sessio
 
 
 @router.post("/pending/{sms_id}/dismiss", status_code=200)
-def dismiss_sms(sms_id: str, db: Session = Depends(get_db)):
+def dismiss_sms(sms_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Dismiss — marks SMS as reviewed but not imported."""
-    row = db.query(SmsTransaction).filter(SmsTransaction.id == sms_id).first()
+    row = db.query(SmsTransaction).filter(SmsTransaction.user_id == current_user.id).filter(SmsTransaction.id == sms_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="SMS not found")
     row.status = "dismissed"
@@ -433,7 +435,7 @@ def dismiss_sms(sms_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/debug")
-async def sms_debug(db: Session = Depends(get_db)):
+async def sms_debug(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Full diagnostic — shows every raw API response to pinpoint the issue."""
     key_row = db.get(Setting, HTTPSMS_KEY_SETTING)
     if not key_row or not key_row.value:
@@ -564,7 +566,7 @@ async def sms_debug(db: Session = Depends(get_db)):
 
 
 @router.get("/status")
-def sms_status(db: Session = Depends(get_db)):
+def sms_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Returns availability info for each source."""
     key_row = db.get(Setting, HTTPSMS_KEY_SETTING)
     last_row = db.get(Setting, HTTPSMS_LAST_SETTING)
@@ -672,7 +674,7 @@ async def _fetch_recent_messages(
 
 
 @router.post("/sync-httpsms")
-async def sync_httpsms(db: Session = Depends(get_db)):
+async def sync_httpsms(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Pull incoming SMS from ALL threads, run the parser on every message,
     and save the ones that look like bank transactions.

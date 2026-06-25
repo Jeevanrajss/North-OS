@@ -21,6 +21,7 @@ class AnalyticsSnapshot(Base):
     __tablename__ = "analytics_snapshots"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     computed_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True, index=True)
 
     # Daily habit completion rate (0.0–1.0)

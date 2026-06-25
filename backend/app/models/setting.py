@@ -12,5 +12,6 @@ class Setting(Base):
     __tablename__ = "settings"
 
     key = Column(String(100), primary_key=True)
+    user_id = Column(String(36), primary_key=True, default="")
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -17,12 +17,18 @@ Supported providers
 """
 from __future__ import annotations
 
+import logging
+import os
 import time
 from typing import Any
 
 import httpx
 
 from app.config import get_settings
+
+log = logging.getLogger(__name__)
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 _env = get_settings()
 
@@ -306,6 +312,27 @@ async def _complete(
 
 
 # ---------------------------------------------------------------------------
+# Gemini Flash fallback
+# ---------------------------------------------------------------------------
+def _call_gemini(prompt: str, system: str = "", model: str = "gemini-1.5-flash") -> str:
+    """Call Google Gemini Flash. Falls back gracefully if key not set."""
+    if not GEMINI_API_KEY:
+        return ""
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        m = genai.GenerativeModel(
+            model_name=model,
+            system_instruction=system or None,
+        )
+        response = m.generate_content(prompt)
+        return response.text or ""
+    except Exception as e:
+        log.warning("Gemini call failed: %s", e)
+        return ""
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 async def generate(
@@ -314,40 +341,45 @@ async def generate(
     purpose: str = "chat",
     system: str | None = None,
     temperature: float = 0.3,
-    max_tokens: int = 4096,  # Qwen3 thinking models need this much to think + answer
+    max_tokens: int = 4096,
 ) -> str:
     cfg = _load_config()
     model = _purpose_to_model(cfg, purpose)
 
     messages_no_system: list[dict[str, str]] = [{"role": "user", "content": prompt}]
 
-    if cfg.get("is_anthropic") == "true":
-        return await _complete_anthropic(
-            messages_no_system, system, model, temperature, max_tokens, cfg
+    try:
+        if cfg.get("is_anthropic") == "true":
+            return await _complete_anthropic(
+                messages_no_system, system, model, temperature, max_tokens, cfg
+            )
+
+        full_messages: list[dict[str, str]] = []
+        if system:
+            full_messages.append({"role": "system", "content": system})
+        full_messages.extend(messages_no_system)
+
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": full_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": False,
+            "enable_thinking": False,
+        }
+        return await _complete(
+            payload,
+            messages_no_system=messages_no_system,
+            system=system,
+            max_tokens=max_tokens,
+            cfg=cfg,
         )
-
-    full_messages: list[dict[str, str]] = []
-    if system:
-        full_messages.append({"role": "system", "content": system})
-    full_messages.extend(messages_no_system)
-
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": full_messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": False,
-        # Disable Qwen3-style thinking mode on the first attempt.
-        # Other models ignore this key harmlessly.
-        "enable_thinking": False,
-    }
-    return await _complete(
-        payload,
-        messages_no_system=messages_no_system,
-        system=system,
-        max_tokens=max_tokens,
-        cfg=cfg,
-    )
+    except LLMError:
+        if GEMINI_API_KEY:
+            result = _call_gemini(prompt, system=system or "")
+            if result:
+                return result
+        raise
 
 
 async def chat(
