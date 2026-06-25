@@ -77,7 +77,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       } else {
         detail = 'Request failed (${e.response?.statusCode ?? e.type.name})';
       }
-      setState(() { _error = '$detail\nURL: $url/api/v1/auth/${_isRegister ? "register" : "login"}'; });
+      setState(() { _error = detail; });
     } catch (e) {
       setState(() { _error = e.toString(); });
     } finally {
