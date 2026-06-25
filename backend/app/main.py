@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
         title=cfg.app_name,
         version="0.1.0",
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     # CORS — allow all origins since auth is handled via JWT Bearer tokens.
