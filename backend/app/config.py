@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     app_host: str = "127.0.0.1"
     app_port: int = 8000
-    app_version: str = "1.1.1"
+    app_version: str = "1.2.0"
     timezone: str = "Asia/Kolkata"
     currency: str = "INR"
 
