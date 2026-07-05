@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
+import '../../core/app_startup.dart';
 import '../../core/models/habit.dart';
+import '../../core/models/transaction.dart';
 import '../../core/theme.dart';
 import 'widgets/briefing_card.dart';
 import 'widgets/habit_ring.dart';
 import 'widgets/finance_summary_card.dart';
 import 'widgets/goal_cards.dart';
+import 'widgets/recent_transactions_card.dart';
+import 'widgets/notification_bell.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -19,14 +23,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<HabitTodayRow> _habits = [];
   Map<String, dynamic>? _summary;
   List<dynamic> _goals = [];
+  List<Transaction> _recentTxns = [];
   String? _userName;
   bool _loading = true;
   String? _error;
+  final Set<String> _toggling = {};
 
   @override
   void initState() {
     super.initState();
     _loadAll();
+    // Best-effort SMS auto-import — no-ops on iOS/web or if permission
+    // hasn't been granted yet. Runs on every dashboard load (app open).
+    runStartupTasks(ref);
   }
 
   Future<void> _loadAll() async {
@@ -39,18 +48,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         dio.get('/finance/summary/${now.year}/${now.month}'),
         dio.get('/goals/', queryParameters: {'status': 'active'}),
         dio.get('/auth/me'),
+        dio.get('/finance/transactions', queryParameters: {'year': now.year, 'month': now.month}),
       ]);
       final habitsData = results[0].data['habits'] as List;
+      final txnData = results[4].data as List;
       setState(() {
         _habits = habitsData.map((h) => HabitTodayRow.fromJson(h)).toList();
         _summary = results[1].data as Map<String, dynamic>;
         _goals = results[2].data as List;
         _userName = (results[3].data as Map<String, dynamic>)['name'] as String?;
+        _recentTxns = txnData.map((e) => Transaction.fromJson(e)).toList();
         _loading = false;
       });
     } catch (e) {
       setState(() { _loading = false; _error = 'Could not load data. Pull to retry.'; });
     }
+  }
+
+  Future<void> _toggleHabit(HabitTodayRow row) async {
+    if (_toggling.contains(row.habit.id)) return;
+    setState(() => _toggling.add(row.habit.id));
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dio = ref.read(dioProvider);
+    setState(() {
+      final i = _habits.indexWhere((h) => h.habit.id == row.habit.id);
+      if (i != -1) _habits[i] = HabitTodayRow(habit: row.habit, done: !row.done);
+    });
+    try {
+      if (row.done) {
+        await dio.delete('/habits/${row.habit.id}/checkins/$today');
+      } else {
+        await dio.put('/habits/${row.habit.id}/checkins/$today', data: {});
+      }
+    } catch (_) {
+      setState(() {
+        final i = _habits.indexWhere((h) => h.habit.id == row.habit.id);
+        if (i != -1) _habits[i] = row;
+      });
+    }
+    if (mounted) setState(() => _toggling.remove(row.habit.id));
   }
 
   String _greeting() {
@@ -65,13 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('North OS'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
-            onPressed: _loadAll,
-            tooltip: 'Refresh',
-          ),
-        ],
+        actions: const [NotificationBell()],
       ),
       body: RefreshIndicator(
         onRefresh: _loadAll,
@@ -83,20 +113,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     children: [
-                      Text('${_greeting()}, ${_userName ?? ''}!', style: const TextStyle(
+                      Text('${_greeting()}, ${_userName ?? ''} 👋', style: const TextStyle(
                         fontSize: 24, fontWeight: FontWeight.w700, color: NorthColors.fg1,
                       )),
                       const SizedBox(height: 2),
-                      Text(DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
+                      Text(DateFormat('EEEE, d MMMM').format(DateTime.now()),
                           style: const TextStyle(color: NorthColors.fg4, fontSize: 13)),
                       const SizedBox(height: 20),
                       const BriefingCard(),
                       const SizedBox(height: 12),
-                      HabitRing(habits: _habits, onRefresh: _loadAll),
+                      HabitRing(habits: _habits, onToggle: _toggleHabit, toggling: _toggling),
                       const SizedBox(height: 12),
                       if (_summary != null) FinanceSummaryCard(summary: _summary!),
+                      if (_recentTxns.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        RecentTransactionsCard(transactions: _recentTxns),
+                      ],
                       if (_goals.isNotEmpty) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         GoalCards(goals: _goals),
                       ],
                       const SizedBox(height: 100),

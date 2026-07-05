@@ -231,7 +231,7 @@ async def import_preview(
     # AI categorization (batch)
     from app.services.transaction_categorizer import categorize_batch
     descriptions = [r.description for r in rows]
-    categories = await categorize_batch(descriptions)
+    categories = await categorize_batch(descriptions, user_id=current_user.id)
 
     # Phase 7: load active debts and investments for detection
     from app.models.debt import Debt as DebtModel

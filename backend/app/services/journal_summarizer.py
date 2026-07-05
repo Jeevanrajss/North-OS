@@ -63,6 +63,7 @@ async def summarize_day(
     mood_labels: list[str],
     tags: list[str],
     entry_texts: list[str],
+    user_id: str = "",
 ) -> dict[str, str | None]:
     """Generate a structured day summary dict. Never raises."""
     total = sum(len((t or "").strip()) for t in entry_texts)
@@ -89,6 +90,7 @@ async def summarize_day(
             system=_SYSTEM,
             temperature=0.35,
             max_tokens=450,
+            user_id=user_id,
         )
     except LLMError as e:
         log.warning("summarizer: LLM error: %s", e)

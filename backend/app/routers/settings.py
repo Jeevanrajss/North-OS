@@ -54,14 +54,14 @@ def update_settings(body: SettingsBulkUpdate, db: Session = Depends(get_db), cur
         # Don't overwrite existing API key with a masked placeholder
         if key == "ai.api_key" and set(value) <= {"•"}:
             continue
-        row = db.get(Setting, key)
+        row = db.query(Setting).filter(Setting.key == key, Setting.user_id == current_user.id).first()
         if row:
             row.value = value  # type: ignore[assignment]
         else:
-            db.add(Setting(key=key, value=value))
+            db.add(Setting(key=key, value=value, user_id=current_user.id))
     db.commit()
     # Invalidate LLM client cache so next call reads fresh config
-    llm_client.invalidate_config_cache()
+    llm_client.invalidate_config_cache(current_user.id)
     # Re-apply notification schedule if any timing key changed
     NOTIF_TIME_KEYS = {
         "notif.morning_briefing_time",
@@ -79,8 +79,8 @@ def update_settings(body: SettingsBulkUpdate, db: Session = Depends(get_db), cur
 @router.post("/test-llm", response_model=LLMTestResult)
 async def test_llm(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Send a trivial prompt with the currently configured provider/model."""
-    llm_client.invalidate_config_cache()  # force fresh load
-    cfg = llm_client._load_config()
+    llm_client.invalidate_config_cache(current_user.id)  # force fresh load
+    cfg = llm_client._load_config(current_user.id)
     provider = cfg.get("provider", "local")
     model = cfg.get("chat_model", "")
 
@@ -90,6 +90,7 @@ async def test_llm(db: Session = Depends(get_db), current_user: User = Depends(g
             purpose="chat",
             temperature=0.0,
             max_tokens=32,
+            user_id=current_user.id,
         )
         return LLMTestResult(ok=True, provider=provider, model=model, response=response, error=None)
     except LLMError as e:
@@ -100,10 +101,10 @@ async def test_llm(db: Session = Depends(get_db), current_user: User = Depends(g
 # GET /settings/health — fast reachability probe (5 s timeout)
 # ---------------------------------------------------------------------------
 @router.get("/health", response_model=LLMHealthResult)
-async def llm_health():
+async def llm_health(current_user: User = Depends(get_current_user)):
     """Quick connectivity probe used by the Settings UI on load.
     Returns in ≤5 s — much faster than test-llm which runs a full generation."""
-    result = await llm_client.quick_health()
+    result = await llm_client.quick_health(current_user.id)
     return result
 
 
@@ -111,9 +112,9 @@ async def llm_health():
 # GET /settings/models — live model list from current provider
 # ---------------------------------------------------------------------------
 @router.get("/models")
-async def get_models():
+async def get_models(current_user: User = Depends(get_current_user)):
     try:
-        models = await llm_client.list_models()
+        models = await llm_client.list_models(current_user.id)
         return {"models": models}
     except LLMError as e:
         return {"models": [], "error": str(e)}

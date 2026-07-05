@@ -96,7 +96,7 @@ def delete_notification(notif_id: str, db: Session = Depends(get_db), current_us
 def trigger_habit_check(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     """Manual trigger — bypasses de-dup so a fresh notification is always created."""
     from app.services.notification_service import check_habit_reminders
-    count = check_habit_reminders(db, force=True)
+    count = check_habit_reminders(db, force=True, user_id=current_user.id)
     return {"created": count}
 
 
@@ -104,7 +104,7 @@ def trigger_habit_check(db: Session = Depends(get_db), current_user: User = Depe
 def trigger_sub_check(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     """Manual trigger — bypasses per-sub daily de-dup."""
     from app.services.notification_service import check_subscription_alerts
-    count = check_subscription_alerts(db, force=True)
+    count = check_subscription_alerts(db, force=True, user_id=current_user.id)
     return {"created": count}
 
 
@@ -112,7 +112,7 @@ def trigger_sub_check(db: Session = Depends(get_db), current_user: User = Depend
 def trigger_morning_briefing(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     """Manual trigger — deletes today's existing briefing and creates a fresh one."""
     from app.services.notification_service import check_morning_briefing
-    count = check_morning_briefing(db, force=True)
+    count = check_morning_briefing(db, force=True, user_id=current_user.id)
     return {"created": count}
 
 
@@ -120,7 +120,7 @@ def trigger_morning_briefing(db: Session = Depends(get_db), current_user: User =
 def trigger_budget_check(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     """Manual trigger — bypasses monthly de-dup."""
     from app.services.notification_service import check_budget_warnings
-    count = check_budget_warnings(db, force=True)
+    count = check_budget_warnings(db, force=True, user_id=current_user.id)
     return {"created": count}
 
 
@@ -130,14 +130,15 @@ async def trigger_finance_advisor(db: Session = Depends(get_db), current_user: U
     from app.routers.finance_advisor import _build_finance_context, ADVISOR_SYSTEM
     from app.services.llm_client import generate, LLMError
     from app.services.notification_service import create_notification
-    context = await _build_finance_context(db)
+    context = await _build_finance_context(db, user_id=current_user.id)
     try:
         response = await generate(context, purpose="insights", system=ADVISOR_SYSTEM,
-                                   temperature=0.4, max_tokens=600)
+                                   temperature=0.4, max_tokens=600, user_id=current_user.id)
         if response:
             create_notification(db=db, type="finance_advisor",
                                 title="Your finance check-in 💰",
-                                body=response.strip(), skip_quiet=True)
+                                body=response.strip(), skip_quiet=True,
+                                user_id=current_user.id)
         return {"created": bool(response), "advice": response}
     except LLMError as e:
         return {"created": False, "reason": str(e)}
@@ -147,7 +148,7 @@ async def trigger_finance_advisor(db: Session = Depends(get_db), current_user: U
 def trigger_weekly_review(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     """Manual trigger for the weekly AI review. Useful for testing or ad-hoc generation."""
     from app.services.notification_service import generate_weekly_review
-    notif = generate_weekly_review(db)
+    notif = generate_weekly_review(db, user_id=current_user.id)
     if notif:
         return {"created": True, "body": notif.body}
     return {"created": False, "reason": "AI unavailable or already sent this week"}

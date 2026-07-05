@@ -5,7 +5,7 @@ import json
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -16,13 +16,23 @@ def _uuid() -> str:
 
 
 class AnalyticsSnapshot(Base):
-    """One row per computed_date. Stores pre-computed cross-module stats as JSON blobs."""
+    """One row per (user, computed_date). Stores pre-computed cross-module stats as JSON blobs.
+
+    `computed_date` used to carry `unique=True` on its own, so the whole
+    server shared one snapshot row per calendar date — every user's habit/
+    mood/finance stats overwrote each other, and a second user's scheduled
+    job crashed on the UNIQUE constraint outright. Uniqueness now lives on
+    (user_id, computed_date) instead.
+    """
 
     __tablename__ = "analytics_snapshots"
+    __table_args__ = (
+        UniqueConstraint("user_id", "computed_date", name="uq_analytics_snapshot_user_date"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
-    computed_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True, index=True)
+    computed_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
 
     # Daily habit completion rate (0.0–1.0)
     habit_completion_rate: Mapped[float | None] = mapped_column(Float, nullable=True)

@@ -48,13 +48,13 @@ def _schedule_days(habit: Habit, start: date, end: date) -> list[date]:
     return out
 
 
-def _build_context(db: Session, window_days: int = 30) -> str:
+def _build_context(db: Session, window_days: int = 30, user_id: str = "") -> str:
     today = date.today()
     start = today - timedelta(days=window_days - 1)
 
     habits: list[Habit] = (
         db.query(Habit)
-        .filter(Habit.archived_at.is_(None))
+        .filter(Habit.user_id == user_id, Habit.archived_at.is_(None))
         .order_by(Habit.sort_order)
         .all()
     )
@@ -63,7 +63,11 @@ def _build_context(db: Session, window_days: int = 30) -> str:
 
     checkins: list[HabitCheckin] = (
         db.query(HabitCheckin)
-        .filter(HabitCheckin.day_date >= start, HabitCheckin.day_date <= today)
+        .filter(
+            HabitCheckin.user_id == user_id,
+            HabitCheckin.day_date >= start,
+            HabitCheckin.day_date <= today,
+        )
         .all()
     )
     done_set: set[tuple[str, date]] = {(c.habit_id, c.day_date) for c in checkins}
@@ -121,9 +125,9 @@ def _build_context(db: Session, window_days: int = 30) -> str:
     return "\n".join(sections)
 
 
-async def generate_insights(db: Session, window_days: int = 30) -> list[str]:
+async def generate_insights(db: Session, window_days: int = 30, user_id: str = "") -> list[str]:
     """Return 3–4 insight strings. Never raises — returns [] on failure."""
-    context = _build_context(db, window_days)
+    context = _build_context(db, window_days, user_id=user_id)
     if not context:
         return []
 
@@ -134,6 +138,7 @@ async def generate_insights(db: Session, window_days: int = 30) -> list[str]:
             system=_SYSTEM,
             temperature=0.5,
             max_tokens=350,
+            user_id=user_id,
         )
     except LLMError as e:
         log.warning("habit_insights: LLM error: %s", e)

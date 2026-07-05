@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio();
@@ -14,7 +15,7 @@ final dioProvider = Provider<Dio>((ref) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         final serverUrl =
-            await storage.read(key: 'server_url') ?? 'http://localhost:8000';
+            await storage.read(key: 'server_url') ?? kDefaultServerUrl;
         options.baseUrl = '$serverUrl/api/v1';
         handler.next(options);
       },
@@ -25,7 +26,7 @@ final dioProvider = Provider<Dio>((ref) {
           if (refreshToken != null) {
             try {
               final serverUrl =
-                  await storage.read(key: 'server_url') ?? 'http://localhost:8000';
+                  await storage.read(key: 'server_url') ?? kDefaultServerUrl;
               final response = await Dio().post(
                 '$serverUrl/api/v1/auth/refresh',
                 data: {'refresh_token': refreshToken},

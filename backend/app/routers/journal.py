@@ -57,14 +57,37 @@ router = APIRouter(prefix="/api/v1/journal", tags=["journal"])
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _get_or_create_day(db: Session, d: date_cls) -> JournalDay:
-    day = db.get(JournalDay, d)
+def _get_or_create_day(db: Session, d: date_cls, user_id: str) -> JournalDay:
+    day = db.query(JournalDay).filter(JournalDay.date == d, JournalDay.user_id == user_id).first()
     if day is None:
-        day = JournalDay(date=d, mood_codes=[], tags=[])
+        day = JournalDay(date=d, user_id=user_id, mood_codes=[], tags=[])
         db.add(day)
         db.commit()
         db.refresh(day)
     return day
+
+
+def _entries_for_day(db: Session, d: date_cls, user_id: str) -> list[JournalEntry]:
+    return (
+        db.query(JournalEntry)
+        .filter(JournalEntry.day_date == d, JournalEntry.user_id == user_id)
+        .order_by(JournalEntry.created_at)
+        .all()
+    )
+
+
+def _entry_counts_for_days(db: Session, dates: list[date_cls], user_id: str) -> dict[date_cls, int]:
+    if not dates:
+        return {}
+    from sqlalchemy import func as sa_func
+
+    rows = (
+        db.query(JournalEntry.day_date, sa_func.count(JournalEntry.id))
+        .filter(JournalEntry.day_date.in_(dates), JournalEntry.user_id == user_id)
+        .group_by(JournalEntry.day_date)
+        .all()
+    )
+    return {d: c for d, c in rows}
 
 
 def _avg_valence(codes: list[str], valence_map: dict[str, int]) -> float | None:
@@ -105,14 +128,11 @@ def calendar(
 
     days = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= start, JournalDay.date <= end)
+        .filter(JournalDay.user_id == current_user.id, JournalDay.date >= start, JournalDay.date <= end)
         .all()
     )
     day_map = {d.date: d for d in days}
-
-    entry_counts: dict[date_cls, int] = {}
-    for d in days:
-        entry_counts[d.date] = len(d.entries)
+    entry_counts = _entry_counts_for_days(db, [d.date for d in days], current_user.id)
 
     cells: list[CalendarCell] = []
     cur = start
@@ -159,10 +179,11 @@ def stats(
     # Pull all days in the window in one query.
     day_rows = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= start, JournalDay.date <= today)
+        .filter(JournalDay.user_id == current_user.id, JournalDay.date >= start, JournalDay.date <= today)
         .all()
     )
     by_date: dict[date_cls, JournalDay] = {d.date: d for d in day_rows}
+    entry_counts = _entry_counts_for_days(db, list(by_date.keys()), current_user.id)
 
     # Build daily_valence + entry_count series, filling gaps with null.
     daily: list[DailyValencePoint] = []
@@ -174,7 +195,7 @@ def stats(
         if d is None:
             daily.append(DailyValencePoint(date=cur, valence_avg=None, entry_count=0))
         else:
-            n = len(d.entries)
+            n = entry_counts.get(cur, 0)
             if n > 0:
                 active_days += 1
                 total_entries += n
@@ -192,7 +213,7 @@ def stats(
     probe = today
     while probe >= start:
         d = by_date.get(probe)
-        if d and len(d.entries) > 0:
+        if d and entry_counts.get(probe, 0) > 0:
             current_streak += 1
             probe -= timedelta(days=1)
         else:
@@ -237,13 +258,13 @@ def stats(
 # ---------------------------------------------------------------------------
 @router.get("/days/{d}", response_model=DayOut)
 def get_day(d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    day = _get_or_create_day(db, d)
-    return _serialize_day(day)
+    day = _get_or_create_day(db, d, current_user.id)
+    return _serialize_day(db, day, current_user.id)
 
 
 @router.patch("/days/{d}", response_model=DayOut)
 def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    day = _get_or_create_day(db, d)
+    day = _get_or_create_day(db, d, current_user.id)
 
     if patch.mood_codes is not None:
         # validate against the 12-palette
@@ -274,7 +295,7 @@ def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db), curre
 
     db.commit()
     db.refresh(day)
-    return _serialize_day(day)
+    return _serialize_day(db, day, current_user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +303,7 @@ def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db), curre
 # ---------------------------------------------------------------------------
 @router.post("/days/{d}/entries", response_model=EntryOut, status_code=201)
 async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    _get_or_create_day(db, d)
+    _get_or_create_day(db, d, current_user.id)
     entry = JournalEntry(
         day_date=d,
         content_json=payload.content_json,
@@ -298,6 +319,7 @@ async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_
         source_type="journal_entry",
         source_id=entry.id,
         text_content=payload.content_text,
+        user_id=current_user.id,
     )
     return entry
 
@@ -317,6 +339,7 @@ async def update_entry(entry_id: str, payload: EntryIn, db: Session = Depends(ge
         source_type="journal_entry",
         source_id=entry.id,
         text_content=payload.content_text,
+        user_id=current_user.id,
     )
     return entry
 
@@ -338,7 +361,7 @@ def delete_entry(entry_id: str, db: Session = Depends(get_db), current_user: Use
 async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Suggest tags for the whole day — reads moods + existing tags + summary
     + all entries and asks the LLM for 3–5 topic tags. Transient (not saved)."""
-    day = _get_or_create_day(db, d)
+    day = _get_or_create_day(db, d, current_user.id)
 
     # Resolve mood codes → labels so the model gets semantic context.
     label_by_code: dict[str, str] = {
@@ -354,7 +377,8 @@ async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_d
         "learnings": day.summary_learnings,
         "gratitude": day.summary_gratitude,
     }
-    entry_texts = [e.content_text for e in day.entries if (e.content_text or "").strip()]
+    entries = _entries_for_day(db, d, current_user.id)
+    entry_texts = [e.content_text for e in entries if (e.content_text or "").strip()]
 
     tags, model, reason, raw = await suggest_tags_for_day(
         db,
@@ -362,6 +386,7 @@ async def suggest_tags_for_day_endpoint(d: date_cls, db: Session = Depends(get_d
         existing_tags=day.tags or [],
         summary=summary,
         entry_texts=entry_texts,
+        user_id=current_user.id,
     )
     return TagSuggestionOut(suggestions=tags, model=model, reason=reason, raw=raw)
 
@@ -374,7 +399,7 @@ async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db), cur
     """Ask the LLM to fill in highlights / wins / learnings / gratitude from
     today's entries + moods. Overwrites existing summary fields. Gracefully
     returns the unchanged day if LM Studio is offline."""
-    day = _get_or_create_day(db, d)
+    day = _get_or_create_day(db, d, current_user.id)
 
     label_by_code: dict[str, str] = {
         m.code: m.label for m in db.query(MoodCode).all()
@@ -382,14 +407,16 @@ async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db), cur
     mood_labels = [
         label_by_code.get(c, c).lower() for c in (day.mood_codes or [])
     ]
+    entries = _entries_for_day(db, d, current_user.id)
     entry_texts = [
-        e.content_text for e in day.entries if (e.content_text or "").strip()
+        e.content_text for e in entries if (e.content_text or "").strip()
     ]
 
     summary = await ai_summarize_day(
         mood_labels=mood_labels,
         tags=day.tags or [],
         entry_texts=entry_texts,
+        user_id=current_user.id,
     )
 
     # Write all four fields (AI returns None for missing areas).
@@ -399,7 +426,7 @@ async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db), cur
     day.summary_gratitude = summary["gratitude"]
     db.commit()
     db.refresh(day)
-    return _serialize_day(day)
+    return _serialize_day(db, day, current_user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +448,7 @@ async def search_journal(body: JournalSearchRequest, db: Session = Depends(get_d
 
     # 1. Embed the query.
     try:
-        vectors = await llm_client.embed([body.query])
+        vectors = await llm_client.embed([body.query], user_id=current_user.id)
         query_vec = struct.pack(f"<{len(vectors[0])}f", *vectors[0])
     except LLMError:
         return []
@@ -492,10 +519,11 @@ def annual_review(db: Session = Depends(get_db), current_user: User = Depends(ge
 
     day_rows = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= start, JournalDay.date <= today)
+        .filter(JournalDay.user_id == current_user.id, JournalDay.date >= start, JournalDay.date <= today)
         .all()
     )
     valence_map = mood_valence_map(db)
+    entry_counts = _entry_counts_for_days(db, [d.date for d in day_rows], current_user.id)
 
     # Group by year-month
     by_month: dict[str, list[JournalDay]] = defaultdict(list)
@@ -508,8 +536,8 @@ def annual_review(db: Session = Depends(get_db), current_user: User = Depends(ge
         ym = f"{cur_year:04d}-{cur_month:02d}"
         days_in_month = by_month.get(ym, [])
 
-        active_days = sum(1 for d in days_in_month if d.entries)
-        total_entries = sum(len(d.entries) for d in days_in_month)
+        active_days = sum(1 for d in days_in_month if entry_counts.get(d.date, 0) > 0)
+        total_entries = sum(entry_counts.get(d.date, 0) for d in days_in_month)
 
         # Valence avg across all days that have moods
         valences = [
@@ -567,7 +595,7 @@ def mood_habit_correlation(
     # All journal days in window that have moods
     day_rows = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= start, JournalDay.date <= today)
+        .filter(JournalDay.user_id == current_user.id, JournalDay.date >= start, JournalDay.date <= today)
         .all()
     )
     # date → valence
@@ -654,15 +682,16 @@ def export_journal(
 
     day_rows = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= start, JournalDay.date <= end)
+        .filter(JournalDay.user_id == current_user.id, JournalDay.date >= start, JournalDay.date <= end)
         .order_by(JournalDay.date)
         .all()
     )
 
     lines: list[str] = [f"# Journal Export: {start} to {end}\n"]
     for d in day_rows:
+        entries = _entries_for_day(db, d.date, current_user.id)
         has_content = (
-            d.entries or d.mood_codes or d.tags or
+            entries or d.mood_codes or d.tags or
             d.summary_highlights or d.summary_wins or
             d.summary_learnings or d.summary_gratitude
         )
@@ -686,7 +715,7 @@ def export_journal(
         if d.summary_gratitude:
             lines.append(f"**Gratitude:** {d.summary_gratitude}")
 
-        for i, entry in enumerate(d.entries, 1):
+        for i, entry in enumerate(entries, 1):
             text = (entry.content_text or "").strip()
             if text:
                 lines.append(f"\n### Entry {i}")
@@ -703,7 +732,8 @@ def export_journal(
 # ---------------------------------------------------------------------------
 # Serialization
 # ---------------------------------------------------------------------------
-def _serialize_day(day: JournalDay) -> DayOut:
+def _serialize_day(db: Session, day: JournalDay, user_id: str) -> DayOut:
+    entries = _entries_for_day(db, day.date, user_id)
     return DayOut(
         date=day.date,
         mood_codes=day.mood_codes or [],
@@ -713,7 +743,7 @@ def _serialize_day(day: JournalDay) -> DayOut:
         summary_learnings=day.summary_learnings,
         summary_gratitude=day.summary_gratitude,
         has_summary=day.has_summary,
-        entries=[EntryOut.model_validate(e) for e in day.entries],
+        entries=[EntryOut.model_validate(e) for e in entries],
         created_at=day.created_at,
         updated_at=day.updated_at,
     )

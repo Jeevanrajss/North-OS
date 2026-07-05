@@ -408,7 +408,8 @@ async def finance_insights(db: Session = Depends(get_db), current_user: User = D
 
     try:
         raw = await llm_client.generate(
-            context, purpose="insights", system=system, temperature=0.4, max_tokens=400
+            context, purpose="insights", system=system, temperature=0.4, max_tokens=400,
+            user_id=current_user.id,
         )
     except LLMError:
         return {"insights": [], "model": "chat"}

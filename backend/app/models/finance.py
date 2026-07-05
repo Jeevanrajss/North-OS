@@ -52,6 +52,18 @@ class Transaction(Base):
     # Set when this transaction is a SIP/investment → InvestmentEntry created + total_invested updated
     investment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
+    # Phase 10 — SMS auto-import provenance.
+    # source: "manual" | "sms_auto" (created straight from a parsed SMS) |
+    #         "sms_verified" (user-entered row later matched to an SMS)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    # FK-by-convention to sms_transactions.sms_id — set once a mobile SMS
+    # scan creates or verifies this row. Used for import dedup.
+    sms_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # Last 4 digits of the account/card the SMS mentioned — bank SMS rarely
+    # gives a friendly account name, only this. Distinct from `account`
+    # (free-text label like "HDFC Savings") which manual entries use.
+    account_last4: Mapped[str | None] = mapped_column(String(4), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

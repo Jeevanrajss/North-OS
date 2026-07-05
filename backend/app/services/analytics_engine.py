@@ -55,17 +55,19 @@ def _mood_score_from_codes(codes: list[str]) -> float | None:
     return round(sum(scores) / len(scores), 2)
 
 
-def _habits_for_date(db: Session, target: date) -> tuple[int, int, dict[str, bool]]:
+def _habits_for_date(db: Session, target: date, user_id: str = "") -> tuple[int, int, dict[str, bool]]:
     """
     Returns (scheduled_count, done_count, {habit_id: completed}).
     Excludes archived habits. Respects weekly schedule.
     """
     from app.models.habit import Habit, HabitCheckin
 
-    habits = db.query(Habit).filter(Habit.archived_at.is_(None)).all()
+    habits = db.query(Habit).filter(Habit.user_id == user_id, Habit.archived_at.is_(None)).all()
     checkin_ids: set[str] = {
         c.habit_id
-        for c in db.query(HabitCheckin).filter(HabitCheckin.day_date == target).all()
+        for c in db.query(HabitCheckin).filter(
+            HabitCheckin.user_id == user_id, HabitCheckin.day_date == target
+        ).all()
     }
 
     scheduled = 0
@@ -93,30 +95,39 @@ def compute_snapshot_for_date(db: Session, target: date, user_id: str = "") -> N
     Safe to call multiple times (upsert by computed_date).
     """
     from app.models.analytics import AnalyticsSnapshot
-    from app.models.journal import JournalDay
+    from app.models.journal import JournalDay, JournalEntry
     from app.models.finance import Transaction as TxnModel
 
     # ── Habits ──────────────────────────────────────────────────────────────
-    scheduled, done, habit_detail = _habits_for_date(db, target)
+    scheduled, done, habit_detail = _habits_for_date(db, target, user_id)
     completion_rate = round(done / scheduled, 4) if scheduled > 0 else None
 
     # ── Journal ─────────────────────────────────────────────────────────────
-    jday = db.query(JournalDay).filter(JournalDay.date == target).first()
+    jday = (
+        db.query(JournalDay)
+        .filter(JournalDay.date == target, JournalDay.user_id == user_id)
+        .first()
+    )
     mood_score: float | None = None
     mood_codes_raw: list[str] = []
     journal_written = False
     journal_word_count = 0
 
     if jday:
-        journal_written = bool(jday.entries)
+        day_entries = (
+            db.query(JournalEntry)
+            .filter(JournalEntry.day_date == target, JournalEntry.user_id == user_id)
+            .all()
+        )
+        journal_written = bool(day_entries)
         mood_codes_raw = list(jday.mood_codes or [])
         mood_score = _mood_score_from_codes(mood_codes_raw)
-        for entry in (jday.entries or []):
+        for entry in day_entries:
             text = entry.content_text or ""
             journal_word_count += len(text.split())
 
     # ── Finance ─────────────────────────────────────────────────────────────
-    txns = db.query(TxnModel).filter(TxnModel.date == target).all()
+    txns = db.query(TxnModel).filter(TxnModel.date == target, TxnModel.user_id == user_id).all()
     daily_expense = sum(t.amount for t in txns if t.type == "expense") or None
     daily_income = sum(t.amount for t in txns if t.type == "income") or None
     cat_totals: dict[str, float] = {}
@@ -131,7 +142,9 @@ def compute_snapshot_for_date(db: Session, target: date, user_id: str = "") -> N
     exercise_minutes: int | None = None
     try:
         from app.models.health_log import HealthLog  # type: ignore
-        hlog = db.query(HealthLog).filter(HealthLog.log_date == target).first()
+        hlog = db.query(HealthLog).filter(
+            HealthLog.log_date == target, HealthLog.user_id == user_id
+        ).first()
         if hlog:
             sleep_hours = hlog.sleep_hours
             energy_level = hlog.energy_level
@@ -141,10 +154,10 @@ def compute_snapshot_for_date(db: Session, target: date, user_id: str = "") -> N
 
     # ── Upsert ──────────────────────────────────────────────────────────────
     existing = db.query(AnalyticsSnapshot).filter(
-        AnalyticsSnapshot.computed_date == target
+        AnalyticsSnapshot.computed_date == target, AnalyticsSnapshot.user_id == user_id
     ).first()
 
-    snap = existing if existing else AnalyticsSnapshot(computed_date=target)
+    snap = existing if existing else AnalyticsSnapshot(computed_date=target, user_id=user_id)
     if not existing:
         db.add(snap)
 
@@ -167,7 +180,7 @@ def compute_snapshot_for_date(db: Session, target: date, user_id: str = "") -> N
     log.debug("Analytics snapshot upserted for %s", target)
 
 
-def backfill_snapshots(db: Session, days: int = 90) -> int:
+def backfill_snapshots(db: Session, days: int = 90, user_id: str = "") -> int:
     """
     Compute snapshots for the last `days` days.
     Always recomputes (upserts) so data stays fresh.
@@ -177,7 +190,7 @@ def backfill_snapshots(db: Session, days: int = 90) -> int:
     count = 0
     for i in range(days, -1, -1):  # oldest → newest
         try:
-            compute_snapshot_for_date(db, today - timedelta(days=i))
+            compute_snapshot_for_date(db, today - timedelta(days=i), user_id=user_id)
             count += 1
         except Exception as e:
             log.warning("Snapshot failed for day -%d: %s", i, e)
@@ -185,7 +198,7 @@ def backfill_snapshots(db: Session, days: int = 90) -> int:
     return count
 
 
-def get_correlations(db: Session, days: int = 30) -> dict:
+def get_correlations(db: Session, days: int = 30, user_id: str = "") -> dict:
     """
     Compute cross-module correlations over the last `days` days.
     Returns a dict consumed by the analytics API and AI context builder.
@@ -196,7 +209,7 @@ def get_correlations(db: Session, days: int = 30) -> dict:
     cutoff = today - timedelta(days=days)
     snaps = (
         db.query(AnalyticsSnapshot)
-        .filter(AnalyticsSnapshot.computed_date >= cutoff)
+        .filter(AnalyticsSnapshot.user_id == user_id, AnalyticsSnapshot.computed_date >= cutoff)
         .order_by(AnalyticsSnapshot.computed_date.asc())
         .all()
     )

@@ -232,6 +232,7 @@ async def suggest_tags_for_day(
     existing_tags: list[str],
     summary: dict[str, str | None],
     entry_texts: list[str],
+    user_id: str = "",
 ) -> tuple[list[str], str, str, str | None]:
     """Suggest tags for a whole day using all available context.
 
@@ -271,6 +272,7 @@ async def suggest_tags_for_day(
             system=SYSTEM_PROMPT,
             temperature=0.3,
             max_tokens=200,
+            user_id=user_id,
         )
     except LLMError as e:
         log.warning("day tag suggester failed: %s", e)

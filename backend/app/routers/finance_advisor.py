@@ -122,6 +122,7 @@ async def finance_advisor(db: Session = Depends(get_db), current_user: User = De
         response = await llm_generate(
             context, purpose="insights", system=ADVISOR_SYSTEM,
             temperature=0.4, max_tokens=600,
+            user_id=current_user.id,
         )
     except LLMError as e:
         raise HTTPException(status_code=503, detail=f"AI unavailable: {e}")

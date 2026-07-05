@@ -42,7 +42,7 @@ def _heuristic_category(description: str) -> str | None:
     return None
 
 
-async def categorize_batch(descriptions: list[str]) -> list[str]:
+async def categorize_batch(descriptions: list[str], user_id: str = "") -> list[str]:
     """Return a category string for each description (same order).
 
     Uses heuristics first, sends only unknowns to the LLM.
@@ -91,6 +91,7 @@ async def categorize_batch(descriptions: list[str]) -> list[str]:
             purpose="categorize",
             temperature=0.0,
             max_tokens=len(unknown_indices) * 12 + 50,
+            user_id=user_id,
         )
 
         # Parse response

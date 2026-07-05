@@ -33,10 +33,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 _env = get_settings()
 
 # ---------------------------------------------------------------------------
-# Runtime config cache — refreshed from DB every 60 s
+# Runtime config cache — refreshed from DB every 60 s, keyed per user so one
+# user's BYOAI provider/key is never used to serve another user's request.
 # ---------------------------------------------------------------------------
-_cache: dict[str, str] | None = None
-_cache_ts: float = 0.0
+_cache: dict[str, dict[str, str]] = {}
+_cache_ts: dict[str, float] = {}
 _CACHE_TTL = 60.0
 
 
@@ -52,11 +53,11 @@ def _env_defaults() -> dict[str, str]:
     }
 
 
-def _load_config() -> dict[str, str]:
-    global _cache, _cache_ts
+def _load_config(user_id: str = "") -> dict[str, str]:
     now = time.monotonic()
-    if _cache is not None and (now - _cache_ts) < _CACHE_TTL:
-        return _cache
+    cached = _cache.get(user_id)
+    if cached is not None and (now - _cache_ts.get(user_id, 0.0)) < _CACHE_TTL:
+        return cached
 
     try:
         from app.db import SessionLocal
@@ -64,7 +65,8 @@ def _load_config() -> dict[str, str]:
 
         with SessionLocal() as db:
             rows = db.query(SettingModel).filter(
-                SettingModel.key.like("ai.%")
+                SettingModel.key.like("ai.%"),
+                SettingModel.user_id == user_id,
             ).all()
             if rows:
                 cfg = {r.key[3:]: (r.value or "") for r in rows}  # strip "ai." prefix
@@ -72,21 +74,27 @@ def _load_config() -> dict[str, str]:
                 defaults = _env_defaults()
                 for k, v in defaults.items():
                     cfg.setdefault(k, v)
-                _cache = cfg
-                _cache_ts = now
-                return _cache
+                _cache[user_id] = cfg
+                _cache_ts[user_id] = now
+                return cfg
     except Exception:
         pass  # DB not ready yet (first boot) — fall back silently
 
-    _cache = _env_defaults()
-    _cache_ts = now
-    return _cache
+    cfg = _env_defaults()
+    _cache[user_id] = cfg
+    _cache_ts[user_id] = now
+    return cfg
 
 
-def invalidate_config_cache() -> None:
-    """Called by the settings router after saving new AI config."""
-    global _cache_ts
-    _cache_ts = 0.0
+def invalidate_config_cache(user_id: str | None = None) -> None:
+    """Called by the settings router after saving new AI config.
+
+    Pass the specific user_id whose settings just changed. Omit only for
+    a full flush (e.g. process-wide env change)."""
+    if user_id is None:
+        _cache_ts.clear()
+    else:
+        _cache_ts.pop(user_id, None)
 
 
 # ---------------------------------------------------------------------------
@@ -342,8 +350,9 @@ async def generate(
     system: str | None = None,
     temperature: float = 0.3,
     max_tokens: int = 4096,
+    user_id: str = "",
 ) -> str:
-    cfg = _load_config()
+    cfg = _load_config(user_id)
     model = _purpose_to_model(cfg, purpose)
 
     messages_no_system: list[dict[str, str]] = [{"role": "user", "content": prompt}]
@@ -388,8 +397,9 @@ async def chat(
     system: str | None = None,
     temperature: float = 0.5,
     max_tokens: int = 4096,  # Qwen3 thinking models need this much to think + answer
+    user_id: str = "",
 ) -> str:
-    cfg = _load_config()
+    cfg = _load_config(user_id)
     model = _purpose_to_model(cfg, "chat")
 
     if cfg.get("is_anthropic") == "true":
@@ -419,11 +429,11 @@ async def chat(
     )
 
 
-async def embed(texts: list[str]) -> list[list[float]]:
+async def embed(texts: list[str], user_id: str = "") -> list[list[float]]:
     if not texts:
         return []
 
-    cfg = _load_config()
+    cfg = _load_config(user_id)
     embed_model = cfg.get("embed_model", "").strip()
     if not embed_model:
         raise LLMError("No embedding model configured.")
@@ -452,9 +462,9 @@ async def embed(texts: list[str]) -> list[list[float]]:
         raise LLMError(f"Unexpected embeddings response: {data}") from e
 
 
-async def list_models() -> list[str]:
+async def list_models(user_id: str = "") -> list[str]:
     """Fetch available model IDs from the provider (OpenAI-compat only)."""
-    cfg = _load_config()
+    cfg = _load_config(user_id)
     if cfg.get("is_anthropic") == "true":
         from app.schemas.setting import PROVIDER_PRESETS
         return PROVIDER_PRESETS["anthropic"]["suggested_chat"]
@@ -484,14 +494,14 @@ async def list_models() -> list[str]:
     return [m.get("id", "") for m in r.json().get("data", [])]
 
 
-async def quick_health() -> dict[str, Any]:
+async def quick_health(user_id: str = "") -> dict[str, Any]:
     """Fast reachability probe (5 s timeout). Used by the Settings UI on load.
 
     Returns ``ok=True``  when the server answers,
             ``ok=False`` with a human-readable ``error`` when it cannot,
             ``ok=None``  for Anthropic (no cheap probe available — use test-llm).
     """
-    cfg = _load_config()
+    cfg = _load_config(user_id)
     provider = cfg.get("provider", "local")
     host = cfg.get("api_base", "")
 
@@ -542,14 +552,14 @@ async def quick_health() -> dict[str, Any]:
         return {"ok": False, "provider": provider, "host": host, "models": [], "error": str(e), "note": None}
 
 
-async def health() -> dict[str, Any]:
-    cfg = _load_config()
+async def health(user_id: str = "") -> dict[str, Any]:
+    cfg = _load_config(user_id)
     try:
         if cfg.get("is_anthropic") == "true":
             from app.schemas.setting import PROVIDER_PRESETS
             model_names = PROVIDER_PRESETS["anthropic"]["suggested_chat"]
         else:
-            model_names = await list_models()
+            model_names = await list_models(user_id)
 
         return {
             "ok": True,

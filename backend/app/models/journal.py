@@ -23,13 +23,13 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    ForeignKey,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 
@@ -69,11 +69,23 @@ class Tag(Base):
 # Main journal tables
 # ---------------------------------------------------------------------------
 class JournalDay(Base):
-    """One row per date. Day-level mood + tags + optional Reflective summary."""
+    """One row per (user, date). Day-level mood + tags + optional Reflective summary.
+
+    `date` used to be the sole primary key, which meant every user shared a
+    single row per calendar date (whoever wrote to a date last won, and every
+    user's moods/tags/summary/entries for that date were visible to everyone
+    else). It's now identified by a synthetic `id`, scoped by `user_id`, with
+    the uniqueness constraint moved to (user_id, date).
+    """
 
     __tablename__ = "journal_days"
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_journal_day_user_date"),
+    )
 
-    date: Mapped[date_cls] = mapped_column(Date, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
+    date: Mapped[date_cls] = mapped_column(Date, nullable=False, index=True)
 
     # JSON arrays — stored as JSON for easy querying with SQLite json1.
     # Mood: up to 3 mood_codes.code values.
@@ -95,12 +107,6 @@ class JournalDay(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    entries: Mapped[list["JournalEntry"]] = relationship(
-        back_populates="day",
-        cascade="all, delete-orphan",
-        order_by="JournalEntry.created_at",
-    )
-
     @property
     def has_summary(self) -> bool:
         return any(
@@ -112,24 +118,20 @@ class JournalDay(Base):
             ]
         )
 
-    @property
-    def valence_avg(self) -> float | None:
-        """Average valence of mood_codes — used for the heatmap color."""
-        # Caller must pass in a code→valence map; this property is a placeholder
-        # so the route can compute it cheaply with a joined query.
-        return None
-
 
 class JournalEntry(Base):
-    """A single timestamped entry within a day. Free-form BlockNote content."""
+    """A single timestamped entry within a day. Free-form BlockNote content.
+
+    Not FK'd to journal_days — (user_id, day_date) is looked up explicitly by
+    the router. journal_days.date stopped being unique on its own once it
+    became per-user, so a real FK to it is no longer meaningful.
+    """
 
     __tablename__ = "journal_entries"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
-    day_date: Mapped[date_cls] = mapped_column(
-        Date, ForeignKey("journal_days.date", ondelete="CASCADE"), nullable=False, index=True
-    )
+    day_date: Mapped[date_cls] = mapped_column(Date, nullable=False, index=True)
 
     # BlockNote stores as JSON blocks. We store the raw JSON string AND a plain
     # text render for fast search + embedding.
@@ -142,8 +144,6 @@ class JournalEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-
-    day: Mapped[JournalDay] = relationship(back_populates="entries")
 
 
 # ---------------------------------------------------------------------------

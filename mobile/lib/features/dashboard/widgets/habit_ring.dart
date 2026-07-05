@@ -2,11 +2,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../core/models/habit.dart';
 import '../../../core/theme.dart';
+import '../../../core/widgets/app_card.dart';
 
 class HabitRing extends StatelessWidget {
   final List<HabitTodayRow> habits;
-  final VoidCallback? onRefresh;
-  const HabitRing({super.key, required this.habits, this.onRefresh});
+  final ValueChanged<HabitTodayRow>? onToggle;
+  final Set<String> toggling;
+
+  const HabitRing({
+    super.key,
+    required this.habits,
+    this.onToggle,
+    this.toggling = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,65 +22,72 @@ class HabitRing extends StatelessWidget {
     final total = habits.length;
     final pct = total > 0 ? done / total : 0.0;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 56, height: 56,
-                  child: CustomPaint(
-                    painter: _RingPainter(pct),
-                    child: Center(child: Text('$done/$total',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                            color: NorthColors.fg1))),
-                  ),
+    return AppCard(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 56, height: 56,
+                child: CustomPaint(
+                  painter: _RingPainter(pct),
+                  child: Center(child: Text('$done/$total',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                          color: NorthColors.fg1))),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Today's Habits", style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
-                      const SizedBox(height: 4),
-                      Text(
-                        total == 0 ? 'No habits set up yet'
-                            : done == total ? 'All done! Great job.'
-                            : '${total - done} remaining',
-                        style: const TextStyle(fontSize: 12, color: NorthColors.fg4),
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Today's Habits", style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
+                    const SizedBox(height: 4),
+                    Text(
+                      total == 0 ? 'No habits set up yet'
+                          : done == total ? 'All done! Great job.'
+                          : '${total - done} remaining',
+                      style: const TextStyle(fontSize: 12, color: NorthColors.fg4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            if (habits.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Divider(height: 1, color: NorthColors.border1),
-              const SizedBox(height: 8),
-              ...habits.map((h) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(children: [
-                  Text(h.habit.emoji, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(h.habit.name, style: TextStyle(
-                    fontSize: 13,
-                    color: h.done ? NorthColors.fg4 : NorthColors.fg1,
-                    decoration: h.done ? TextDecoration.lineThrough : null,
-                  ))),
-                  Icon(
-                    h.done ? Icons.check_circle : Icons.circle_outlined,
-                    size: 18,
-                    color: h.done ? NorthColors.green : NorthColors.fg5,
-                  ),
-                ]),
-              )),
+              ),
             ],
+          ),
+          if (habits.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: NorthColors.border1),
+            const SizedBox(height: 4),
+            ...habits.map((h) {
+              final isToggling = toggling.contains(h.habit.id);
+              return InkWell(
+                onTap: (onToggle == null || isToggling) ? null : () => onToggle!(h),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(children: [
+                    Text(h.habit.emoji, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(h.habit.name, style: TextStyle(
+                      fontSize: 13,
+                      color: h.done ? NorthColors.fg4 : NorthColors.fg1,
+                      decoration: h.done ? TextDecoration.lineThrough : null,
+                    ))),
+                    if (isToggling)
+                      const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    else
+                      Icon(
+                        h.done ? Icons.check_circle : Icons.circle_outlined,
+                        size: 18,
+                        color: h.done ? NorthColors.green : NorthColors.fg5,
+                      ),
+                  ]),
+                ),
+              );
+            }),
           ],
-        ),
+        ],
       ),
     );
   }

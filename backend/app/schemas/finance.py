@@ -136,6 +136,10 @@ class TransactionOut(BaseModel):
     account: str | None
     payee: str | None
     notes: str | None
+    # Phase 10 — SMS auto-import provenance
+    source: str = "manual"
+    sms_id: str | None = None
+    account_last4: str | None = None
     created_at: datetime
     updated_at: datetime
 

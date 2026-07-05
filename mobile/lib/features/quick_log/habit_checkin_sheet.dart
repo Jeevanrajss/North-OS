@@ -45,40 +45,47 @@ class _HabitCheckinSheetState extends ConsumerState<HabitCheckinSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Bottom sheet content must scroll internally — a plain Column with
+    // mainAxisSize.min overflows once the habit list exceeds screen height.
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: Container(width: 36, height: 4,
-                decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            const Text("Today's Habits", style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
-            const SizedBox(height: 12),
-            if (_loading) const Center(child: CircularProgressIndicator())
-            else if (_habits.isEmpty)
-              const Padding(padding: EdgeInsets.all(20),
-                  child: Text('No habits due today', style: TextStyle(color: NorthColors.fg5)))
-            else
-              ..._habits.map((h) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Text(h.habit.emoji, style: const TextStyle(fontSize: 22)),
-                title: Text(h.habit.name, style: const TextStyle(color: NorthColors.fg1)),
-                trailing: _toggling.contains(h.habit.id)
-                    ? const SizedBox(width: 24, height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : IconButton(
-                        icon: Icon(
-                          h.done ? Icons.check_circle : Icons.circle_outlined,
-                          color: h.done ? NorthColors.green : NorthColors.fg5,
-                        ),
-                        onPressed: () => _toggle(h),
-                      ),
-              )),
-          ],
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 36, height: 4,
+                    decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                const Text("Today's Habits", style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+                const SizedBox(height: 12),
+                if (_loading) const Center(child: CircularProgressIndicator())
+                else if (_habits.isEmpty)
+                  const Padding(padding: EdgeInsets.all(20),
+                      child: Text('No habits due today', style: TextStyle(color: NorthColors.fg5)))
+                else
+                  ..._habits.map((h) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Text(h.habit.emoji, style: const TextStyle(fontSize: 22)),
+                    title: Text(h.habit.name, style: const TextStyle(color: NorthColors.fg1)),
+                    trailing: _toggling.contains(h.habit.id)
+                        ? const SizedBox(width: 24, height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : IconButton(
+                            icon: Icon(
+                              h.done ? Icons.check_circle : Icons.circle_outlined,
+                              color: h.done ? NorthColors.green : NorthColors.fg5,
+                            ),
+                            onPressed: () => _toggle(h),
+                          ),
+                  )),
+              ],
+            ),
+          ),
         ),
       ),
     );

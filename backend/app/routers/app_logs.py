@@ -109,6 +109,7 @@ def log_error(body: ErrorLogIn):
 def get_errors(
     limit: int = Query(default=50, ge=1, le=200),
     error_code: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
 ):
     """Return recent errors, newest first. Filter by error_code prefix optionally."""
     entries = list(reversed(list(_ERROR_RING)))
@@ -118,13 +119,16 @@ def get_errors(
 
 
 @router.delete("/errors", status_code=204)
-def clear_errors():
+def clear_errors(current_user: User = Depends(get_current_user)):
     """Clear the in-memory error ring (does not clear the log file)."""
     _ERROR_RING.clear()
 
 
 @router.get("/file")
-def get_log_file_tail(lines: int = Query(default=100, ge=1, le=1000)):
+def get_log_file_tail(
+    lines: int = Query(default=100, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+):
     """Return the last N lines of the error log file as raw NDJSON."""
     p = _log_path()
     if not p or not p.exists():

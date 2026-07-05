@@ -15,6 +15,11 @@ class SmsTransaction(Base):
     id            = Column(String,  primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id       = Column(String(36),  nullable=False, index=True, default="")
     source        = Column(String(20),  nullable=False)          # "android" | "imessage"
+    # Client-supplied SMS content-provider id — set only by the mobile app's
+    # POST /sms/import flow (Phase 10). Null for the iMessage/webhook flows,
+    # which dedup on raw_body instead. Used to short-circuit re-import of
+    # the exact same device SMS across app restarts.
+    sms_id        = Column(String(64),  nullable=True, index=True)
     sender        = Column(String(100), nullable=True)           # e.g. "HDFCBK"
     raw_body      = Column(Text,        nullable=False)
     received_at   = Column(DateTime,    nullable=False, default=datetime.utcnow)

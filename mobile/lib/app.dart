@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'core/app_startup.dart';
 import 'core/storage/secure_storage.dart';
-import 'core/theme.dart';
+import 'core/theme/app_theme.dart';
+import 'core/widgets/bottom_nav.dart';
 import 'features/auth/setup_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/finance/finance_screen.dart';
+import 'features/habits/habits_screen.dart';
 import 'features/quick_log/quick_log_fab.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/subscriptions/screens/subscriptions_screen.dart';
+import 'features/splits/screens/splits_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -22,6 +28,10 @@ final _router = GoRouter(
   },
   routes: [
     GoRoute(path: '/setup', builder: (_, __) => const SetupScreen()),
+    // Pushed on top of the root navigator — reached via the "More" sheet,
+    // not part of the bottom nav's indexed branches.
+    GoRoute(path: '/subscriptions', builder: (_, __) => const SubscriptionsScreen()),
+    GoRoute(path: '/splits', builder: (_, __) => const SplitsScreen()),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _AppShell(shell: shell),
       branches: [
@@ -35,6 +45,12 @@ final _router = GoRouter(
         ),
         StatefulShellBranch(
           navigatorKey: GlobalKey<NavigatorState>(),
+          routes: [GoRoute(path: '/habits', builder: (_, __) => const HabitsScreen())],
+        ),
+        // Settings is still a real route (linked from the More sheet) but
+        // not one of the 3 indexed bottom-nav destinations.
+        StatefulShellBranch(
+          navigatorKey: GlobalKey<NavigatorState>(),
           routes: [GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen())],
         ),
       ],
@@ -42,14 +58,18 @@ final _router = GoRouter(
   ],
 );
 
-class NorthApp extends StatelessWidget {
+class NorthApp extends ConsumerWidget {
   const NorthApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'North OS',
-      theme: northTheme(),
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: themeMode,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );
@@ -62,19 +82,16 @@ class _AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Branch index 3 (Settings) has no bottom-nav slot of its own — it's
+    // reached via the More sheet, so BottomNav only reflects indices 0-2.
+    final navIndex = shell.currentIndex > 2 ? -1 : shell.currentIndex;
     return Scaffold(
       body: shell,
       floatingActionButton: const QuickLogFab(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: shell.currentIndex,
-        backgroundColor: NorthColors.bg2,
-        indicatorColor: NorthColors.accentMuted,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomNav(
+        currentIndex: navIndex,
         onDestinationSelected: (i) => shell.goBranch(i, initialLocation: i == shell.currentIndex),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Finance'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
-        ],
       ),
     );
   }

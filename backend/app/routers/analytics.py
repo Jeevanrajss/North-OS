@@ -42,7 +42,7 @@ def correlations(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Return cross-module correlation data for the last N days."""
-    return get_correlations(db, days=days)
+    return get_correlations(db, days=days, user_id=current_user.id)
 
 
 @router.get("/snapshots")
@@ -92,12 +92,12 @@ def trigger_backfill(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     """Manually trigger a backfill. Exposed for the Settings UI / testing."""
-    count = backfill_snapshots(db, days=days)
+    count = backfill_snapshots(db, days=days, user_id=current_user.id)
     return {"processed": count}
 
 
 @router.post("/compute-today")
 def compute_today(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Recompute today's snapshot on demand."""
-    compute_snapshot_for_date(db, date.today())
+    compute_snapshot_for_date(db, date.today(), user_id=current_user.id)
     return {"ok": True, "date": date.today().isoformat()}

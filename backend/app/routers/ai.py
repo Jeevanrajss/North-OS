@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 # ---------------------------------------------------------------------------
 def _build_data_context(db: Session, user_id: str = "") -> str:
     from app.models.habit import Habit, HabitCheckin
-    from app.models.journal import JournalDay
+    from app.models.journal import JournalDay, JournalEntry
     from app.models.subscription import Subscription
     from app.schemas.subscription import MONTHLY_MULT
 
@@ -74,12 +74,22 @@ def _build_data_context(db: Session, user_id: str = "") -> str:
             )
 
     # --- Journal ---
+    journal_window_start = today - timedelta(days=21)
     journal_days = (
         db.query(JournalDay)
-        .filter(JournalDay.date >= today - timedelta(days=21))
+        .filter(JournalDay.user_id == user_id, JournalDay.date >= journal_window_start)
         .order_by(JournalDay.date.desc())
         .all()
     )
+    entries_by_date: dict = defaultdict(list)
+    if journal_days:
+        for e in (
+            db.query(JournalEntry)
+            .filter(JournalEntry.user_id == user_id, JournalEntry.day_date >= journal_window_start)
+            .order_by(JournalEntry.created_at)
+            .all()
+        ):
+            entries_by_date[e.day_date].append(e)
     if journal_days:
         lines.append("\n## Journal (last 21 days, newest first)")
         for jd in journal_days:
@@ -97,7 +107,7 @@ def _build_data_context(db: Session, user_id: str = "") -> str:
                 summary_bits.append(f"gratitude: {jd.summary_gratitude}")
             if summary_bits:
                 parts.append("  Summary: " + " | ".join(summary_bits))
-            for i, e in enumerate(jd.entries[:2], 1):
+            for i, e in enumerate(entries_by_date.get(jd.date, [])[:2], 1):
                 snippet = (e.content_text or "").strip()[:250]
                 if snippet:
                     parts.append(f"  Entry {i}: {snippet}")
@@ -244,7 +254,7 @@ class PingResponse(BaseModel):
 
 
 @router.post("/ping", response_model=PingResponse)
-async def ping(req: PingRequest):
+async def ping(req: PingRequest, current_user: User = Depends(get_current_user)):
     try:
         text = await llm_client.generate(
             req.prompt,
@@ -252,6 +262,7 @@ async def ping(req: PingRequest):
             system=req.system,
             temperature=req.temperature,
             max_tokens=req.max_tokens,
+            user_id=current_user.id,
         )
     except LLMError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
@@ -272,7 +283,7 @@ async def habit_insights(db: Session = Depends(get_db), current_user: User = Dep
     Returns an empty list (not an error) if LM Studio is offline or no habits exist."""
     from app.services.habit_insights import generate_insights
 
-    insights = await generate_insights(db)
+    insights = await generate_insights(db, user_id=current_user.id)
     return HabitInsightsResponse(insights=insights, model="chat")
 
 
@@ -335,6 +346,7 @@ async def subscription_insights(db: Session = Depends(get_db), current_user: Use
             system=system,
             temperature=0.5,
             max_tokens=300,
+            user_id=current_user.id,
         )
     except LLMError:
         return SubInsightsResponse(insights=[], model="chat")
@@ -395,6 +407,7 @@ async def data_chat(req: ChatRequest, db: Session = Depends(get_db), current_use
             system=system,
             temperature=0.5,
             max_tokens=1024,
+            user_id=current_user.id,
         )
     except LLMError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e

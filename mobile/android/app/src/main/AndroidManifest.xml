@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Phase 10 — SMS auto-import. Requested at runtime via permission_handler,
+         only after the user is authenticated (see app_startup.dart). -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
     <application
         android:label="north_os"
         android:name="${applicationName}"

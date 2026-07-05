@@ -8,6 +8,9 @@ class Transaction {
   final String? account;
   final String? payee;
   final String? notes;
+  final String source; // 'manual' | 'sms_auto' | 'sms_verified'
+  final String? smsId;
+  final String? accountLast4;
 
   Transaction({
     required this.id,
@@ -19,7 +22,12 @@ class Transaction {
     this.account,
     this.payee,
     this.notes,
+    this.source = 'manual',
+    this.smsId,
+    this.accountLast4,
   });
+
+  bool get isSmsImported => source == 'sms_auto' || source == 'sms_verified';
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
         id: json['id'] as String,
@@ -31,5 +39,8 @@ class Transaction {
         account: json['account'] as String?,
         payee: json['payee'] as String?,
         notes: json['notes'] as String?,
+        source: json['source'] as String? ?? 'manual',
+        smsId: json['sms_id'] as String?,
+        accountLast4: json['account_last4'] as String?,
       );
 }

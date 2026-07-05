@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/transaction.dart';
 import '../../../core/theme.dart';
+import '../../../core/widgets/amount_text.dart';
+import '../../../core/widgets/filter_chip_row.dart';
+import '../widgets/transaction_detail_sheet.dart';
 
 class TransactionsTab extends ConsumerStatefulWidget {
   const TransactionsTab({super.key});
@@ -14,8 +17,10 @@ class TransactionsTab extends ConsumerStatefulWidget {
 class _TransactionsTabState extends ConsumerState<TransactionsTab> {
   List<Transaction> _txns = [];
   bool _loading = true;
-  String _filter = 'all';
+  String _filter = 'All';
   String? _error;
+
+  static const _filters = ['All', 'Income', 'Expense', 'Investment', 'SMS Auto'];
 
   @override
   void initState() { super.initState(); _load(); }
@@ -34,8 +39,9 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
   }
 
   List<Transaction> get _filtered {
-    if (_filter == 'all') return _txns;
-    return _txns.where((t) => t.type == _filter).toList();
+    if (_filter == 'All') return _txns;
+    if (_filter == 'SMS Auto') return _txns.where((t) => t.isSmsImported).toList();
+    return _txns.where((t) => t.type == _filter.toLowerCase()).toList();
   }
 
   @override
@@ -44,25 +50,10 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: SizedBox(
-            height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final f in ['all', 'income', 'expense', 'investment'])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(f[0].toUpperCase() + f.substring(1),
-                          style: const TextStyle(fontSize: 12)),
-                      selected: _filter == f,
-                      selectedColor: NorthColors.accentMuted,
-                      onSelected: (_) => setState(() => _filter = f),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-              ],
-            ),
+          child: FilterChipRow(
+            options: _filters,
+            selected: _filter,
+            onSelected: (f) => setState(() => _filter = f),
           ),
         ),
         if (_txns.isNotEmpty)
@@ -92,7 +83,7 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
                     ))
                   : _filtered.isEmpty
                       ? Center(child: Text(
-                          _filter == 'all' ? 'No transactions this month' : 'No $_filter transactions',
+                          _filter == 'All' ? 'No transactions this month' : 'No $_filter transactions',
                           style: const TextStyle(color: NorthColors.fg5)))
                       : RefreshIndicator(
                           onRefresh: _load,
@@ -113,11 +104,10 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
     final color = isIncome ? NorthColors.green
         : t.type == 'investment' ? NorthColors.blue
         : NorthColors.red;
-    final sign = isIncome ? '+' : '-';
-    final fmt = NumberFormat('#,##0', 'en_IN');
 
     return ListTile(
       dense: true,
+      onTap: () => TransactionDetailSheet.show(context, t, _load),
       leading: Container(
         width: 36, height: 36,
         decoration: BoxDecoration(
@@ -131,13 +121,25 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
           size: 18, color: color,
         ),
       ),
-      title: Text(t.payee ?? t.notes ?? t.category ?? 'Transaction',
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, color: NorthColors.fg1)),
+      title: Row(children: [
+        Flexible(child: Text(t.payee ?? t.notes ?? t.category ?? 'Transaction',
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, color: NorthColors.fg1))),
+        if (t.isSmsImported) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: NorthColors.blue.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text('SMS', style: TextStyle(fontSize: 9, color: NorthColors.blue, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ]),
       subtitle: Text('${t.date}  ${t.category ?? ''}',
           style: const TextStyle(fontSize: 11, color: NorthColors.fg5)),
-      trailing: Text('$sign${fmt.format(t.amount)}',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
+      trailing: AmountText(amount: t.amount, direction: t.type, size: 14),
     );
   }
 }

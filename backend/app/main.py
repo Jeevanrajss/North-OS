@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import init_db
 from app.routers import accounts, ai, analytics, app_logs, auth, data, debt, finance, finance_advisor, financial_goals, goals, habit, health, health_tracking, investments, journal, settings, subscription, notifications
-from app.routers import import_router, sms
+from app.routers import import_router, sms, contacts, splits
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,12 +26,17 @@ async def lifespan(app: FastAPI):
     init_db()
     log.info("DB ready")
 
-    # Backfill analytics snapshots on startup (idempotent — upserts existing rows)
+    # Backfill analytics snapshots on startup (idempotent — upserts existing rows).
+    # Runs once per active user — a snapshot is now scoped to (user_id, date),
+    # so a single anonymous backfill would only ever populate the local account.
     from app.services.analytics_engine import backfill_snapshots
     from app.db import SessionLocal
+    from app.models.user import User
     with SessionLocal() as _db:
         try:
-            backfill_snapshots(_db, days=90)
+            users = _db.query(User).filter(User.is_active == True).all()
+            for _user in users:
+                backfill_snapshots(_db, days=90, user_id=_user.id)
         except Exception as _e:
             log.warning("Analytics backfill failed on startup (non-fatal): %s", _e)
 
@@ -83,6 +88,8 @@ def create_app() -> FastAPI:
     app.include_router(financial_goals.router)
     app.include_router(finance_advisor.router)
     app.include_router(data.router)
+    app.include_router(contacts.router)
+    app.include_router(splits.router)
 
     # Version endpoint — used by Electron to check running version
     @app.get("/api/v1/app-version")

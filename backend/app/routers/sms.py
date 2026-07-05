@@ -103,6 +103,24 @@ class SmsTransactionOut(BaseModel):
     status: str
 
 
+class SMSParseRequest(BaseModel):
+    body: str
+    sender: str
+
+
+class SMSImportRequest(BaseModel):
+    sms_id: str
+    body: str
+    sender: str
+    timestamp: int              # ms since epoch, from the device
+    amount: float
+    direction: str               # "debit" | "credit"
+    merchant: Optional[str] = None
+    account_last4: Optional[str] = None
+    balance_after: Optional[float] = None
+    category: Optional[str] = None
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _sms_to_out(row: SmsTransaction) -> SmsTransactionOut:
@@ -124,16 +142,19 @@ def _sms_to_out(row: SmsTransaction) -> SmsTransactionOut:
     )
 
 
-def _already_seen(db: Session, body: str) -> bool:
-    """Deduplicate: same raw body ever seen (any status, any age)."""
+def _already_seen(db: Session, body: str, user_id: str) -> bool:
+    """Deduplicate: same raw body ever seen (any status, any age), for this user."""
     return (
-        db.query(SmsTransaction).filter(SmsTransaction.user_id == current_user.id)
+        db.query(SmsTransaction).filter(SmsTransaction.user_id == user_id)
         .filter(SmsTransaction.raw_body == body)
         .first()
     ) is not None
 
 
-def _ingest(db: Session, body: str, sender: Optional[str], source: str, received_at: Optional[datetime] = None) -> Optional[SmsTransaction]:
+def _ingest(
+    db: Session, body: str, sender: Optional[str], source: str, user_id: str,
+    received_at: Optional[datetime] = None,
+) -> Optional[SmsTransaction]:
     """Parse and persist one SMS. Returns None if duplicate, not a transaction, or already exists."""
     body = body.strip()
     if not body:
@@ -146,11 +167,12 @@ def _ingest(db: Session, body: str, sender: Optional[str], source: str, received
         return None
 
     # Dedup: same raw body already seen in last 48 h
-    if _already_seen(db, body):
+    if _already_seen(db, body, user_id):
         return None
 
     row = SmsTransaction(
         id=str(uuid.uuid4()),
+        user_id=user_id,
         source=source,
         sender=sender,
         raw_body=body,
@@ -181,7 +203,7 @@ BANK_SENDER_RE = re.compile(
     re.IGNORECASE,
 )
 
-def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransaction], dict]:
+def _scan_imessage_db(db: Session, user_id: str, days_back: int = 7) -> tuple[list[SmsTransaction], dict]:
     """
     Read macOS Messages.db and ingest any new bank SMS.
     Returns (ingested_rows, debug_info).
@@ -288,7 +310,7 @@ def _scan_imessage_db(db: Session, days_back: int = 7) -> tuple[list[SmsTransact
         # Convert Apple timestamp → Python datetime
         ts = datetime.utcfromtimestamp(row["date"] / 1_000_000_000 + APPLE_EPOCH_OFFSET)
 
-        sms_row = _ingest(db, text, sender, "imessage", ts)
+        sms_row = _ingest(db, text, sender, "imessage", user_id, ts)
         if sms_row:
             results.append(sms_row)
             debug["ingested"] += 1
@@ -327,16 +349,183 @@ def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db), curre
             pass
 
     body = _resolve_body(payload.body, payload.encrypted, db)
-    row = _ingest(db, body, payload.sender, "android", received_at)
+    row = _ingest(db, body, payload.sender, "android", current_user.id, received_at)
     if row is None:
         return {"status": "duplicate_or_skipped"}
     return {"status": "ok", "id": row.id, "parsed": row.parsed_ok}
 
 
+def _parse_gemini_json(raw: str) -> dict:
+    """Extract the first {...} JSON object from a model response, tolerating
+    ```json fences or stray prose around it. Returns {"is_transaction": False}
+    on any failure so callers can treat "couldn't parse" the same as "not a
+    transaction" rather than crashing."""
+    import json as _json
+
+    text = (raw or "").strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```\s*$", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return {"is_transaction": False}
+    try:
+        data = _json.loads(match.group(0))
+        return data if isinstance(data, dict) else {"is_transaction": False}
+    except _json.JSONDecodeError:
+        return {"is_transaction": False}
+
+
+@router.post("/parse")
+async def parse_sms_endpoint(
+    payload: SMSParseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Mobile-only entry point: ask the LLM (Gemini Flash by default, or the
+    user's configured provider) to parse one bank SMS into structured JSON.
+    Returns {"is_transaction": false} if the SMS isn't a transaction, or on
+    any parse failure — the client falls back to local regex parsing.
+    """
+    from app.services import llm_client
+    from app.services.llm_client import LLMError
+
+    prompt = f"""You are a bank SMS parser for Indian banks. Parse this SMS and return JSON.
+
+SMS: "{payload.body}"
+Sender: "{payload.sender}"
+
+Return ONLY valid JSON in this exact format:
+{{
+  "is_transaction": true,
+  "amount": 1500.00,
+  "direction": "debit",
+  "merchant": "Swiggy",
+  "account_last4": "1234",
+  "balance_after": 45000.00,
+  "category": "Food"
+}}
+
+"direction" must be "debit" or "credit". Category must be one of: Food, Transport,
+Shopping, Bills, Health, Entertainment, Investment, Salary, Transfer, EMI, Other.
+
+If not a transaction SMS, return exactly: {{"is_transaction": false}}"""
+
+    try:
+        raw = await llm_client.generate(
+            prompt, purpose="categorize", temperature=0.0, max_tokens=200,
+            user_id=current_user.id,
+        )
+    except LLMError:
+        return {"is_transaction": False}
+
+    return _parse_gemini_json(raw)
+
+
+@router.post("/import")
+def import_sms_transaction(
+    payload: SMSImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Mobile-only entry point: the client already parsed the SMS (via /parse
+    or local regex) and asks the backend to create/dedup the transaction.
+
+    Dedup order:
+      1. Same sms_id already imported for this user → return the existing txn.
+      2. Same amount + account_last4 + day, on a manually-entered transaction
+         (sms_id IS NULL) → mark that transaction "sms_verified" instead of
+         creating a duplicate.
+      3. Otherwise → create a new Transaction + SmsTransaction record.
+    """
+    existing_sms = db.query(SmsTransaction).filter(
+        SmsTransaction.sms_id == payload.sms_id,
+        SmsTransaction.user_id == current_user.id,
+    ).first()
+    if existing_sms:
+        return {"is_duplicate": True, "transaction_id": existing_sms.transaction_id}
+
+    txn_date = date_cls.fromtimestamp(payload.timestamp / 1000)
+    txn_type = "income" if payload.direction == "credit" else "expense"
+
+    fingerprint_match = None
+    if payload.account_last4:
+        fingerprint_match = db.query(Transaction).filter(
+            Transaction.user_id == current_user.id,
+            Transaction.amount == payload.amount,
+            Transaction.account_last4 == payload.account_last4,
+            Transaction.date == txn_date,
+            Transaction.sms_id.is_(None),
+        ).first()
+
+    if fingerprint_match:
+        fingerprint_match.sms_id = payload.sms_id
+        fingerprint_match.source = "sms_verified"
+        sms_rec = SmsTransaction(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            source="android",
+            sms_id=payload.sms_id,
+            sender=payload.sender,
+            raw_body=payload.body,
+            received_at=datetime.utcfromtimestamp(payload.timestamp / 1000),
+            parsed_ok=True,
+            txn_type=txn_type,
+            amount=payload.amount,
+            payee=payload.merchant,
+            balance=payload.balance_after,
+            txn_date=txn_date.isoformat(),
+            status="confirmed",
+            transaction_id=fingerprint_match.id,
+        )
+        db.add(sms_rec)
+        db.commit()
+        return {"is_duplicate": True, "transaction_id": fingerprint_match.id}
+
+    txn = Transaction(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        amount=payload.amount,
+        type=txn_type,
+        date=txn_date,
+        payee=payload.merchant,
+        category=payload.category or "Other",
+        account_last4=payload.account_last4,
+        source="sms_auto",
+        sms_id=payload.sms_id,
+        notes=f"Auto-imported from SMS ({payload.sender})",
+    )
+    db.add(txn)
+    db.flush()
+
+    sms_rec = SmsTransaction(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        source="android",
+        sms_id=payload.sms_id,
+        sender=payload.sender,
+        raw_body=payload.body,
+        received_at=datetime.utcfromtimestamp(payload.timestamp / 1000),
+        parsed_ok=True,
+        txn_type=txn_type,
+        amount=payload.amount,
+        payee=payload.merchant,
+        balance=payload.balance_after,
+        txn_date=txn_date.isoformat(),
+        status="confirmed",
+        transaction_id=txn.id,
+    )
+    db.add(sms_rec)
+    db.commit()
+    return {"is_duplicate": False, "transaction_id": txn.id}
+
+
 @router.post("/scan-imessage")
 def scan_imessage(days_back: int = 7, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Scan macOS Messages.db for recent bank SMS (read-only)."""
-    ingested, debug = _scan_imessage_db(db, days_back)
+    ingested, debug = _scan_imessage_db(db, current_user.id, days_back)
     if debug.get("error"):
         # Return 200 with error detail so the frontend can show a useful message
         return {
@@ -388,6 +577,7 @@ def confirm_sms(sms_id: str, body: ConfirmSmsBody = ConfirmSmsBody(), db: Sessio
 
     txn = Transaction(
         id=str(uuid.uuid4()),
+        user_id=current_user.id,
         date=txn_date,
         type=row.txn_type or "expense",
         amount=row.amount or 0.0,
@@ -396,6 +586,7 @@ def confirm_sms(sms_id: str, body: ConfirmSmsBody = ConfirmSmsBody(), db: Sessio
         account=row.account,
         category=body.category or None,
         notes=f"Auto-imported from SMS ({row.source})",
+        source="sms_auto",
     )
     db.add(txn)
 
@@ -746,7 +937,7 @@ async def sync_httpsms(db: Session = Depends(get_db), current_user: User = Depen
                             pass  # fall through with raw content; parser will skip it
 
                     # _ingest calls parse_sms internally; only saves if parsed_ok=True
-                    row = _ingest(db, content, sender, "android", msg_ts)
+                    row = _ingest(db, content, sender, "android", current_user.id, msg_ts)
                     if row and row.parsed_ok:
                         ingested += 1
 

@@ -1,6 +1,7 @@
 """Auth routes — register (invite-only), login, refresh, me."""
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.models.user import User
 from app.services.auth_service import (
@@ -21,9 +23,17 @@ from app.services.auth_service import (
 )
 from jose import JWTError, jwt
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 INVITE_CODE = os.getenv("INVITE_CODE", "")
+
+if not INVITE_CODE and get_settings().app_env != "dev":  # pragma: no cover
+    log.warning(
+        "INVITE_CODE is unset — registration is OPEN to anyone who can reach this server. "
+        "Set the INVITE_CODE env var to gate signups."
+    )
 
 
 class RegisterIn(BaseModel):

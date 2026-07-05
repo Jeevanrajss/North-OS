@@ -54,6 +54,7 @@ async def reembed_source(
     source_type: str,
     source_id: str,
     text_content: str,
+    user_id: str = "",
 ) -> int:
     """Delete any existing embeddings for (source_type, source_id) and re-insert.
 
@@ -82,7 +83,7 @@ async def reembed_source(
         return 0
 
     try:
-        vectors = await llm_client.embed(chunks)
+        vectors = await llm_client.embed(chunks, user_id=user_id)
     except llm_client.LLMError as e:
         log.warning("Embedding skipped for %s:%s — %s", source_type, source_id, e)
         return 0

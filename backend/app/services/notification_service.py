@@ -15,12 +15,12 @@ log = logging.getLogger(__name__)
 # Quiet hours helpers
 # ---------------------------------------------------------------------------
 
-def _is_quiet_hours(db: Session) -> bool:
+def _is_quiet_hours(db: Session, user_id: str = "") -> bool:
     """Return True if current local time falls within the configured quiet window."""
     from app.models.setting import Setting
 
-    qs = db.query(Setting).filter(Setting.key == "notif.quiet_start").first()
-    qe = db.query(Setting).filter(Setting.key == "notif.quiet_end").first()
+    qs = db.query(Setting).filter(Setting.key == "notif.quiet_start", Setting.user_id == user_id).first()
+    qe = db.query(Setting).filter(Setting.key == "notif.quiet_end", Setting.user_id == user_id).first()
     start_str = qs.value if qs and qs.value else "22:00"
     end_str = qe.value if qe and qe.value else "07:00"
 
@@ -60,7 +60,7 @@ def create_notification(
     user_id: str = "",
 ) -> Notification | None:
     """Persist a notification. Returns None (and skips) if quiet hours are active."""
-    if not skip_quiet and _is_quiet_hours(db):
+    if not skip_quiet and _is_quiet_hours(db, user_id):
         log.debug("Quiet hours active — suppressed notification [%s]: %s", type, title)
         return None
 
@@ -97,6 +97,7 @@ def check_morning_briefing(db: Session, force: bool = False, user_id: str = '') 
     # De-dup: one briefing per day — but manual triggers (force=True) override
     already = db.query(Notification).filter(
         Notification.type == "morning_briefing",
+        Notification.user_id == user_id,
         sqlfunc.date(Notification.created_at) == str(today),
     ).first()
     if already:
@@ -114,7 +115,7 @@ def check_morning_briefing(db: Session, force: bool = False, user_id: str = '') 
         from app.routers.ai import _build_data_context
 
         context = _build_data_context(db, user_id=user_id)
-        correlations = get_correlations(db, days=30)
+        correlations = get_correlations(db, days=30, user_id=user_id)
 
         # Build pattern nudge lines
         pattern_lines: list[str] = []
@@ -192,7 +193,7 @@ Under 80 words total. Direct and warm. No filler."""
     from app.models.subscription import Subscription
 
     parts: list[str] = []
-    active_habits = db.query(Habit).filter(Habit.archived_at.is_(None)).all()
+    active_habits = db.query(Habit).filter(Habit.user_id == user_id, Habit.archived_at.is_(None)).all()
     if active_habits:
         due_today = [
             h for h in active_habits
@@ -202,6 +203,7 @@ Under 80 words total. Direct and warm. No filler."""
         if due_today:
             checked = db.query(HabitCheckin).filter(
                 HabitCheckin.habit_id.in_([h.id for h in due_today]),
+                HabitCheckin.user_id == user_id,
                 HabitCheckin.day_date == today,
             ).count()
             total = len(due_today)
@@ -211,6 +213,7 @@ Under 80 words total. Direct and warm. No filler."""
             )
 
     subs_today = db.query(Subscription).filter(
+        Subscription.user_id == user_id,
         Subscription.cancelled_at.is_(None),
         Subscription.next_billing_date == today,
         Subscription.amount > 0,
@@ -222,6 +225,7 @@ Under 80 words total. Direct and warm. No filler."""
     create_notification(
         db, "morning_briefing", "Good morning ☀️", body,
         {"date": str(today)}, skip_quiet=True,
+        user_id=user_id,
     )
     return 1
 
@@ -244,6 +248,7 @@ def generate_weekly_review(db: Session, user_id: str = '') -> "Notification | No
     six_days_ago = date.today() - timedelta(days=6)
     existing = db.query(Notification).filter(
         Notification.type == "weekly_review",
+        Notification.user_id == user_id,
         Notification.created_at >= six_days_ago,
     ).first()
     if existing:
@@ -255,8 +260,8 @@ def generate_weekly_review(db: Session, user_id: str = '') -> "Notification | No
         from app.services.analytics_engine import get_correlations
         from app.routers.ai import _build_data_context
 
-        context = _build_data_context(db)
-        corr = get_correlations(db, days=7)
+        context = _build_data_context(db, user_id=user_id)
+        corr = get_correlations(db, days=7, user_id=user_id)
 
         corr_lines: list[str] = []
         if corr.get("avg_mood_score") is not None:
@@ -303,6 +308,7 @@ Under 100 words total. Warm and personal. Use real numbers from the data."""
 
         body = asyncio.run(llm_generate(
             prompt, purpose="insights", system=system, temperature=0.6, max_tokens=300,
+            user_id=user_id,
         ))
 
         if not body or len(body.strip()) < 20:
@@ -312,6 +318,7 @@ Under 100 words total. Warm and personal. Use real numbers from the data."""
         notif = create_notification(
             db, "weekly_review", "Your week in review 📊", body.strip(),
             {"week_ending": str(date.today())}, skip_quiet=True,
+            user_id=user_id,
         )
         return notif
 
@@ -328,7 +335,7 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
     from app.models.habit import Habit, HabitCheckin
 
     today = date.today()
-    active = db.query(Habit).filter(Habit.archived_at.is_(None)).all()
+    active = db.query(Habit).filter(Habit.user_id == user_id, Habit.archived_at.is_(None)).all()
     if not active:
         return 0
 
@@ -340,6 +347,7 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
                 continue
         checked = db.query(HabitCheckin).filter(
             HabitCheckin.habit_id == h.id,
+            HabitCheckin.user_id == user_id,
             HabitCheckin.day_date == today,
         ).first()
         if not checked:
@@ -351,6 +359,7 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
     # One reminder per day — force mode deletes existing for re-trigger
     already = db.query(Notification).filter(
         Notification.type == "habit_reminder",
+        Notification.user_id == user_id,
         sqlfunc.date(Notification.created_at) == str(today),
     ).first()
     if already:
@@ -368,7 +377,7 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
         if count == 1
         else f"{count} habits pending: {names}{extra}."
     )
-    create_notification(db, "habit_reminder", "Habit Reminder 🔥", body, {"count": count})
+    create_notification(db, "habit_reminder", "Habit Reminder 🔥", body, {"count": count}, user_id=user_id)
     return 1
 
 
@@ -380,11 +389,14 @@ def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '
     from app.models.subscription import Subscription
     from app.models.setting import Setting
 
-    s = db.query(Setting).filter(Setting.key == "notif.sub_alert_days_before").first()
+    s = db.query(Setting).filter(
+        Setting.key == "notif.sub_alert_days_before", Setting.user_id == user_id
+    ).first()
     days_before = int(s.value) if s and s.value else 3
 
     today = date.today()
     subs = db.query(Subscription).filter(
+        Subscription.user_id == user_id,
         Subscription.cancelled_at.is_(None),
         Subscription.paused_at.is_(None),
         Subscription.amount > 0,
@@ -404,6 +416,7 @@ def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '
         # One alert per sub per day (force=True bypasses for manual triggers)
         already = db.query(Notification).filter(
             Notification.type == "sub_alert",
+            Notification.user_id == user_id,
             Notification.data.contains(sub.id),
             sqlfunc.date(Notification.created_at) == str(today),
         ).first()
@@ -435,6 +448,7 @@ def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '
             {"sub_id": sub.id, "days_until": delta, "name": sub.name,
              "amount": sub.amount, "currency": sub.currency,
              "is_autopay": sub.is_autopay},
+            user_id=user_id,
         )
         created += 1
     return created
@@ -454,6 +468,7 @@ def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -
 
     # Fetch all category budgets applicable this month
     budgets = db.query(Budget).filter(
+        Budget.user_id == user_id,
         Budget.category.isnot(None),
         Budget.amount > 0,
     ).filter(
@@ -471,10 +486,10 @@ def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -
             "SELECT category, SUM(ABS(amount)) as total "
             "FROM transactions "
             "WHERE strftime('%Y', date) = :y AND strftime('%m', date) = :m "
-            "  AND type = 'expense' "
+            "  AND type = 'expense' AND user_id = :uid "
             "GROUP BY category"
         ),
-        {"y": str(y), "m": f"{m:02d}"},
+        {"y": str(y), "m": f"{m:02d}", "uid": user_id},
     ).fetchall()
     spending: dict[str, float] = {r[0]: r[1] for r in rows if r[0]}
 
@@ -491,6 +506,7 @@ def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -
         # Use a precise JSON key match so "Food" doesn't false-match "Food & Dining".
         already = db.query(Notification).filter(
             Notification.type == "budget_warning",
+            Notification.user_id == user_id,
             Notification.data.contains(f'"category": "{cat}"'),
             sqlfunc.strftime("%Y-%m", Notification.created_at) == f"{y}-{m:02d}",
         ).first()
@@ -505,6 +521,7 @@ def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -
         create_notification(
             db, "budget_warning", "Budget Warning 💰", body,
             {"category": cat, "spent": spent, "budget": budget.amount, "pct": pct},
+            user_id=user_id,
         )
         created += 1
 
