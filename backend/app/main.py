@@ -96,7 +96,7 @@ def create_app() -> FastAPI:
     def app_version():
         return {"version": cfg.app_version}
 
-    if cfg.app_env == "production":
+    if cfg.app_env in ("production", "desktop"):
         # Packaged app: serve the built React frontend at "/"
         # Mount AFTER all API routers so /api/* routes take precedence
         dist_path = Path(cfg.frontend_dist) if cfg.frontend_dist else None

@@ -90,12 +90,13 @@ def get_current_user(
     """FastAPI dependency — inject into any route that needs auth.
 
     Cloud (production) requests must always present a valid Bearer token.
-    Local dev requests (no token, APP_ENV != "prod") fall back to the
-    single local account so `uvicorn` on localhost keeps working without
-    forcing every dev/desktop user through the register/login flow.
+    Local dev and packaged-desktop requests (no token, APP_ENV in
+    "dev"/"desktop") fall back to the single local account so `uvicorn` on
+    localhost and the Electron app keep working without forcing every
+    local user through the register/login flow.
     """
     if credentials is None:
-        if get_settings().app_env == "dev":
+        if get_settings().app_env in ("dev", "desktop"):
             return _get_or_create_local_user(db)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

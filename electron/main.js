@@ -86,7 +86,11 @@ function startBackend() {
         ...process.env,
         APP_PORT:               String(APP_PORT),
         APP_HOST:               '127.0.0.1',
-        APP_ENV:                'production',
+        // Distinct from cloud "production": still serves the static
+        // frontend build, but also allows the no-token local-user auth
+        // fallback (see auth_service.get_current_user) since this is a
+        // single-user local install, not a multi-tenant server.
+        APP_ENV:                'desktop',
         APP_VERSION:            app.getVersion(),
         DB_ENCRYPTION:          'false',
         PERSONAL_OS_DATA_DIR:   dataDir,
