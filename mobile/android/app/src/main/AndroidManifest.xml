@@ -1,7 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Was only present in the debug-variant manifest (Flutter's default
+         template puts it there for dev tooling only) — a release build had
+         no network permission at all, so every Dio API call would have
+         failed silently. Required for every feature that talks to the
+         backend, not specific to any one phase. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <!-- Phase 10 — SMS auto-import. Requested at runtime via permission_handler,
          only after the user is authenticated (see app_startup.dart). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
+
+    <!-- Phase 11a — local notifications (flutter_local_notifications).
+         POST_NOTIFICATIONS is requested at runtime on Android 13+; the other
+         two are required for scheduled notifications to survive a reboot
+         and fire at exact times. No Firebase/FCM/APNs — fully on-device. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <application
         android:label="north_os"
         android:name="${applicationName}"
@@ -33,6 +48,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- flutter_local_notifications — replays scheduled notifications
+             after a reboot and handles the actual alarm firing. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

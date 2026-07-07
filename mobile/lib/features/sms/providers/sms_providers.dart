@@ -7,7 +7,7 @@ import '../data/sms_repository.dart';
 final smsRepositoryProvider = Provider<SmsRepository>((ref) => SmsRepository());
 
 final bankSmsParserProvider = Provider<BankSmsParser>(
-  (ref) => BankSmsParser(ref.read(dioProvider)),
+  (ref) => BankSmsParser(), // no dependencies — fully offline, regex-only
 );
 
 final smsImportServiceProvider = Provider<SmsImportService>(

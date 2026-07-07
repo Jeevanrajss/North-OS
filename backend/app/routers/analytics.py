@@ -36,6 +36,69 @@ class CorrelationsResponse(BaseModel):
     worst_day_of_week: dict | None
 
 
+@router.get("/daily-summary")
+def daily_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Lightweight summary for the mobile morning-briefing notification
+    (Phase 11a). Pulls from existing transactions + habits — no new tables."""
+    from app.models.finance import Transaction
+    from app.models.habit import Habit, HabitCheckin
+    from app.routers.habit import _schedule_fn_for
+
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    yesterday_spend = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.type == "expense",
+            Transaction.date == yesterday,
+        )
+        .all()
+    )
+    total_yesterday = sum(t.amount for t in yesterday_spend)
+
+    habits = (
+        db.query(Habit)
+        .filter(Habit.user_id == current_user.id, Habit.archived_at.is_(None))
+        .all()
+    )
+    due_today = [h for h in habits if _schedule_fn_for(h)(today)]
+
+    window_days = 365
+    start = today - timedelta(days=window_days - 1)
+    habit_ids = [h.id for h in habits]
+    any_done_days: set = set()
+    done_today_ids: set = set()
+    if habit_ids:
+        checkins = (
+            db.query(HabitCheckin)
+            .filter(
+                HabitCheckin.habit_id.in_(habit_ids),
+                HabitCheckin.day_date >= start,
+                HabitCheckin.day_date <= today,
+            )
+            .all()
+        )
+        any_done_days = {c.day_date for c in checkins}
+        done_today_ids = {c.habit_id for c in checkins if c.day_date == today}
+
+    current_streak = 0
+    probe = today
+    while probe >= start and probe in any_done_days:
+        current_streak += 1
+        probe -= timedelta(days=1)
+
+    today_complete = all(h.id in done_today_ids for h in due_today) if due_today else True
+
+    return {
+        "yesterday_spend": round(total_yesterday, 2),
+        "habits_due_today": len(due_today),
+        "today_complete": today_complete,
+        "current_streak": current_streak,
+    }
+
+
 @router.get("/correlations", response_model=CorrelationsResponse)
 def correlations(
     days: int = Query(default=30, ge=7, le=365),

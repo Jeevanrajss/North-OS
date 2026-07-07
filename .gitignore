@@ -4,6 +4,8 @@
 /data/*.db-shm
 /data/*.db-journal
 /data/backups/
+/db_backups_pre_merge/
+*.docx
 
 # Secrets
 .env

@@ -103,14 +103,22 @@ class SmsTransactionOut(BaseModel):
     status: str
 
 
-class SMSParseRequest(BaseModel):
-    body: str
-    sender: str
+# SmsTransaction.raw_body is NOT NULL — required by the unrelated /inbound,
+# /scan-imessage, and /sync-httpsms flows which legitimately need the raw
+# text. The privacy-respecting mobile /import flow never receives raw SMS
+# content, so this placeholder satisfies the column constraint without ever
+# having stored real SMS text.
+_NOT_STORED_PLACEHOLDER = "[not stored — parsed on-device, see PHASE_10_SPEC.md §2.5]"
 
 
 class SMSImportRequest(BaseModel):
+    """
+    PRIVACY RULE (PHASE_10_SPEC.md §2.5): the mobile client parses SMS
+    on-device (regex only, see BankSmsParser) and sends ONLY these
+    already-parsed fields. There is no raw SMS body here, and never should
+    be — this backend must not receive or process raw SMS content.
+    """
     sms_id: str
-    body: str
     sender: str
     timestamp: int              # ms since epoch, from the device
     amount: float
@@ -355,74 +363,6 @@ def receive_sms(payload: InboundSmsPayload, db: Session = Depends(get_db), curre
     return {"status": "ok", "id": row.id, "parsed": row.parsed_ok}
 
 
-def _parse_gemini_json(raw: str) -> dict:
-    """Extract the first {...} JSON object from a model response, tolerating
-    ```json fences or stray prose around it. Returns {"is_transaction": False}
-    on any failure so callers can treat "couldn't parse" the same as "not a
-    transaction" rather than crashing."""
-    import json as _json
-
-    text = (raw or "").strip()
-    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```\s*$", text, re.DOTALL)
-    if fence:
-        text = fence.group(1).strip()
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        return {"is_transaction": False}
-    try:
-        data = _json.loads(match.group(0))
-        return data if isinstance(data, dict) else {"is_transaction": False}
-    except _json.JSONDecodeError:
-        return {"is_transaction": False}
-
-
-@router.post("/parse")
-async def parse_sms_endpoint(
-    payload: SMSParseRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Mobile-only entry point: ask the LLM (Gemini Flash by default, or the
-    user's configured provider) to parse one bank SMS into structured JSON.
-    Returns {"is_transaction": false} if the SMS isn't a transaction, or on
-    any parse failure — the client falls back to local regex parsing.
-    """
-    from app.services import llm_client
-    from app.services.llm_client import LLMError
-
-    prompt = f"""You are a bank SMS parser for Indian banks. Parse this SMS and return JSON.
-
-SMS: "{payload.body}"
-Sender: "{payload.sender}"
-
-Return ONLY valid JSON in this exact format:
-{{
-  "is_transaction": true,
-  "amount": 1500.00,
-  "direction": "debit",
-  "merchant": "Swiggy",
-  "account_last4": "1234",
-  "balance_after": 45000.00,
-  "category": "Food"
-}}
-
-"direction" must be "debit" or "credit". Category must be one of: Food, Transport,
-Shopping, Bills, Health, Entertainment, Investment, Salary, Transfer, EMI, Other.
-
-If not a transaction SMS, return exactly: {{"is_transaction": false}}"""
-
-    try:
-        raw = await llm_client.generate(
-            prompt, purpose="categorize", temperature=0.0, max_tokens=200,
-            user_id=current_user.id,
-        )
-    except LLMError:
-        return {"is_transaction": False}
-
-    return _parse_gemini_json(raw)
-
-
 @router.post("/import")
 def import_sms_transaction(
     payload: SMSImportRequest,
@@ -430,8 +370,9 @@ def import_sms_transaction(
     db: Session = Depends(get_db),
 ):
     """
-    Mobile-only entry point: the client already parsed the SMS (via /parse
-    or local regex) and asks the backend to create/dedup the transaction.
+    Mobile-only entry point: the client already parsed the SMS on-device
+    (local regex, see BankSmsParser) and asks the backend to create/dedup
+    the transaction. The backend never sees the raw SMS body.
 
     Dedup order:
       1. Same sms_id already imported for this user → return the existing txn.
@@ -469,7 +410,7 @@ def import_sms_transaction(
             source="android",
             sms_id=payload.sms_id,
             sender=payload.sender,
-            raw_body=payload.body,
+            raw_body=_NOT_STORED_PLACEHOLDER,
             received_at=datetime.utcfromtimestamp(payload.timestamp / 1000),
             parsed_ok=True,
             txn_type=txn_type,
@@ -506,7 +447,7 @@ def import_sms_transaction(
         source="android",
         sms_id=payload.sms_id,
         sender=payload.sender,
-        raw_body=payload.body,
+        raw_body=_NOT_STORED_PLACEHOLDER,
         received_at=datetime.utcfromtimestamp(payload.timestamp / 1000),
         parsed_ok=True,
         txn_type=txn_type,

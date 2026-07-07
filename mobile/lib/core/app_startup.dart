@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'api/api_client.dart';
+import 'notifications/notification_scheduler.dart';
+import 'notifications/notification_service.dart';
+import 'sync/background_sync.dart';
 import '../features/sms/providers/sms_providers.dart';
 
 /// Shown at the [MaterialApp.router] level so `runStartupTasks` can surface
@@ -10,11 +14,26 @@ import '../features/sms/providers/sms_providers.dart';
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 /// Called once after the user is authenticated (never before — SMS
-/// permission must not be requested pre-login). Android-only; a no-op on
-/// iOS/web/desktop.
+/// permission must not be requested pre-login). Notifications run on both
+/// platforms; SMS auto-import and background sync stay Android-only.
 Future<void> runStartupTasks(WidgetRef ref) async {
-  if (!Platform.isAndroid) return;
+  await _initNotifications(ref);
+  if (Platform.isAndroid) await _runSmsAutoImport(ref);
+  if (Platform.isAndroid) await registerBackgroundSync();
+}
 
+Future<void> _initNotifications(WidgetRef ref) async {
+  try {
+    await NotificationService.init();
+    await NotificationService.requestPermission();
+    final scheduler = NotificationScheduler(ref.read(dioProvider));
+    await scheduler.scheduleAll();
+  } catch (_) {
+    // Best-effort — a failed notification setup shouldn't block app startup.
+  }
+}
+
+Future<void> _runSmsAutoImport(WidgetRef ref) async {
   final status = await Permission.sms.status;
   if (!status.isGranted) return; // permission is requested from Settings/setup, not silently here
 
@@ -26,6 +45,8 @@ Future<void> runStartupTasks(WidgetRef ref) async {
     final newSms = await repo.scanNew(prefs);
     if (newSms.isEmpty) return;
 
+    // runScan() itself fires the "N transactions imported" notification and
+    // checks for budget-exceeded (see SmsImportService, Phase 11a §1.6).
     final result = await service.runScan(newSms);
     if (result.imported > 0) {
       rootScaffoldMessengerKey.currentState?.showSnackBar(

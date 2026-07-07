@@ -5,6 +5,7 @@ import '../../core/api/api_client.dart';
 import '../../core/app_startup.dart';
 import '../../core/models/habit.dart';
 import '../../core/models/transaction.dart';
+import '../../core/sync/background_sync.dart';
 import '../../core/theme.dart';
 import 'widgets/briefing_card.dart';
 import 'widgets/habit_ring.dart';
@@ -133,6 +134,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         const SizedBox(height: 16),
                         GoalCards(goals: _goals),
                       ],
+                      const SizedBox(height: 20),
+                      const _SyncFooter(),
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -148,6 +151,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         const SizedBox(height: 12),
         Center(child: Text(_error!, style: const TextStyle(color: NorthColors.fg4, fontSize: 14))),
       ],
+    );
+  }
+}
+
+/// Phase 11c §3.1 — subtle "last synced" line at the bottom of the dashboard.
+class _SyncFooter extends StatefulWidget {
+  const _SyncFooter();
+  @override
+  State<_SyncFooter> createState() => _SyncFooterState();
+}
+
+class _SyncFooterState extends State<_SyncFooter> {
+  DateTime? _lastSync;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    getLastSyncTime().then((t) {
+      if (mounted) setState(() { _lastSync = t; _loaded = true; });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const SizedBox.shrink();
+    final text = _lastSync == null ? 'Not synced — check connection' : lastSyncedText(_lastSync);
+    return Center(
+      child: Text(text, style: const TextStyle(fontSize: 11, color: NorthColors.fg5)),
     );
   }
 }

@@ -200,6 +200,61 @@ def habits_today(
     return HabitsTodayResponse(date=d, habits=rows)
 
 
+@router.get("/streak")
+def habits_streak(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Lightweight summary for the mobile notification scheduler (Phase 11a
+    — streak-at-risk check). Reuses the same 'any habit done that day'
+    streak logic as /stats, just without the per-habit breakdown."""
+    today = date_cls.today()
+    window_days = 365
+    start = today - timedelta(days=window_days - 1)
+
+    habits = (
+        db.query(Habit)
+        .filter(Habit.user_id == current_user.id, Habit.archived_at.is_(None))
+        .all()
+    )
+    if not habits:
+        return {"current_streak": 0, "today_complete": True, "habits_due_today": 0}
+
+    habit_ids = [h.id for h in habits]
+    checkins = (
+        db.query(HabitCheckin)
+        .filter(
+            HabitCheckin.habit_id.in_(habit_ids),
+            HabitCheckin.day_date >= start,
+            HabitCheckin.day_date <= today,
+        )
+        .all()
+    )
+    by_habit: dict[str, set[date_cls]] = {hid: set() for hid in habit_ids}
+    for c in checkins:
+        by_habit[c.habit_id].add(c.day_date)
+
+    any_done_days: set[date_cls] = set()
+    for dset in by_habit.values():
+        any_done_days |= dset
+
+    current_streak = 0
+    probe = today
+    while probe >= start and probe in any_done_days:
+        current_streak += 1
+        probe -= timedelta(days=1)
+
+    due_today = [h for h in habits if _schedule_fn_for(h)(today)]
+    done_today_ids = {hid for hid, dset in by_habit.items() if today in dset}
+    today_complete = all(h.id in done_today_ids for h in due_today) if due_today else True
+
+    return {
+        "current_streak": current_streak,
+        "today_complete": today_complete,
+        "habits_due_today": len(due_today),
+    }
+
+
 @router.get("/stats", response_model=HabitStatsResponse)
 def habits_stats(
     days: int = Query(30, ge=7, le=365),

@@ -1,27 +1,14 @@
-import 'package:dio/dio.dart';
 import '../models/parsed_transaction.dart';
 
-/// Parses one bank SMS into a [ParsedTransaction].
+/// Parses one bank SMS into a [ParsedTransaction] using local regex only.
 ///
-/// Strategy: send the raw SMS to the backend `/sms/parse` endpoint (Gemini
-/// Flash or the user's configured LLM provider parses it). Falls back to a
-/// local regex parser if the backend call fails (offline, LLM unavailable,
-/// etc.) so the app degrades gracefully rather than losing the SMS entirely.
+/// PRIVACY RULE (PHASE_10_SPEC.md §2.4): no cloud AI call of any kind —
+/// no Gemini, no OpenAI, no backend round-trip. This class has zero network
+/// dependencies. Bank account numbers, balances, and full SMS text never
+/// leave the device.
 class BankSmsParser {
-  final Dio _dio;
-  BankSmsParser(this._dio);
-
   Future<ParsedTransaction?> parse(String body, String sender) async {
-    try {
-      final response = await _dio.post('/sms/parse', data: {'body': body, 'sender': sender});
-      final data = response.data as Map<String, dynamic>;
-      if (data['is_transaction'] == true) {
-        return ParsedTransaction.fromJson(data, body);
-      }
-      return null; // backend says this SMS isn't a transaction
-    } catch (_) {
-      return _parseWithRegex(body);
-    }
+    return _parseWithRegex(body);
   }
 
   ParsedTransaction? _parseWithRegex(String body) {

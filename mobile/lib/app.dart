@@ -9,6 +9,7 @@ import 'features/auth/setup_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/finance/finance_screen.dart';
 import 'features/habits/habits_screen.dart';
+import 'features/insights/screens/weekly_summary_screen.dart';
 import 'features/quick_log/quick_log_fab.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/subscriptions/screens/subscriptions_screen.dart';
@@ -32,6 +33,7 @@ final _router = GoRouter(
     // not part of the bottom nav's indexed branches.
     GoRoute(path: '/subscriptions', builder: (_, __) => const SubscriptionsScreen()),
     GoRoute(path: '/splits', builder: (_, __) => const SplitsScreen()),
+    GoRoute(path: '/insights/weekly', builder: (_, __) => const WeeklySummaryScreen()),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _AppShell(shell: shell),
       branches: [

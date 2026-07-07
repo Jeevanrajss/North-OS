@@ -328,7 +328,7 @@ if (status.isDenied) {
 lib/features/sms/
   ├── data/
   │   ├── sms_repository.dart          ← queries Android SMS content provider
-  │   ├── bank_sms_parser.dart         ← Gemini + regex parser
+  │   ├── bank_sms_parser.dart         ← local regex parser (privacy: no cloud AI)
   │   └── sms_import_service.dart      ← dedup + push to backend
   ├── models/
   │   ├── raw_sms.dart
@@ -390,7 +390,12 @@ class SmsRepository {
 
 ### 2.4 BankSmsParser
 
-**Strategy: send raw SMS to backend `/sms/parse` → Gemini Flash parses it → return structured JSON. Regex as local fallback.**
+**Strategy: local regex only on the phone. No SMS content ever leaves the device to any cloud service. Privacy first.**
+
+> ⚠️ PRIVACY RULE: Do NOT add any cloud AI call (Gemini, OpenAI, or any API) inside BankSmsParser.
+> All SMS parsing must happen on-device using regex. Bank SMS formats are structured enough
+> that regex handles them reliably. The tradeoff (slightly less smart categorisation) is
+> worth it — your bank account numbers and balances must never go to a third-party server.
 
 ```dart
 // lib/features/sms/data/bank_sms_parser.dart
@@ -401,27 +406,17 @@ class ParsedTransaction {
   final String merchant;
   final String? accountLast4;
   final double? balanceAfter;
-  final String? category;      // Gemini's best guess
+  final String? category;      // rule-based guess from merchant name
   final String rawSms;
 
   const ParsedTransaction({...});
 }
 
 class BankSmsParser {
-  final ApiClient _api;
+  // No ApiClient — this class is fully offline, no network calls ever.
 
   Future<ParsedTransaction?> parse(String body, String sender) async {
-    // 1. Try Gemini via backend
-    try {
-      final response = await _api.post('/sms/parse', {'body': body, 'sender': sender});
-      if (response['is_transaction'] == true) {
-        return ParsedTransaction.fromJson(response);
-      }
-      return null; // Gemini says not a transaction SMS
-    } catch (_) {
-      // 2. Fallback to local regex
-      return _parseWithRegex(body);
-    }
+    return _parseWithRegex(body);
   }
 
   ParsedTransaction? _parseWithRegex(String body) {
@@ -485,47 +480,15 @@ class BankSmsParser {
 
 ---
 
-### 2.5 Backend — New Endpoint `/sms/parse`
+### 2.5 Backend — `/sms/import` only (no parse endpoint needed)
 
-Add to `backend/routers/sms.py`:
+> ⚠️ PRIVACY RULE: There is NO `/sms/parse` endpoint. Parsing happens on the phone using
+> local regex (BankSmsParser). The phone sends already-parsed data to the backend.
+> The backend only stores what the phone sends — it never reads raw SMS content.
+> Do not create any endpoint that accepts raw SMS text and calls an AI service on it.
 
-```python
-# POST /api/v1/sms/parse
-@router.post("/sms/parse")
-async def parse_sms(
-    payload: SMSParseRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Uses Gemini Flash to parse a bank SMS into a structured transaction.
-    Returns null if the SMS is not a transaction.
-    """
-    prompt = f"""
-You are a bank SMS parser for Indian banks. Parse this SMS and return JSON.
-
-SMS: "{payload.body}"
-Sender: "{payload.sender}"
-
-Return ONLY valid JSON in this exact format:
-{{
-  "is_transaction": true/false,
-  "amount": 1500.00,
-  "direction": "debit" or "credit",
-  "merchant": "Swiggy",
-  "account_last4": "1234",
-  "balance_after": 45000.00,
-  "category": "Food" 
-}}
-
-Category must be one of: Food, Transport, Shopping, Bills, Health, Entertainment, 
-Investment, Salary, Transfer, EMI, Other.
-
-If not a transaction SMS, return: {{"is_transaction": false}}
-"""
-    result = await _call_gemini(prompt)
-    return parse_gemini_json(result)
-```
+The backend only needs the `/sms/import` endpoint (section 2.6 below) which receives
+the already-parsed transaction fields — never the raw SMS body.
 
 ---
 
@@ -839,9 +802,8 @@ Opens `AddSplitSheet` (bottom sheet):
 ### Phase 10c — SMS Auto-Import
 1. Add `permission_handler` + `flutter_sms_inbox` to pubspec.yaml
 2. Add `READ_SMS` to AndroidManifest.xml
-3. Implement `SmsRepository`, `BankSmsParser`, `SmsImportService`
-4. Add backend `POST /sms/parse` with Gemini
-5. Add backend `POST /sms/import` with dedup logic
+3. Implement `SmsRepository`, `BankSmsParser` (local regex only — no API calls), `SmsImportService`
+4. Add backend `POST /sms/import` with dedup logic (no /sms/parse endpoint — parsing is on-device only)
 6. Add `_dev_migrate_add_sms_columns()` to db.py startup (add `source` + `sms_id` columns to transactions table)
 7. Wire `runStartupTasks()` into app init flow
 8. Add "SMS Auto" filter chip to Transactions tab

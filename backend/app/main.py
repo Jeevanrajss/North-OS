@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import init_db
 from app.routers import accounts, ai, analytics, app_logs, auth, data, debt, finance, finance_advisor, financial_goals, goals, habit, health, health_tracking, investments, journal, settings, subscription, notifications
-from app.routers import import_router, sms, contacts, splits
+from app.routers import import_router, sms, contacts, splits, insights
 
 logging.basicConfig(
     level=logging.INFO,
@@ -90,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(data.router)
     app.include_router(contacts.router)
     app.include_router(splits.router)
+    app.include_router(insights.router)
 
     # Version endpoint — used by Electron to check running version
     @app.get("/api/v1/app-version")

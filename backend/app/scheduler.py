@@ -132,6 +132,21 @@ def _run_finance_advisor() -> None:
                 log.warning("Finance advisor job failed for user %s: %s", user.id, e)
 
 
+def _run_daily_insight() -> None:
+    """Phase 11b — pre-generate + cache today's rule-based insight for every
+    active user at 6 AM, so it's ready even if the desktop/app stays closed
+    all day (Tier 1, no AI/LM Studio required)."""
+    from app.db import SessionLocal
+    from app.routers.insights import get_daily_insight_cached
+    with SessionLocal() as db:
+        for user in _get_active_users(db):
+            try:
+                get_daily_insight_cached(db, user.id)
+            except Exception as e:
+                log.warning("Daily insight generation failed for user %s: %s", user.id, e)
+    log.info("Daily insights generated")
+
+
 def _run_analytics_snapshot() -> None:
     from datetime import date, timedelta
     from app.db import SessionLocal
@@ -224,6 +239,11 @@ def start_scheduler() -> None:
         _run_analytics_snapshot,
         CronTrigger(hour=0, minute=5),
         id="analytics_snapshot", replace_existing=True, misfire_grace_time=GRACE,
+    )
+    _scheduler.add_job(
+        _run_daily_insight,
+        CronTrigger(hour=6, minute=0),
+        id="daily_insight", replace_existing=True, misfire_grace_time=GRACE,
     )
     _scheduler.add_job(
         _run_weekly_review,

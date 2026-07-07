@@ -216,6 +216,67 @@ def list_budgets(
     return q.order_by(Budget.year.asc(), Budget.month.asc(), Budget.category.asc()).all()
 
 
+@router.get("/budgets/status")
+def budgets_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Current-month budget-vs-actual for the mobile budget-exceeded
+    notification (Phase 11a). Reuses the same spend computation as the
+    monthly summary endpoint — no new tables.
+
+    NOTE: lives at /api/v1/finance/budgets/status, not /api/v1/budgets/status
+    as PHASE_11_SPEC.md literally states — budgets are part of the finance
+    router in this codebase (like every other budget endpoint), there's no
+    separate budgets router. The mobile client calls the real path.
+    """
+    from sqlalchemy import and_, or_
+
+    today = date_cls.today()
+    year, month = today.year, today.month
+
+    txns = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.type == "expense",
+            extract("year", Transaction.date) == year,
+            extract("month", Transaction.date) == month,
+        )
+        .all()
+    )
+    spend_by_category: dict[str, float] = {}
+    for t in txns:
+        cat = t.category or "Other"
+        spend_by_category[cat] = spend_by_category.get(cat, 0.0) + t.amount
+
+    budgets = (
+        db.query(Budget)
+        .filter(
+            Budget.user_id == current_user.id,
+            Budget.category.isnot(None),
+            or_(
+                and_(Budget.year == year, Budget.month == month),
+                and_(Budget.year.is_(None), Budget.month.is_(None)),
+            ),
+        )
+        .all()
+    )
+    # Prefer an exact year/month match over a recurring row for the same category.
+    budget_by_category: dict[str, float] = {}
+    for b in budgets:
+        is_exact = b.year == year and b.month == month
+        if b.category not in budget_by_category or is_exact:
+            budget_by_category[b.category] = b.amount
+
+    return [
+        {
+            "category": cat,
+            "spent": round(spend_by_category.get(cat, 0.0), 2),
+            "limit": limit,
+            "exceeded": spend_by_category.get(cat, 0.0) > limit,
+        }
+        for cat, limit in budget_by_category.items()
+    ]
+
+
 @router.post("/budgets", response_model=BudgetOut, status_code=201)
 def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create or replace a budget entry for the given year/month/category combo."""

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 
 final dioProvider = Provider<Dio>((ref) {
@@ -18,6 +19,14 @@ final dioProvider = Provider<Dio>((ref) {
             await storage.read(key: 'server_url') ?? kDefaultServerUrl;
         options.baseUrl = '$serverUrl/api/v1';
         handler.next(options);
+      },
+      onResponse: (response, handler) {
+        // Phase 11c §3.3 — every successful call counts as "synced". Fire
+        // and forget so this never adds latency to the response pipeline.
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setString('last_sync_at', DateTime.now().toIso8601String()),
+        );
+        handler.next(response);
       },
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
