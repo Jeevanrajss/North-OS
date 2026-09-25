@@ -3,7 +3,7 @@
 # never the real desktop DB that backend/.env points at.
 set -euo pipefail
 
-DATA_DIR="$(mktemp -d -t northos-e2e)"
+DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/northos-e2e.XXXXXX")"  # template form works on macOS and Linux
 trap 'rm -rf "$DATA_DIR"' EXIT
 
 cd "$(dirname "$0")/../../backend"

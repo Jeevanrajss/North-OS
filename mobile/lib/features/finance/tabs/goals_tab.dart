@@ -37,10 +37,11 @@ class _GoalsTabState extends ConsumerState<GoalsTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_goals.isEmpty)
+    if (_goals.isEmpty) {
       return Center(
         child: Text('No financial goals yet', style: TextStyle(color: NorthColors.fg5)),
       );
+    }
 
     final fmt = NumberFormat('#,##,##0', 'en_IN');
     return RefreshIndicator(

@@ -48,7 +48,7 @@ Thumbs.db
 SESSION_LOG.md
 HANDOFF.md
 .claude/
-assets/
+/assets/
 north-os-debug.apk
 
 # Playwright E2E output

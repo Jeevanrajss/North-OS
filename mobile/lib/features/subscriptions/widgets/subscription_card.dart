@@ -17,7 +17,7 @@ class SubscriptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     DateTime? due;
     try { due = DateTime.parse(sub.nextBillingDate); } catch (_) {}
-    final daysLeft = due != null ? due.difference(DateTime.now()).inDays : null;
+    final daysLeft = due?.difference(DateTime.now()).inDays;
     final dueColor = sub.paused
         ? NorthColors.fg5
         : (daysLeft != null && daysLeft <= 3)
