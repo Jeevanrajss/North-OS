@@ -80,6 +80,9 @@ def generate_csv(report: dict[str, Any]) -> bytes:
 # ---------------------------------------------------------------------------
 # PDF export
 # ---------------------------------------------------------------------------
+_LATIN1_FALLBACKS = str.maketrans({"—": "-", "–": "-", "₹": "Rs.", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "..."})
+
+
 def generate_pdf(report: dict[str, Any]) -> bytes:
     """Return a PDF of the monthly report using fpdf2."""
     try:
@@ -93,6 +96,12 @@ def generate_pdf(report: dict[str, Any]) -> bytes:
     today = date_cls.today().isoformat()
 
     class PDF(FPDF):
+        # Core fonts are Latin-1 only; anything else (₹, em dash, Hindi payee
+        # names, emoji) would raise and abort the whole download.
+        def normalize_text(self, text: str) -> str:
+            text = text.translate(_LATIN1_FALLBACKS)
+            return super().normalize_text(text.encode("latin-1", "replace").decode("latin-1"))
+
         def header(self):
             self.set_font("Helvetica", "B", 11)
             self.cell(0, 8, "North OS — Financial Report", align="L")

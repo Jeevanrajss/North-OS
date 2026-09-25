@@ -27,6 +27,12 @@ class SecureStore {
   static Future<bool> isLoggedIn() async {
     final token = await _storage.read(key: 'access_token');
     final url = await _storage.read(key: 'server_url');
-    return token != null && url != null;
+    // Logins from the retired Railway cloud can't reach the Mac — clear them
+    // so the app shows the pairing screen instead of a dead dashboard.
+    if (url != null && url.contains('railway.app')) {
+      await _storage.deleteAll();
+      return false;
+    }
+    return token != null && url != null && url.isNotEmpty;
   }
 }

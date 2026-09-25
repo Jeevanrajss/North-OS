@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
+import '../../core/offline/offline_store.dart';
 import '../../core/theme.dart';
 
 class QuickJournalSheet extends ConsumerStatefulWidget {
@@ -24,15 +25,18 @@ class _QuickJournalSheetState extends ConsumerState<QuickJournalSheet> {
     try {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       // Create entry
-      await ref.read(dioProvider).post('/journal/days/$today/entries', data: {
-        'content_json': '[]',
-        'content_text': text,
-      });
-      // Set mood
-      final moodCode = ['sad', 'meh', 'okay', 'good', 'great'][_mood - 1];
-      await ref.read(dioProvider).patch('/journal/days/$today', data: {
-        'mood_codes': [moodCode],
-      });
+      final dio = ref.read(dioProvider);
+      await dio.post(
+        '/journal/days/$today/entries',
+        data: {'id': newId(), 'content_json': '[]', 'content_text': text},
+        options: queueable(),
+      );
+      // Faces map onto the Mac's mood palette (it rejects unknown codes), and
+      // are added to the day's moods rather than replacing ones set elsewhere.
+      final moodCode = ['sad', 'tired', 'calm', 'content', 'motivated'][_mood - 1];
+      final day = await dio.get('/journal/days/$today');
+      final moods = <String>{...((day.data['mood_codes'] as List?) ?? []).cast<String>(), moodCode}.toList();
+      await dio.patch('/journal/days/$today', data: {'mood_codes': moods}, options: queueable());
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,8 +65,10 @@ class _QuickJournalSheetState extends ConsumerState<QuickJournalSheet> {
             Center(child: Container(width: 36, height: 4,
                 decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
-            const Text('Quick Journal', style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+            Text(
+              'Quick Journal',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _textCtl,

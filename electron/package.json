@@ -1,14 +1,15 @@
 {
   "name": "personal-os",
-  "version": "1.3.0",
+  "version": "1.7.0",
   "description": "Personal OS — your private life dashboard",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "ELECTRON_DEV=1 electron .",
-    "dist:mac": "electron-builder --mac",
+    "dist:mac": "electron-builder --mac --arm64",
     "dist:win": "electron-builder --win",
-    "dist:all": "electron-builder --mac --win"
+    "dist:all": "electron-builder --mac --win",
+    "dist:mac:uat": "electron-builder --mac --arm64 -c.productName=\"North OS UAT\" -c.appId=com.jeevanraj.personalos.uat -c.extraMetadata.northosChannel=uat -c.artifactName='NorthOS-UAT-Mac-v${version}-${arch}.${ext}'"
   },
   "dependencies": {
     "electron-updater": "^6.3.4",
@@ -35,14 +36,20 @@
       {
         "from": "../backend/dist/personal-os-backend",
         "to": "backend/personal-os-backend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
-    "artifactName": "Personal-OS-${version}-${arch}.${ext}",
+    "artifactName": "NorthOS-Mac-v${version}-${arch}.${ext}",
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
@@ -52,10 +59,15 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "Personal-OS-Setup-${version}.${ext}"
+      "artifactName": "NorthOS-Windows-Setup-v${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,

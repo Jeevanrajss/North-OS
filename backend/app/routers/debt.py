@@ -199,7 +199,7 @@ def list_debts(status: str | None = None, db: Session = Depends(get_db), current
 
 @router.post("", status_code=201)
 def create_debt(body: DebtIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    d = Debt(**body.model_dump())
+    d = Debt(**body.model_dump(), user_id=current_user.id)
     db.add(d)
     db.commit()
     db.refresh(d)
@@ -255,6 +255,7 @@ def record_payment(debt_id: str, body: PaymentIn, db: Session = Depends(get_db),
         account=d.lender,
         notes=body.notes or f"EMI payment — {d.name}",
         debt_id=d.id,
+        user_id=current_user.id,
     )
     db.add(t)
     db.flush()
@@ -264,6 +265,7 @@ def record_payment(debt_id: str, body: PaymentIn, db: Session = Depends(get_db),
         debt_id=d.id, transaction_id=t.id,
         amount=body.amount, payment_date=body.payment_date,
         outstanding_after=outstanding_after, notes=body.notes,
+        user_id=current_user.id,
     ))
     d.outstanding = outstanding_after
     if outstanding_after == 0.0:

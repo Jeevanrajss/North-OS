@@ -93,6 +93,9 @@ def _strip_opt(v: str | None) -> str | None:
 
 
 class TransactionIn(BaseModel):
+    # Optional client-generated id so an offline phone can safely retry a
+    # queued create without producing duplicates.
+    id: str | None = Field(default=None, min_length=8, max_length=36)
     type: TransactionType = "expense"
     amount: float = Field(..., gt=0)
     currency: str = Field(default="INR", max_length=8)

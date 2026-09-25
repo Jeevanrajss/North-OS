@@ -1,7 +1,7 @@
 """Finance router — transactions, budgets, monthly summary, AI insights."""
 from __future__ import annotations
 
-from datetime import date as date_cls
+from datetime import date as date_cls, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import extract
@@ -164,7 +164,16 @@ def list_transactions(
 
 @router.post("/transactions", response_model=TransactionOut, status_code=201)
 def create_transaction(payload: TransactionIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    t = Transaction(**payload.model_dump(), user_id=current_user.id)
+    data = payload.model_dump()
+    if data["id"] is None:
+        data.pop("id")
+    else:
+        existing = db.query(Transaction).filter(Transaction.id == data["id"]).execution_options(include_deleted=True).first()
+        if existing is not None:
+            if existing.user_id != current_user.id:
+                raise HTTPException(status_code=409, detail="Transaction id already in use")
+            return existing  # replayed create from an offline device
+    t = Transaction(**data, user_id=current_user.id)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -188,7 +197,7 @@ def delete_transaction(txn_id: str, db: Session = Depends(get_db), current_user:
     t = db.query(Transaction).filter(Transaction.id == txn_id, Transaction.user_id == current_user.id).first()
     if t is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    db.delete(t)
+    t.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()
 
 
@@ -319,7 +328,7 @@ def delete_budget(budget_id: str, db: Session = Depends(get_db), current_user: U
     b = db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     if b is None:
         raise HTTPException(status_code=404, detail="Budget not found")
-    db.delete(b)
+    b.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()
 
 

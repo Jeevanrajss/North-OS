@@ -10,7 +10,7 @@ export function renderBold(text: string): React.ReactNode {
   if (parts.length === 1) return text; // fast-path: no bold markers
   return parts.map((part, i) =>
     i % 2 === 1
-      ? <strong key={i} style={{ color: 'white', fontWeight: 600 }}>{part}</strong>
+      ? <strong key={i} style={{ color: 'var(--fg-1)', fontWeight: 600 }}>{part}</strong>
       : part,
   );
 }

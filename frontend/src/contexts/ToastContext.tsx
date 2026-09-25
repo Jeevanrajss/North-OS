@@ -30,7 +30,7 @@ const ICONS: Record<ToastType, string> = {
 const COLORS: Record<ToastType, { bg: string; border: string; icon: string }> = {
   success: { bg: 'rgba(61,255,152,0.12)', border: 'rgba(61,255,152,0.30)', icon: 'var(--accent-green)' },
   error:   { bg: 'rgba(255,91,110,0.12)', border: 'rgba(255,91,110,0.30)', icon: 'var(--accent-red)' },
-  info:    { bg: 'rgba(139,124,255,0.12)', border: 'rgba(139,124,255,0.30)', icon: 'var(--primary-300)' },
+  info:    { bg: 'rgb(var(--primary-rgb) / 0.12)', border: 'rgb(var(--primary-rgb) / 0.30)', icon: 'var(--primary-300)' },
   warning: { bg: 'rgba(255,184,107,0.12)', border: 'rgba(255,184,107,0.30)', icon: 'var(--accent-yellow)' },
 };
 
@@ -90,7 +90,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 border: `1px solid ${c.border}`,
-                boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+                boxShadow: 'var(--elev-3)',
                 fontSize: 13,
                 fontWeight: 500,
                 color: 'var(--fg-1)',

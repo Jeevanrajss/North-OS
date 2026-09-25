@@ -208,7 +208,7 @@ export function Habits() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 36, padding: '0 16px', borderRadius: 10,
-              font: '500 13px/1 var(--font-sans)', color: 'white',
+              font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)',
               boxShadow: 'var(--elev-1), var(--elev-glow)',
               border: 'none', cursor: 'pointer',
@@ -244,7 +244,7 @@ export function Habits() {
           padding: '32px 36px',
           background: `
             radial-gradient(420px 280px at 100% -10%, rgba(255,184,107,0.14), transparent 60%),
-            radial-gradient(280px 200px at 0% 110%, rgba(139,124,255,0.10), transparent 60%),
+            radial-gradient(280px 200px at 0% 110%, rgb(var(--primary-rgb) / 0.10), transparent 60%),
             var(--surface)
           `,
           border: '1px solid var(--border-default)',
@@ -265,7 +265,7 @@ export function Habits() {
           >
             You're on a{' '}
             <span style={{
-              background: 'linear-gradient(135deg, #FFB86B 0%, #FFD76A 50%, #FF7AD9 100%)',
+              background: 'linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-yellow) 50%, var(--accent-pink) 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>
               {streak > 0 ? `${streak}-day flame.` : 'a fresh start.'}
@@ -287,7 +287,7 @@ export function Habits() {
               unit={streak !== 1 ? 'days' : 'day'}
             />
             <HeroKpi
-              iconBg="rgba(139,124,255,0.12)" iconColor="var(--primary-300)"
+              iconBg="rgb(var(--primary-rgb) / 0.12)" iconColor="var(--primary-300)"
               icon={<CalendarCheck className="w-[18px] h-[18px]" />}
               label="Today"
               value={todayTotal > 0 ? String(todayDone) : '—'}
@@ -337,9 +337,9 @@ export function Habits() {
                         style={{
                           position: 'absolute', left: 0, right: 0, bottom: 0,
                           height: `${Math.max(pct * 100, 4)}%`,
-                          background: 'linear-gradient(180deg, var(--primary-400), #6352DB)',
+                          background: 'linear-gradient(180deg, var(--primary-400), var(--primary-500))',
                           borderRadius: 10,
-                          boxShadow: '0 0 10px rgba(139,124,255,0.3)',
+                          boxShadow: '0 0 10px rgb(var(--primary-rgb) / 0.3)',
                         }}
                       />
                     )}
@@ -528,7 +528,7 @@ function HeroKpi({
       className="flex items-center gap-3 overflow-hidden"
       style={{
         padding: '16px 18px',
-        background: 'rgba(8,9,16,0.45)',
+        background: 'color-mix(in srgb, var(--bg-app) 55%, transparent)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 16,
       }}

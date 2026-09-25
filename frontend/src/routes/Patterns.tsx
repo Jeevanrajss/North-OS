@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date';
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
@@ -15,7 +16,7 @@ const WINDOWS = [
 ];
 
 function toIso(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return toISODate(d);
 }
 
 export function Patterns() {
@@ -134,7 +135,7 @@ export function Patterns() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 36, padding: '0 16px', borderRadius: 10,
-              font: '500 13px/1 var(--font-sans)', color: 'white',
+              font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
               opacity: backfillMut.isPending ? 0.6 : 1,
             }}

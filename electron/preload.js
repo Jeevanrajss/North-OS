@@ -11,4 +11,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Trigger a manual update check (used by Settings page)
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+
+  // Start at login (Settings → Phone) so a paired phone can reach this Mac
+  // without opening the app by hand.
+  getOpenAtLogin: () => ipcRenderer.invoke('login-item:get'),
+  setOpenAtLogin: (on) => ipcRenderer.invoke('login-item:set', !!on),
 });

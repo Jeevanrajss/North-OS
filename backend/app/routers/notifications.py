@@ -60,7 +60,7 @@ def list_notifications(limit: int = 50, db: Session = Depends(get_db), current_u
 @router.post("/{notif_id}/read")
 def mark_read(notif_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     n = db.get(Notification, notif_id)
-    if not n:
+    if not n or n.user_id != current_user.id:
         raise HTTPException(404, "Not found")
     n.read = True
     db.commit()
@@ -84,7 +84,7 @@ def clear_read(db: Session = Depends(get_db), current_user: User = Depends(get_c
 @router.delete("/{notif_id}")
 def delete_notification(notif_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     n = db.get(Notification, notif_id)
-    if not n:
+    if not n or n.user_id != current_user.id:
         raise HTTPException(404, "Not found")
     db.delete(n)
     db.commit()

@@ -1,0 +1,59 @@
+name: Release to UAT
+
+# Push a UAT tag from `develop`:
+#   git tag v1.7.0-uat.1 && git push origin v1.7.0-uat.1
+# → all tests run → "North OS UAT" Mac + Android apps are built → published as
+#   a GitHub *pre-release*. Only UAT apps pick it up; production never sees it.
+on:
+  push:
+    tags: ['v*-uat.*']
+
+permissions:
+  contents: write
+
+concurrency: uat-release
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  meta:
+    name: Read version from tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-uat\.[0-9]+$ ]] || { echo "::error::Tag must look like v1.7.0-uat.1"; exit 1; }
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [checks, meta]
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      channel: uat
+      version: ${{ needs.meta.outputs.version }}
+      ref: ${{ github.sha }}
+
+  publish:
+    name: Publish UAT pre-release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: apps-uat-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          make_latest: false
+          files: dist/*
+          body: |
+            **UAT build — for testing only.** Installs as *North OS UAT*, next to the real app, with its own data.
+
+            When it passes testing, promote it: Actions → **Promote to production** → enter `${{ github.ref_name }}`.

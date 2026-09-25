@@ -18,6 +18,7 @@ class TransactionDetailSheet extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, Transaction txn, VoidCallback onChanged) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: NorthColors.bg2,
       shape: const RoundedRectangleBorder(
@@ -71,15 +72,20 @@ class _TransactionDetailSheetState extends ConsumerState<TransactionDetailSheet>
       if (!mounted) return;
       final selected = await showModalBottomSheet<String>(
         context: context,
+        useRootNavigator: true,
         backgroundColor: NorthColors.bg2,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (ctx) => SafeArea(
           child: ListView(
             shrinkWrap: true,
-            children: cats.map((c) => ListTile(
-              title: Text(c as String, style: const TextStyle(color: NorthColors.fg1)),
-              onTap: () => Navigator.pop(ctx, c),
-            )).toList(),
+            children: cats
+                .map(
+                  (c) => ListTile(
+                    title: Text(c as String, style: TextStyle(color: NorthColors.fg1)),
+                    onTap: () => Navigator.pop(ctx, c),
+                  ),
+                )
+                .toList(),
           ),
         ),
       );
@@ -113,7 +119,7 @@ class _TransactionDetailSheetState extends ConsumerState<TransactionDetailSheet>
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: NorthColors.red)),
+            child: Text('Delete', style: TextStyle(color: NorthColors.red)),
           ),
         ],
       ),
@@ -148,16 +154,22 @@ class _TransactionDetailSheetState extends ConsumerState<TransactionDetailSheet>
             Center(child: Container(width: 36, height: 4,
                 decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
-            Row(children: [
-              Expanded(
-                child: Text(t.payee ?? t.category ?? 'Transaction',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
-              ),
-              AmountText(amount: t.amount, direction: t.type, size: 20),
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.payee ?? t.category ?? 'Transaction',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+                  ),
+                ),
+                AmountText(amount: t.amount, direction: t.type, size: 20),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text(parsedDate != null ? DateFormat('EEEE, d MMMM yyyy').format(parsedDate) : t.date,
-                style: const TextStyle(fontSize: 12, color: NorthColors.fg5)),
+            Text(
+              parsedDate != null ? DateFormat('EEEE, d MMMM yyyy').format(parsedDate) : t.date,
+              style: TextStyle(fontSize: 12, color: NorthColors.fg5),
+            ),
             const SizedBox(height: 16),
             _row('Category', t.category ?? '—'),
             const SizedBox(height: 8),
@@ -174,7 +186,7 @@ class _TransactionDetailSheetState extends ConsumerState<TransactionDetailSheet>
                 controller: _noteCtl,
                 autofocus: true,
                 decoration: const InputDecoration(hintText: 'Add a note...'),
-                style: const TextStyle(color: NorthColors.fg1, fontSize: 14),
+                style: TextStyle(color: NorthColors.fg1, fontSize: 14),
               ),
               const SizedBox(height: 8),
               Row(children: [
@@ -192,37 +204,48 @@ class _TransactionDetailSheetState extends ConsumerState<TransactionDetailSheet>
               const SizedBox(height: 12),
             ],
             const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              OutlinedButton.icon(
-                onPressed: _editCategory,
-                icon: const Icon(Icons.category_outlined, size: 16),
-                label: const Text('Edit Category'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => setState(() => _editingNote = true),
-                icon: const Icon(Icons.note_add_outlined, size: 16),
-                label: const Text('Add Note'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _splitTransaction,
-                icon: const Icon(Icons.people_outline, size: 16),
-                label: const Text('Split'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _delete,
-                icon: const Icon(Icons.delete_outline, size: 16, color: NorthColors.red),
-                label: const Text('Delete', style: TextStyle(color: NorthColors.red)),
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: NorthColors.red)),
-              ),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _editCategory,
+                  icon: const Icon(Icons.category_outlined, size: 16),
+                  label: const Text('Edit Category'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => setState(() => _editingNote = true),
+                  icon: const Icon(Icons.note_add_outlined, size: 16),
+                  label: const Text('Add Note'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _splitTransaction,
+                  icon: const Icon(Icons.people_outline, size: 16),
+                  label: const Text('Split'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _delete,
+                  icon: Icon(Icons.delete_outline, size: 16, color: NorthColors.red),
+                  label: Text('Delete', style: TextStyle(color: NorthColors.red)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: NorthColors.red)),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _row(String label, String value) => Row(children: [
-    SizedBox(width: 80, child: Text(label, style: const TextStyle(fontSize: 12, color: NorthColors.fg5))),
-    Expanded(child: Text(value, style: const TextStyle(fontSize: 13, color: NorthColors.fg1))),
-  ]);
+  Widget _row(String label, String value) => Row(
+    children: [
+      SizedBox(
+        width: 80,
+        child: Text(label, style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
+      ),
+      Expanded(
+        child: Text(value, style: TextStyle(fontSize: 13, color: NorthColors.fg1)),
+      ),
+    ],
+  );
 }

@@ -1,0 +1,77 @@
+name: Checks
+
+# Every push and pull request, and reused by the UAT workflow before it builds
+# anything: nothing reaches testers unless the backend, desktop UI and phone
+# app test suites all pass.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e "backend[dev]"
+      - run: python -m pytest -q
+        working-directory: backend
+
+  desktop:
+    name: Desktop UI tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # e2e/start-backend.sh runs the backend from backend/.venv, as locally.
+      - run: |
+          python -m venv backend/.venv
+          backend/.venv/bin/pip install -e ./backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx tsc --noEmit -p .
+        working-directory: frontend
+      # Playwright uses the runner's installed Google Chrome (channel: 'chrome').
+      - run: npx playwright test
+        working-directory: frontend
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: frontend/test-results
+          retention-days: 7
+
+  mobile:
+    name: Phone app tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: mobile
+      - run: flutter analyze --no-fatal-infos
+        working-directory: mobile
+      - run: flutter test
+        working-directory: mobile

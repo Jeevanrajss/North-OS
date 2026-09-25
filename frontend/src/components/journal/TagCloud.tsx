@@ -28,7 +28,7 @@ export function TagCloud() {
     if (size === 3) return {
       fontSize: 14,
       background: 'rgba(184,165,255,0.14)',
-      color: 'white',
+      color: 'var(--fg-1)',
       border: '1px solid rgba(184,165,255,0.32)',
     };
     if (size === 2) return {

@@ -8,7 +8,7 @@ type FinancialGoal = {
 type Props = { goal: FinancialGoal };
 
 const TIMELINE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  short:  { bg: 'rgba(61,190,255,0.12)',  color: '#3EBEFF',           border: 'rgba(61,190,255,0.25)' },
+  short:  { bg: 'rgba(61,190,255,0.12)',  color: 'var(--secondary-500)',           border: 'rgba(61,190,255,0.25)' },
   medium: { bg: 'rgba(255,184,107,0.12)', color: 'var(--accent-yellow)', border: 'rgba(255,184,107,0.25)' },
   long:   { bg: 'rgba(61,255,152,0.10)',  color: 'var(--accent-green)',  border: 'rgba(61,255,152,0.22)' },
 };

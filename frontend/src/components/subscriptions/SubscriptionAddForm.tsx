@@ -1,3 +1,4 @@
+import { todayISO } from '@/lib/date';
 import { useState } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { type BillingCycle, type PaymentType, type SubscriptionIn } from '@/lib/api';
@@ -19,7 +20,7 @@ type Props = {
   disabled?: boolean;
 };
 
-const today = new Date().toISOString().slice(0, 10);
+const today = todayISO();
 
 export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
   const toast = useToast();
@@ -360,8 +361,8 @@ export function SubscriptionAddForm({ onCreate, onCancel, disabled }: Props) {
         onClick={() => setIsAutopay((v) => !v)}
         className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md border transition-colors"
         style={{
-          background: isAutopay ? 'rgba(139,124,255,0.08)' : 'transparent',
-          borderColor: isAutopay ? 'rgba(139,124,255,0.35)' : 'var(--border-default)',
+          background: isAutopay ? 'rgb(var(--primary-rgb) / 0.08)' : 'transparent',
+          borderColor: isAutopay ? 'rgb(var(--primary-rgb) / 0.35)' : 'var(--border-default)',
         }}
       >
         {/* pill toggle */}

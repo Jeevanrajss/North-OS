@@ -232,6 +232,45 @@ export type Transaction = {
   updated_at: string;
 };
 
+export type Contact = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  upi_id?: string | null;
+};
+
+/** One person's part of a shared transaction. */
+export type Split = {
+  id: string;
+  transaction_id: string;
+  contact_id: string;
+  contact_name: string;
+  split_amount: number;
+  share_count: number | null;
+  notes: string | null;
+  status: 'pending' | 'settled';
+  settled_at: string | null;
+  created_at: string;
+  transaction_label: string | null;
+  transaction_date: string | null;
+  transaction_amount: number | null;
+};
+
+/** Everything one person owes you across pending splits. */
+export type SplitPerson = {
+  contact_id: string;
+  contact_name: string;
+  total: number;
+  splits: Split[];
+};
+
+export type SplitBatchIn = {
+  transaction_id: string;
+  self_count: number;
+  shares: { contact_id: string; count: number }[];
+  notes?: string | null;
+};
+
 export type TransactionIn = {
   type: TransactionType;
   amount: number;
@@ -909,7 +948,7 @@ export const api = {
   },
 
   health: () => request<HealthResponse>('/health'),
-  appVersion: () => request<{ version: string }>('/app-version'),
+  appVersion: () => request<{ version: string; channel?: 'prod' | 'uat' }>('/app-version'),
   aiPing: (
     prompt: string,
     opts?: { system?: string; purpose?: string; temperature?: number; max_tokens?: number },
@@ -1114,9 +1153,6 @@ export const api = {
       imessage_available: boolean;
       android_webhook_url: string;
       imessage_db_path: string;
-      httpsms_configured: boolean;
-      httpsms_last_sync: string | null;
-      httpsms_encryption_enabled?: boolean;
     }>('/sms/status'),
     pending: () => request<SmsTransactionOut[]>('/sms/pending'),
     scanImessage: (daysBack = 7) => request<{
@@ -1126,8 +1162,6 @@ export const api = {
       error?: string;
       debug?: { total_messages_in_window: number; bank_sender_matches: number; ingested: number; error?: string };
     }>(`/sms/scan-imessage?days_back=${daysBack}`, { method: 'POST' }),
-    syncHttpSms: () => request<{ synced: boolean; new_transactions: number; messages_checked: number; synced_at: string }>('/sms/sync-httpsms', { method: 'POST' }),
-    debug: () => request<SmsDebugResult>('/sms/debug'),
     confirm: (id: string, category?: string | null) => request<{ status: string; transaction: Transaction }>(`/sms/pending/${id}/confirm`, { method: 'POST', body: JSON.stringify({ category: category ?? null }), headers: { 'Content-Type': 'application/json' } }),
     dismiss: (id: string) => request<{ status: string }>(`/sms/pending/${id}/dismiss`, { method: 'POST' }),
   },
@@ -1172,6 +1206,23 @@ export const api = {
       request<Subscription>(`/subscriptions/${id}/renew`, { method: 'POST' }),
     stats: () => request<SubscriptionStatsResponse>('/subscriptions/stats'),
     forecast: () => request<ForecastResponse>('/subscriptions/forecast'),
+  },
+
+  contacts: {
+    list: () => request<Contact[]>('/contacts'),
+    create: (name: string) =>
+      request<Contact>('/contacts', { method: 'POST', body: JSON.stringify({ name }) }),
+  },
+
+  splits: {
+    people: () =>
+      request<{ total_pending: number; people_count: number; people: SplitPerson[] }>('/splits/people'),
+    list: (status: 'pending' | 'settled' = 'pending') => request<Split[]>(`/splits?status=${status}`),
+    batch: (body: SplitBatchIn) =>
+      request<Split[]>('/splits/batch', { method: 'POST', body: JSON.stringify(body) }),
+    settle: (id: string) => request<Split>(`/splits/${id}/settle`, { method: 'PATCH' }),
+    settlePerson: (contactId: string) =>
+      request<{ settled: number; amount: number }>(`/splits/people/${contactId}/settle`, { method: 'POST' }),
   },
 
   data: {

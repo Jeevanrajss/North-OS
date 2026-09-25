@@ -1,6 +1,7 @@
+import { toISODate } from '@/lib/date';
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Users } from 'lucide-react';
 import { api, type FinanceMeta, type Transaction, type TransactionIn } from '@/lib/api';
 import { TransactionForm } from './TransactionForm';
 
@@ -10,6 +11,8 @@ type Props = {
   transactions: Transaction[];
   meta: FinanceMeta;
   queryKey: unknown[];
+  /** Offer "Split" on expenses; called with the transaction to split. */
+  onSplit?: (t: Transaction) => void;
 };
 
 function fmtAmount(t: Transaction): string {
@@ -22,8 +25,8 @@ function fmtDateLabel(d: string): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  const isToday = d === today.toISOString().slice(0, 10);
-  const isYesterday = d === yesterday.toISOString().slice(0, 10);
+  const isToday = d === toISODate(today);
+  const isYesterday = d === toISODate(yesterday);
   const fmt = date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
   if (isToday) return `Today · ${fmt}`;
   if (isYesterday) return `Yesterday · ${fmt}`;
@@ -50,13 +53,13 @@ function groupByDate(txns: Transaction[]): { date: string; items: Transaction[];
 function getIconStyle(category: string | null | undefined, type: string): { bg: string; color: string } {
   const c = (category ?? '').toLowerCase();
   if (type === 'income') return { bg: 'rgba(61,255,152,0.14)', color: 'var(--accent-green)' };
-  if (c.includes('sub') || c.includes('streaming')) return { bg: 'rgba(139,124,255,0.14)', color: 'var(--primary-300)' };
+  if (c.includes('sub') || c.includes('streaming')) return { bg: 'rgb(var(--primary-rgb) / 0.14)', color: 'var(--primary-300)' };
   if (c.includes('food') || c.includes('dining') || c.includes('restaurant')) return { bg: 'rgba(255,184,107,0.14)', color: 'var(--accent-orange)' };
   if (c.includes('transport') || c.includes('travel') || c.includes('cab')) return { bg: 'rgba(62,190,255,0.14)', color: 'var(--secondary-500)' };
   if (c.includes('shop') || c.includes('retail')) return { bg: 'rgba(255,122,217,0.14)', color: 'var(--accent-pink)' };
   if (c.includes('bill') || c.includes('util')) return { bg: 'rgba(255,91,110,0.14)', color: 'var(--accent-red)' };
   if (c.includes('health') || c.includes('medical')) return { bg: 'rgba(255,122,217,0.14)', color: 'var(--accent-pink)' };
-  return { bg: 'rgba(255,255,255,0.06)', color: 'var(--fg-3)' };
+  return { bg: 'rgb(var(--overlay-rgb) / 0.06)', color: 'var(--fg-3)' };
 }
 
 /** Category → dot color */
@@ -71,7 +74,7 @@ function getCatDotColor(category: string | null | undefined, type: string): stri
   return 'var(--fg-4)';
 }
 
-export function TransactionList({ transactions, meta, queryKey }: Props) {
+export function TransactionList({ transactions, meta, queryKey, onSplit }: Props) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -222,9 +225,21 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
                     </span>
 
                     {/* Hover actions */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1">
+                      {onSplit && t.type === 'expense' && (
+                        <button
+                          type="button"
+                          aria-label="Split transaction"
+                          title="Split with friends"
+                          onClick={() => onSplit(t)}
+                          className="row-action"
+                        >
+                          <Users style={{ width: 13, height: 13 }} />
+                        </button>
+                      )}
                       <button
                         type="button"
+                        aria-label="Edit transaction"
                         onClick={() => setEditing(t.id)}
                         style={{ padding: 4, borderRadius: 6, color: 'var(--fg-4)', background: 'transparent', border: 0, cursor: 'pointer' }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-2)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)'; }}
@@ -234,6 +249,7 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
                       </button>
                       <button
                         type="button"
+                        aria-label="Delete transaction"
                         onClick={() => { if (confirm('Delete this transaction?')) deleteMut.mutate(t.id); }}
                         style={{ padding: 4, borderRadius: 6, color: 'var(--fg-4)', background: 'transparent', border: 0, cursor: 'pointer' }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent-red)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)'; }}
@@ -305,7 +321,7 @@ export function TransactionList({ transactions, meta, queryKey }: Props) {
                       cursor: 'pointer',
                       background: p === page ? 'var(--primary-500)' : 'var(--surface-elev)',
                       border: `1px solid ${p === page ? 'var(--primary-500)' : 'var(--border-default)'}`,
-                      color: p === page ? 'white' : 'var(--fg-3)',
+                      color: p === page ? 'var(--on-primary)' : 'var(--fg-3)',
                       transition: 'all 150ms',
                     }}
                   >

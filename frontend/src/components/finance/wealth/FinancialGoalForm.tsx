@@ -177,8 +177,8 @@ export function FinancialGoalForm({ initial, onSave, onCancel }: Props) {
             <button key={p.v} type="button" onClick={() => setPriority(p.v)}
               style={{
                 flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                background: priority === p.v ? 'rgba(139,124,255,0.15)' : 'var(--surface-elev)',
-                border: priority === p.v ? '1px solid rgba(139,124,255,0.40)' : '1px solid var(--border-default)',
+                background: priority === p.v ? 'rgb(var(--primary-rgb) / 0.15)' : 'var(--surface-elev)',
+                border: priority === p.v ? '1px solid rgb(var(--primary-rgb) / 0.40)' : '1px solid var(--border-default)',
                 color: priority === p.v ? 'var(--primary-300)' : 'var(--fg-3)',
               }}>
               {p.l}

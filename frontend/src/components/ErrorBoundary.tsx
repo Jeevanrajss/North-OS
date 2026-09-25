@@ -58,14 +58,14 @@ export class ErrorBoundary extends Component<Props, State> {
       <div
         style={{
           minHeight: '100vh', display: 'grid', placeItems: 'center',
-          background: 'var(--bg-app, #0E1018)', color: 'var(--fg-1, #F5F6FA)',
+          background: 'var(--bg-app, var(--bg-app))', color: 'var(--fg-1, #F5F6FA)',
           fontFamily: 'system-ui, sans-serif', padding: 32,
         }}
       >
         <div style={{ maxWidth: 520, textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
           <h2 style={{ margin: '0 0 10px', fontSize: 20 }}>Something went wrong</h2>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 20 }}>
+          <p style={{ color: 'rgb(var(--overlay-rgb) / 0.5)', fontSize: 13, marginBottom: 20 }}>
             {error.message}
           </p>
 
@@ -73,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div style={{
             display: 'inline-block', padding: '4px 12px', borderRadius: 999,
             background: 'rgba(255,91,110,0.12)', border: '1px solid rgba(255,91,110,0.30)',
-            fontFamily: 'monospace', fontSize: 12, color: '#FF5B6E', marginBottom: 24,
+            fontFamily: 'monospace', fontSize: 12, color: 'var(--accent-red)', marginBottom: 24,
           }}>
             Error ID: {errorId} · Code: UI-0001
           </div>
@@ -83,8 +83,8 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               style={{
                 padding: '8px 20px', borderRadius: 10,
-                background: 'rgba(139,124,255,0.20)', border: '1px solid rgba(139,124,255,0.40)',
-                color: '#B8A5FF', cursor: 'pointer', fontSize: 13,
+                background: 'rgb(var(--primary-rgb) / 0.20)', border: '1px solid rgb(var(--primary-rgb) / 0.40)',
+                color: 'var(--primary-300)', cursor: 'pointer', fontSize: 13,
               }}
             >
               Reload page
@@ -93,15 +93,15 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => this.setState({ error: null, errorId: null })}
               style={{
                 padding: '8px 20px', borderRadius: 10,
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 13,
+                background: 'transparent', border: '1px solid rgb(var(--overlay-rgb) / 0.12)',
+                color: 'rgb(var(--overlay-rgb) / 0.5)', cursor: 'pointer', fontSize: 13,
               }}
             >
               Try to recover
             </button>
           </div>
 
-          <p style={{ marginTop: 24, fontSize: 11, color: 'rgba(255,255,255,0.25)', lineHeight: 1.5 }}>
+          <p style={{ marginTop: 24, fontSize: 11, color: 'rgb(var(--overlay-rgb) / 0.25)', lineHeight: 1.5 }}>
             This error has been logged automatically. You can view logs at<br />
             <code style={{ fontFamily: 'monospace' }}>GET /api/v1/logs/errors</code>
           </p>

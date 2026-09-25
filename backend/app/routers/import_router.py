@@ -133,11 +133,13 @@ def _is_duplicate(
     date_str: str,
     amount: float,
     description: str,
+    user_id: str,
 ) -> tuple[bool, str | None]:
     """Check if a transaction with the same account/date/amount/description exists."""
     existing = (
         db.query(Transaction)
         .filter(
+            Transaction.user_id == user_id,
             Transaction.account == account_name,
             Transaction.date == date_cls.fromisoformat(date_str),
             Transaction.amount == amount,
@@ -150,17 +152,17 @@ def _is_duplicate(
     return False, None
 
 
-def _budget_for(db: Session, year: int, month: int, category: str | None) -> float | None:
+def _budget_for(db: Session, year: int, month: int, category: str | None, user_id: str) -> float | None:
     b = (
         db.query(Budget)
-        .filter(Budget.year == year, Budget.month == month, Budget.category == category)
+        .filter(Budget.user_id == user_id, Budget.year == year, Budget.month == month, Budget.category == category)
         .first()
     )
     if b:
         return float(b.amount)
     b = (
         db.query(Budget)
-        .filter(Budget.year.is_(None), Budget.month.is_(None), Budget.category == category)
+        .filter(Budget.user_id == user_id, Budget.year.is_(None), Budget.month.is_(None), Budget.category == category)
         .first()
     )
     return float(b.amount) if b else None
@@ -226,6 +228,8 @@ async def import_preview(
 
     # Resolve account name for duplicate check
     acc = db.get(Account, account_id)
+    if acc is not None and acc.user_id != current_user.id:
+        acc = None
     account_name = (acc.nickname or acc.name) if acc else account_id
 
     # AI categorization (batch)
@@ -244,7 +248,7 @@ async def import_preview(
     preview_rows: list[ImportPreviewRow] = []
     dup_count = 0
     for i, (row, cat) in enumerate(zip(rows, categories)):
-        is_dup, dup_id = _is_duplicate(db, account_name, row.date, row.amount, row.description)
+        is_dup, dup_id = _is_duplicate(db, account_name, row.date, row.amount, row.description, current_user.id)
         if is_dup:
             dup_count += 1
 
@@ -306,7 +310,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db), cu
 
     # Use profile currency setting; fall back to INR
     from app.models.setting import Setting as _Setting
-    _cur_row = db.query(_Setting).filter(_Setting.key == "profile.currency").first()
+    _cur_row = db.query(_Setting).filter(_Setting.key == "profile.currency", _Setting.user_id == current_user.id).first()
     import_currency = (_cur_row.value or "INR") if _cur_row else "INR"
 
     from app.models.debt import Debt as DebtModel
@@ -343,7 +347,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db), cu
         # Phase 7: handle EMI payment — reduce Debt.outstanding
         if row.debt_id:
             debt = db.get(DebtModel, row.debt_id)
-            if debt and debt.status == "active":
+            if debt and debt.user_id == current_user.id and debt.status == "active":
                 outstanding_after = max(0.0, debt.outstanding - row.amount)
                 db.add(DebtPayment(
                     debt_id=debt.id,
@@ -368,7 +372,7 @@ def import_confirm(body: ImportConfirmRequest, db: Session = Depends(get_db), cu
             from app.models.investment import Investment as InvModel
             from app.models.investment_entry import InvestmentEntry
             inv = db.get(InvModel, inv_id)
-            if inv and inv.status == "active":
+            if inv and inv.user_id == current_user.id and inv.status == "active":
                 db.add(InvestmentEntry(
                     investment_id=inv.id,
                     transaction_id=t.id,
@@ -429,7 +433,7 @@ def monthly_report(year: int, month: int, db: Session = Depends(get_db), current
     )
 
     # Budget overall
-    overall_bamt = _budget_for(db, year, month, None)
+    overall_bamt = _budget_for(db, year, month, None, current_user.id)
     budget_overall: ReportBudgetRow | None = None
     if overall_bamt:
         budget_overall = ReportBudgetRow(
@@ -442,7 +446,7 @@ def monthly_report(year: int, month: int, db: Session = Depends(get_db), current
     # Budget per category
     budget_by_category: list[ReportBudgetRow] = []
     for cs in by_category:
-        bamt = _budget_for(db, year, month, cs.category)
+        bamt = _budget_for(db, year, month, cs.category, current_user.id)
         if bamt:
             budget_by_category.append(ReportBudgetRow(
                 category=cs.category,
@@ -490,7 +494,7 @@ def export_report(year: int, month: int, format: str = "csv", db: Session = Depe
         raise HTTPException(status_code=400, detail="format must be 'csv' or 'pdf'")
 
     # Re-use the report data
-    report_resp = monthly_report(year, month, db)
+    report_resp = monthly_report(year, month, db, current_user)
     report_dict = report_resp.model_dump()
 
     period = f"{month_name[month]}_{year}"

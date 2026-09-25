@@ -17,14 +17,22 @@ class _HabitCheckinSheetState extends ConsumerState<HabitCheckinSheet> {
   final Set<String> _toggling = {};
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   Future<void> _load() async {
     try {
       final res = await ref.read(dioProvider).get('/habits/today');
       final list = (res.data['habits'] as List).map((h) => HabitTodayRow.fromJson(h)).toList();
-      setState(() { _habits = list; _loading = false; });
-    } catch (_) { setState(() => _loading = false); }
+      setState(() {
+        _habits = list;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _toggle(HabitTodayRow row) async {
@@ -34,9 +42,9 @@ class _HabitCheckinSheetState extends ConsumerState<HabitCheckinSheet> {
     final dio = ref.read(dioProvider);
     try {
       if (row.done) {
-        await dio.delete('/habits/${row.habit.id}/checkins/$today');
+        await dio.delete('/habits/${row.habit.id}/checkins/$today', options: queueable());
       } else {
-        await dio.put('/habits/${row.habit.id}/checkins/$today', data: {});
+        await dio.put('/habits/${row.habit.id}/checkins/$today', data: {}, options: queueable());
       }
       await _load();
     } catch (_) {}
@@ -57,32 +65,43 @@ class _HabitCheckinSheetState extends ConsumerState<HabitCheckinSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 36, height: 4,
-                    decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                const Text("Today's Habits", style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+                Text(
+                  "Today's Habits",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+                ),
                 const SizedBox(height: 12),
-                if (_loading) const Center(child: CircularProgressIndicator())
+                if (_loading)
+                  const Center(child: CircularProgressIndicator())
                 else if (_habits.isEmpty)
-                  const Padding(padding: EdgeInsets.all(20),
-                      child: Text('No habits due today', style: TextStyle(color: NorthColors.fg5)))
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('No habits due today', style: TextStyle(color: NorthColors.fg5)),
+                  )
                 else
-                  ..._habits.map((h) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Text(h.habit.emoji, style: const TextStyle(fontSize: 22)),
-                    title: Text(h.habit.name, style: const TextStyle(color: NorthColors.fg1)),
-                    trailing: _toggling.contains(h.habit.id)
-                        ? const SizedBox(width: 24, height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : IconButton(
-                            icon: Icon(
-                              h.done ? Icons.check_circle : Icons.circle_outlined,
-                              color: h.done ? NorthColors.green : NorthColors.fg5,
+                  ..._habits.map(
+                    (h) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Text(h.habit.emoji, style: const TextStyle(fontSize: 22)),
+                      title: Text(h.habit.name, style: TextStyle(color: NorthColors.fg1)),
+                      trailing: _toggling.contains(h.habit.id)
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                          : IconButton(
+                              icon: Icon(
+                                h.done ? Icons.check_circle : Icons.circle_outlined,
+                                color: h.done ? NorthColors.green : NorthColors.fg5,
+                              ),
+                              onPressed: () => _toggle(h),
                             ),
-                            onPressed: () => _toggle(h),
-                          ),
-                  )),
+                    ),
+                  ),
               ],
             ),
           ),

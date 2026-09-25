@@ -1,10 +1,11 @@
+import { toISODate } from '@/lib/date';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, type Day } from '@/lib/api';
 
 export function DashJournalCard() {
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayISO = useMemo(() => toISODate(new Date()), []);
 
   const { data: day, isLoading } = useQuery<Day>({
     queryKey: ['journal-day', todayISO],
@@ -56,7 +57,7 @@ export function DashJournalCard() {
               {day!.mood_codes.map((code) => (
                 <span key={code} style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 999,
-                  background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)',
+                  background: 'rgb(var(--overlay-rgb) / 0.04)', border: '1px solid var(--border-subtle)',
                   color: 'var(--fg-3)', textTransform: 'capitalize',
                 }}>
                   {code}
@@ -65,7 +66,7 @@ export function DashJournalCard() {
               {day!.tags.slice(0, 4).map((tag) => (
                 <span key={tag} style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 999,
-                  background: 'rgba(139,124,255,0.10)', border: '1px solid rgba(139,124,255,0.22)',
+                  background: 'rgb(var(--primary-rgb) / 0.10)', border: '1px solid rgb(var(--primary-rgb) / 0.22)',
                   color: 'var(--primary-300)',
                 }}>
                   #{tag}
@@ -91,13 +92,13 @@ export function DashJournalCard() {
           padding: '28px 20px',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
           textAlign: 'center',
-          background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)',
+          background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgb(var(--overlay-rgb) / 0.012) 12px, rgb(var(--overlay-rgb) / 0.012) 24px)',
         }}>
           {/* Pencil icon in purple box */}
           <div style={{
             width: 36, height: 36, borderRadius: 10,
-            background: 'rgba(139,124,255,0.10)',
-            border: '1px solid rgba(139,124,255,0.22)',
+            background: 'rgb(var(--primary-rgb) / 0.10)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.22)',
             color: 'var(--primary-300)',
             display: 'grid', placeItems: 'center',
           }}>
@@ -118,7 +119,7 @@ export function DashJournalCard() {
               marginTop: 6,
               height: 30, padding: '0 14px', borderRadius: 8,
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              font: '500 12px/1 var(--font-sans)', color: 'white',
+              font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)',
               boxShadow: 'var(--elev-1), var(--elev-glow)',
               textDecoration: 'none', transition: 'var(--transition)',

@@ -218,7 +218,7 @@ export function NotificationBell() {
             background: 'var(--surface)',
             border: '1px solid var(--border-default)',
             borderRadius: 12,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--elev-3)',
             overflow: 'hidden',
           }}
         >
@@ -306,7 +306,7 @@ export function NotificationBell() {
                 style={{
                   display: 'flex', gap: 12, padding: '12px 16px',
                   borderBottom: '1px solid var(--border-subtle)',
-                  background: item.read ? 'transparent' : 'rgba(139,124,255,0.05)',
+                  background: item.read ? 'transparent' : 'rgb(var(--primary-rgb) / 0.05)',
                   cursor: item.read ? 'default' : 'pointer',
                   transition: 'background 150ms',
                 }}
@@ -317,8 +317,8 @@ export function NotificationBell() {
                     width: 34, height: 34, borderRadius: 8, flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16,
-                    background: item.read ? 'var(--surface-elev)' : 'rgba(139,124,255,0.12)',
-                    border: `1px solid ${item.read ? 'var(--border-subtle)' : 'rgba(139,124,255,0.2)'}`,
+                    background: item.read ? 'var(--surface-elev)' : 'rgb(var(--primary-rgb) / 0.12)',
+                    border: `1px solid ${item.read ? 'var(--border-subtle)' : 'rgb(var(--primary-rgb) / 0.2)'}`,
                   }}
                 >
                   {TYPE_ICON[item.type] ?? '🔔'}

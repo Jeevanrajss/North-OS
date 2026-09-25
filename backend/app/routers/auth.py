@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models.user import User
 from app.services.auth_service import (
+    LOCAL_USER_ID,
     JWT_ALGORITHM,
     JWT_SECRET,
     create_access_token,
@@ -113,6 +114,13 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if "pv" in payload:  # paired-device token: keep it a device token, honour revocation
+        from app.services import pairing
+
+        tokens = pairing.refresh(db, payload)
+        if tokens is None:
+            raise HTTPException(status_code=401, detail="This device was unpaired. Pair it again.")
+        return TokenOut(access_token=tokens["access_token"], refresh_token=tokens["refresh_token"])
     return TokenOut(
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
@@ -120,5 +128,14 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # The desktop's single local owner is stored as "Local User"; the name the
+    # person chose lives in Settings → Profile. Paired phones should greet them by it.
+    if current_user.id == LOCAL_USER_ID:
+        from app.models.setting import Setting
+
+        row = db.query(Setting).filter(Setting.key == "profile.name", Setting.user_id == LOCAL_USER_ID).first()
+        if row and row.value and row.value.strip():
+            return UserOut(id=current_user.id, name=row.value.strip(), email=current_user.email,
+                           created_at=current_user.created_at)
     return current_user

@@ -23,7 +23,7 @@ function daysChipStyle(days: number | null, overdue: boolean) {
   if (overdue) return { bg: 'rgba(255,91,110,0.12)', border: 'rgba(255,91,110,0.25)', color: 'var(--accent-red)' };
   if (days == null) return null;
   if (days <= 7)  return { bg: 'rgba(255,184,107,0.12)', border: 'rgba(255,184,107,0.25)', color: 'var(--accent-yellow)' };
-  if (days <= 14) return { bg: 'rgba(255,255,255,0.05)', border: 'var(--border-default)', color: 'var(--fg-3)' };
+  if (days <= 14) return { bg: 'rgb(var(--overlay-rgb) / 0.05)', border: 'var(--border-default)', color: 'var(--fg-3)' };
   return { bg: 'rgba(61,255,152,0.08)', border: 'rgba(61,255,152,0.20)', color: 'var(--accent-green)' };
 }
 

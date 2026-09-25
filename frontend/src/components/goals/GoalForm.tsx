@@ -124,8 +124,8 @@ export function GoalForm({ initial, onSave, onCancel }: Props) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                 padding: '8px 12px', borderRadius: 10, textAlign: 'left',
-                background: goalType === opt.value ? 'rgba(139,124,255,0.10)' : 'var(--surface-elev)',
-                border: goalType === opt.value ? '1px solid rgba(139,124,255,0.35)' : '1px solid var(--border-default)',
+                background: goalType === opt.value ? 'rgb(var(--primary-rgb) / 0.10)' : 'var(--surface-elev)',
+                border: goalType === opt.value ? '1px solid rgb(var(--primary-rgb) / 0.35)' : '1px solid var(--border-default)',
                 cursor: 'pointer',
               }}
             >

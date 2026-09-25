@@ -82,7 +82,7 @@ function DetailBody({
         <div className="flex items-center gap-4">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0"
-            style={{ background: 'rgba(139,124,255,0.10)', border: '1px solid rgba(139,124,255,0.20)' }}
+            style={{ background: 'rgb(var(--primary-rgb) / 0.10)', border: '1px solid rgb(var(--primary-rgb) / 0.20)' }}
           >
             {habit.emoji}
           </div>
@@ -184,7 +184,7 @@ function WindowToggle({
   return (
     <div
       className="flex items-center gap-0.5 p-0.5 rounded-xl"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: 'rgb(var(--overlay-rgb) / 0.04)', border: '1px solid rgb(var(--overlay-rgb) / 0.07)' }}
     >
       {opts.map((w) => (
         <button
@@ -197,7 +197,7 @@ function WindowToggle({
               ? 'text-ink-100'
               : 'text-ink-500 hover:text-ink-300',
           )}
-          style={value === w ? { background: 'rgba(255,255,255,0.08)' } : {}}
+          style={value === w ? { background: 'rgb(var(--overlay-rgb) / 0.08)' } : {}}
         >
           {w}d
         </button>

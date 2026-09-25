@@ -16,20 +16,30 @@ type Props = {
 
 const DEFAULT_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
 
-function parseInitial(content_json: string | undefined) {
-  if (!content_json) return DEFAULT_DOC;
+// Legacy entries (e.g. BlockNote block arrays) aren't TipTap docs; rebuild them
+// from the plain text so they render and a save doesn't wipe the content.
+function docFromText(text: string | undefined) {
+  const lines = (text ?? '').split('\n').filter((l) => l.trim());
+  if (!lines.length) return DEFAULT_DOC;
+  return {
+    type: 'doc',
+    content: lines.map((line) => ({ type: 'paragraph', content: [{ type: 'text', text: line }] })),
+  };
+}
+
+function parseInitial(content_json: string | undefined, content_text: string | undefined) {
+  if (!content_json) return docFromText(content_text);
   try {
     const parsed = JSON.parse(content_json);
-    // Guard against legacy/empty shapes.
     if (parsed && typeof parsed === 'object' && parsed.type === 'doc') return parsed;
-    return DEFAULT_DOC;
   } catch {
-    return DEFAULT_DOC;
+    // fall through
   }
+  return docFromText(content_text);
 }
 
 export function EntryEditor({ entry, onSave, autoFocus }: Props) {
-  const initialDoc = useMemo(() => parseInitial(entry?.content_json), [entry?.id]);
+  const initialDoc = useMemo(() => parseInitial(entry?.content_json, entry?.content_text), [entry?.id]);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const lastSavedRef = useRef<string>(entry?.content_json ?? JSON.stringify(DEFAULT_DOC));

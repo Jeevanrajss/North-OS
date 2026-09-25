@@ -37,14 +37,14 @@ export function InvestmentCard({ investment: inv, onEdit, onAddEntry, onRedeem }
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: '500 14px/1.2 var(--font-display)', color: 'var(--fg-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.name}</div>
-          <span style={{ marginTop: 3, display: 'inline-block', padding: '2px 7px', borderRadius: 999, fontSize: 10, fontWeight: 500, fontFamily: 'var(--font-mono)', background: 'rgba(139,124,255,0.10)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.20)' }}>
+          <span style={{ marginTop: 3, display: 'inline-block', padding: '2px 7px', borderRadius: 999, fontSize: 10, fontWeight: 500, fontFamily: 'var(--font-mono)', background: 'rgb(var(--primary-rgb) / 0.10)', color: 'var(--primary-300)', border: '1px solid rgb(var(--primary-rgb) / 0.20)' }}>
             {TYPE_LABELS[inv.investment_type] ?? inv.investment_type}
           </span>
         </div>
         {/* Actions */}
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <button type="button" onClick={onAddEntry} title="Add entry"
-            style={{ padding: 5, borderRadius: 8, color: 'var(--primary-300)', background: 'rgba(139,124,255,0.10)', border: '1px solid rgba(139,124,255,0.20)', cursor: 'pointer' }}>
+            style={{ padding: 5, borderRadius: 8, color: 'var(--primary-300)', background: 'rgb(var(--primary-rgb) / 0.10)', border: '1px solid rgb(var(--primary-rgb) / 0.20)', cursor: 'pointer' }}>
             <Plus style={{ width: 13, height: 13 }} />
           </button>
           <div style={{ position: 'relative' }}>

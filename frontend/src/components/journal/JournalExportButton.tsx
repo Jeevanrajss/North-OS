@@ -87,7 +87,7 @@ export function JournalExportButton() {
             border: '1px solid var(--border-default)',
             borderRadius: 16,
             padding: '20px',
-            boxShadow: '0 12px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
+            boxShadow: 'var(--elev-3), 0 0 0 1px var(--border-subtle)',
           }}
         >
           {/* Quick presets */}
@@ -106,8 +106,8 @@ export function JournalExportButton() {
                     fontWeight: 500,
                     cursor: 'pointer',
                     transition: 'all 150ms',
-                    background: active ? 'rgba(139,124,255,0.18)' : 'rgba(255,255,255,0.05)',
-                    border: active ? '1px solid rgba(139,124,255,0.45)' : '1px solid var(--border-default)',
+                    background: active ? 'rgb(var(--primary-rgb) / 0.18)' : 'rgb(var(--overlay-rgb) / 0.05)',
+                    border: active ? '1px solid rgb(var(--primary-rgb) / 0.45)' : '1px solid var(--border-default)',
                     color: active ? 'var(--primary-300)' : 'var(--fg-4)',
                   }}
                 >
@@ -155,7 +155,7 @@ export function JournalExportButton() {
               onClick={() => setOpen(false)}
               style={{
                 flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12.5, fontWeight: 500,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)',
+                background: 'rgb(var(--overlay-rgb) / 0.05)', border: '1px solid var(--border-default)',
                 color: 'var(--fg-3)', cursor: 'pointer',
               }}
             >
@@ -168,7 +168,7 @@ export function JournalExportButton() {
               style={{
                 flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12.5, fontWeight: 500,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                background: 'rgba(139,124,255,0.18)', border: '1px solid rgba(139,124,255,0.40)',
+                background: 'rgb(var(--primary-rgb) / 0.18)', border: '1px solid rgb(var(--primary-rgb) / 0.40)',
                 color: 'var(--primary-300)', cursor: 'pointer',
                 opacity: (!start || !end || start > end || loading) ? 0.45 : 1,
               }}

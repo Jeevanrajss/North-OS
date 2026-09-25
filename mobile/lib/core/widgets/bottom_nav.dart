@@ -19,10 +19,9 @@ class BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? NorthColors.bg2 : Colors.white;
-    final active = isDark ? NorthColors.accent : Theme.of(context).colorScheme.primary;
-    final inactive = isDark ? NorthColors.fg5 : const Color(0xFF64748B);
+    final bg = NorthColors.bg2;
+    final active = NorthColors.accent;
+    final inactive = NorthColors.fg5;
 
     return BottomAppBar(
       color: bg,
@@ -86,15 +85,34 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? activeColor : inactiveColor;
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(selected ? activeIcon : icon, color: color, size: 24),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(color: color, fontSize: 11)),
-          ],
+      child: Semantics(
+        selected: selected,
+        button: true,
+        label: label,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 32,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Pill behind the active icon — the current location is
+              // obvious at a glance (visibility of system status).
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: selected ? activeColor.withValues(alpha: 0.16) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(selected ? activeIcon : icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(color: color, fontSize: 11, fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -146,13 +146,13 @@ export function MoodSparkline() {
               <stop offset="100%" stopColor="var(--accent-pink)" />
             </linearGradient>
             <linearGradient id={AREA_GRAD} x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="rgba(139,124,255,0.45)" />
-              <stop offset="100%" stopColor="rgba(139,124,255,0)" />
+              <stop offset="0%"   stopColor="rgb(var(--primary-rgb) / 0.45)" />
+              <stop offset="100%" stopColor="rgb(var(--primary-rgb) / 0)" />
             </linearGradient>
           </defs>
 
           {/* Mid guide line */}
-          <line x1="0" y1="55" x2={W} y2="55" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 4" />
+          <line x1="0" y1="55" x2={W} y2="55" stroke="rgb(var(--overlay-rgb) / 0.06)" strokeDasharray="3 4" />
 
           {/* Area fill */}
           {chart.areaPath && (

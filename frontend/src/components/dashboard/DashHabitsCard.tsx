@@ -1,10 +1,11 @@
+import { toISODate } from '@/lib/date';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, type HabitsTodayResponse, type HabitStatsResponse } from '@/lib/api';
 
 export function DashHabitsCard() {
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayISO = useMemo(() => toISODate(new Date()), []);
 
   const { data, isLoading } = useQuery<HabitsTodayResponse>({
     queryKey: ['habits-today', todayISO],
@@ -80,14 +81,14 @@ export function DashHabitsCard() {
                 ? 'linear-gradient(90deg, var(--accent-green), #34d399)'
                 : 'linear-gradient(90deg, var(--primary-500), var(--secondary-500))',
               borderRadius: 999,
-              boxShadow: '0 0 12px rgba(139,124,255,0.4)',
+              boxShadow: '0 0 12px rgb(var(--primary-rgb) / 0.4)',
               transition: 'width 500ms',
             }} />
           </div>
 
           {/* Habit bubbles */}
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {habits.map(({ habit, done }, i) => {
+            {habits.map(({ habit, done }) => {
               const streak = streakMap[habit.id] ?? 0;
               return (
                 <div
@@ -113,15 +114,18 @@ export function DashHabitsCard() {
                   }}>
                     {habit.emoji}
                   </div>
-                  {/* Label */}
+                  {/* Label — the habit's name, so the row reads without hovering */}
                   <span style={{
-                    fontSize: 10.5, fontFamily: 'var(--font-mono)',
-                    color: done ? 'var(--accent-green)' : 'var(--fg-4)',
-                    fontWeight: done ? 600 : 400,
-                    display: 'flex', alignItems: 'center', gap: 2,
+                    width: 68, textAlign: 'center', fontSize: 11, lineHeight: 1.3,
+                    color: done ? 'var(--accent-green)' : 'var(--fg-3)',
+                    fontWeight: done ? 600 : 500,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
-                    {streak > 0 ? <>🔥{streak}</> : i + 1}
+                    {habit.name}
                   </span>
+                  {streak > 0 && (
+                    <span style={{ fontSize: 10.5, color: 'var(--fg-4)', marginTop: -3 }}>🔥 {streak}d</span>
+                  )}
                 </div>
               );
             })}

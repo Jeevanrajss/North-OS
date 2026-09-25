@@ -1,5 +1,29 @@
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
+import { Monitor, Moon, Sun } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationPanel';
+import { useTheme, type ThemePref } from '@/lib/theme';
+import { api } from '@/lib/api';
+
+const NEXT: Record<ThemePref, ThemePref> = { system: 'light', light: 'dark', dark: 'system' };
+const LABEL: Record<ThemePref, string> = { system: 'Theme: follows macOS', light: 'Theme: light', dark: 'Theme: dark' };
+
+function ThemeToggle() {
+  const { pref, setPref } = useTheme();
+  const Icon = pref === 'light' ? Sun : pref === 'dark' ? Moon : Monitor;
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={() => setPref(NEXT[pref])}
+      aria-label={`${LABEL[pref]}. Click to change.`}
+      title={`${LABEL[pref]} — click to change`}
+    >
+      <Icon style={{ width: 16, height: 16 }} />
+    </button>
+  );
+}
 
 const ROUTE_LABELS: Record<string, string> = {
   '/app':               'Dashboard',
@@ -8,6 +32,9 @@ const ROUTE_LABELS: Record<string, string> = {
   '/app/subscriptions': 'Subscriptions',
   '/app/habits':        'Habits',
   '/app/chat':          'AI Chat',
+  '/app/goals':         'Goals',
+  '/app/health':        'Health',
+  '/app/patterns':      'Patterns',
   '/app/settings':      'Settings',
 };
 
@@ -19,6 +46,28 @@ function getRouteLabel(pathname: string): string {
   return prefix ? ROUTE_LABELS[prefix] : 'North OS';
 }
 
+/** Unmistakable marker on UAT builds — test data only, never real data. */
+function ChannelBadge() {
+  const { data } = useQuery({ queryKey: ['app-version'], queryFn: api.appVersion, staleTime: Infinity });
+  const uat = data?.channel === 'uat';
+  useEffect(() => {
+    if (uat) document.title = 'North OS UAT';
+  }, [uat]);
+  if (!uat) return null;
+  return (
+    <span
+      title={`UAT build ${data?.version ?? ''} — for testing before release`}
+      style={{
+        font: '700 10.5px/1 var(--font-sans)', letterSpacing: '0.1em', padding: '5px 8px', borderRadius: 6,
+        color: 'var(--accent-amber)', background: 'color-mix(in srgb, var(--accent-amber) 14%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--accent-amber) 35%, transparent)',
+      }}
+    >
+      UAT
+    </span>
+  );
+}
+
 export function Topbar() {
   const { pathname } = useLocation();
   const label = getRouteLabel(pathname);
@@ -27,7 +76,7 @@ export function Topbar() {
     <header
       className="drag-region shrink-0 sticky top-0 z-20 border-b"
       style={{
-        background: 'rgba(14,16,24,0.72)',
+        background: 'color-mix(in srgb, var(--bg-app) 72%, transparent)',
         backdropFilter: 'var(--glass-blur)',
         WebkitBackdropFilter: 'var(--glass-blur)',
         borderColor: 'var(--border-subtle)',
@@ -57,6 +106,8 @@ export function Topbar() {
         <div className="flex-1" />
 
         {/* Bell is a button so it gets no-drag automatically */}
+        <ChannelBadge />
+        <ThemeToggle />
         <NotificationBell />
       </div>
     </header>

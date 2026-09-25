@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
@@ -59,9 +60,9 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     });
     try {
       if (row.done) {
-        await dio.delete('/habits/${row.habit.id}/checkins/$today');
+        await dio.delete('/habits/${row.habit.id}/checkins/$today', options: queueable());
       } else {
-        await dio.put('/habits/${row.habit.id}/checkins/$today', data: {});
+        await dio.put('/habits/${row.habit.id}/checkins/$today', data: {}, options: queueable());
       }
       await _load();
     } catch (_) {
@@ -85,29 +86,47 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         onRefresh: _load,
         color: NorthColors.accent,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: NorthColors.accent))
+            ? Center(child: CircularProgressIndicator(color: NorthColors.accent))
             : ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, kFabClearance),
                 children: [
                   AppCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [
-                          Text(
-                            'Today · ${DateFormat('EEE d MMM').format(DateTime.now())}',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+                        Row(
+                          children: [
+                            Text(
+                              'Today · ${DateFormat('EEE d MMM').format(DateTime.now())}',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+                            ),
+                            const Spacer(),
+                            Text('$done/$total done', style: TextStyle(fontSize: 13, color: NorthColors.fg4)),
+                          ],
+                        ),
+                        const SizedBox(height: NorthSpace.md),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: total == 0 ? 0 : done / total,
+                            minHeight: 6,
+                            backgroundColor: NorthColors.fg6,
+                            valueColor: AlwaysStoppedAnimation(
+                              total > 0 && done == total ? NorthColors.green : NorthColors.accent,
+                            ),
                           ),
-                          const Spacer(),
-                          Text('$done/$total done', style: const TextStyle(fontSize: 13, color: NorthColors.fg4)),
-                        ]),
+                        ),
                         if (_stats != null && _stats!.overallCurrentStreak > 0) ...[
                           const SizedBox(height: 6),
-                          Row(children: [
-                            const Text('🔥 ', style: TextStyle(fontSize: 13)),
-                            Text('${_stats!.overallCurrentStreak} day streak',
-                                style: const TextStyle(fontSize: 13, color: NorthColors.amber, fontWeight: FontWeight.w600)),
-                          ]),
+                          Row(
+                            children: [
+                              const Text('🔥 ', style: TextStyle(fontSize: 13)),
+                              Text(
+                                '${_stats!.overallCurrentStreak} day streak',
+                                style: TextStyle(fontSize: 13, color: NorthColors.amber, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
                         ],
                       ],
                     ),
@@ -119,12 +138,16 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                     AppCard(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Column(
-                        children: _habits.map((h) => _habitRow(h)).toList(),
+                        // Open habits first (Zeigarnik effect).
+                        children: [
+                          ..._habits.where((h) => !h.done),
+                          ..._habits.where((h) => h.done),
+                        ].map((h) => _habitRow(h)).toList(),
                       ),
                     ),
                   if (_stats != null && _stats!.dailyAnyDone.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    const Text('This Week', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
+                    Text('Last 7 days', style: NorthText.section),
                     const SizedBox(height: 10),
                     AppCard(child: _weekStrip(_stats!.dailyAnyDone)),
                   ],
@@ -137,50 +160,74 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
   Widget _habitRow(HabitTodayRow h) {
     final toggling = _toggling.contains(h.habit.id);
     return InkWell(
-      onTap: toggling ? null : () => _toggle(h),
+      onTap: toggling
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              _toggle(h);
+            },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        child: Row(children: [
-          Text(h.habit.emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(h.habit.name, style: TextStyle(
-              fontSize: 14,
-              color: h.done ? NorthColors.fg4 : NorthColors.fg1,
-              decoration: h.done ? TextDecoration.lineThrough : null,
-            )),
-          ),
-          if (toggling)
-            const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-          else
-            Icon(
-              h.done ? Icons.check_circle : Icons.circle_outlined,
-              color: h.done ? NorthColors.green : NorthColors.fg5,
-              size: 22,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Center(child: Text(h.habit.emoji, style: const TextStyle(fontSize: 20))),
             ),
-        ]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                h.habit.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: h.done ? NorthColors.fg4 : NorthColors.fg1,
+                  decoration: h.done ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+            if (toggling)
+              const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              Icon(
+                h.done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                color: h.done ? NorthColors.green : NorthColors.fg5,
+                size: 26,
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _weekStrip(List<DailyAnyDone> days) {
-    // dailyAnyDone is oldest -> newest, last 7 entries
+    // Rolling last 7 days ending today (oldest -> newest) — label each dot
+    // with its real weekday, not a fixed Mon..Sun position.
     final last7 = days.length > 7 ? days.sublist(days.length - 7) : days;
+    final todayIso = DateFormat('yyyy-MM-dd').format(DateTime.now());
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: last7.asMap().entries.map((entry) {
-        final i = entry.key;
-        final d = entry.value;
-        final label = i < _dowLabels.length ? _dowLabels[i] : '';
-        return Column(children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: NorthColors.fg5)),
-          const SizedBox(height: 6),
-          Icon(
-            d.anyDone ? Icons.check_circle : Icons.circle_outlined,
-            size: 20,
-            color: d.anyDone ? NorthColors.green : NorthColors.fg5,
-          ),
-        ]);
+      children: last7.map((d) {
+        final date = DateTime.tryParse(d.date);
+        final label = date != null ? _dowLabels[date.weekday - 1] : '';
+        final isToday = d.date == todayIso;
+        return Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isToday ? NorthColors.accent : NorthColors.fg5,
+                fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Icon(
+              d.anyDone ? Icons.check_circle : Icons.circle_outlined,
+              size: 20,
+              color: d.anyDone ? NorthColors.green : NorthColors.fg5,
+            ),
+          ],
+        );
       }).toList(),
     );
   }

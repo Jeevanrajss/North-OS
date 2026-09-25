@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -78,7 +79,12 @@ def _get_or_create_local_user(db: Session) -> User:
             is_active=True,
         )
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # A concurrent first request created it — use that row.
+            db.rollback()
+            return db.query(User).filter(User.id == LOCAL_USER_ID).one()
         db.refresh(user)
     return user
 

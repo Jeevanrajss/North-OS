@@ -1,10 +1,13 @@
-import 'dart:io' show Platform;
+import '../../core/platform.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/api/api_client.dart';
+import '../../core/config.dart';
+import '../../core/offline/offline_store.dart';
 import '../../core/app_startup.dart';
 import '../../core/notifications/notification_ids.dart';
 import '../../core/notifications/notification_prefs.dart';
@@ -48,11 +51,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadProfile();
     _loadNotificationPrefs();
     _loadLastSync();
-    if (Platform.isAndroid) _loadSmsStatus();
+    if (isAndroid) _loadSmsStatus();
   }
 
   Future<void> _loadLastSync() async {
     final t = await getLastSyncTime();
+    await OfflineStore.instance.refreshPendingCount();
     if (mounted) setState(() => _lastSync = t);
   }
 
@@ -60,14 +64,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _syncingNow = true);
     final ok = await syncNow(ref.read(dioProvider));
     if (!mounted) return;
-    setState(() { _syncingNow = false; _connectionOk = ok; });
+    setState(() {
+      _syncingNow = false;
+      _connectionOk = ok;
+    });
     if (ok) await _loadLastSync();
   }
 
   Future<void> _loadNotificationPrefs() async {
-    final entries = await Future.wait(
-      _notifEnabled.keys.map((k) => NotificationPrefs.isEnabled(k)),
-    );
+    final entries = await Future.wait(_notifEnabled.keys.map((k) => NotificationPrefs.isEnabled(k)));
     final briefingHour = await NotificationPrefs.getHour(NotificationPrefs.briefingHourKey, 8);
     final briefingMinute = await NotificationPrefs.getHour(NotificationPrefs.briefingMinuteKey, 0);
     final reminderHour = await NotificationPrefs.getHour(NotificationPrefs.reminderHourKey, 21);
@@ -86,6 +91,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _toggleNotif(String key, bool value) async {
+    // Turning a reminder on is the moment the user wants notifications —
+    // ask for the OS permission now, not at first launch.
+    if (value && !await NotificationService.hasPermission()) {
+      final granted = await NotificationService.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notifications are blocked for North OS.'),
+              action: SnackBarAction(label: 'Open settings', onPressed: openAppSettings),
+            ),
+          );
+        }
+        return;
+      }
+    }
     setState(() => _notifEnabled[key] = value);
     await NotificationPrefs.setEnabled(key, value);
     if (!value) {
@@ -117,10 +138,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (briefing != null) {
       await NotificationPrefs.setTime(
-        NotificationPrefs.briefingHourKey, NotificationPrefs.briefingMinuteKey,
-        briefing.hour, briefing.minute,
+        NotificationPrefs.briefingHourKey,
+        NotificationPrefs.briefingMinuteKey,
+        briefing.hour,
+        briefing.minute,
       );
-      setState(() { _briefingHour = briefing.hour; _briefingMinute = briefing.minute; });
+      setState(() {
+        _briefingHour = briefing.hour;
+        _briefingMinute = briefing.minute;
+      });
     }
     if (!mounted) return;
     final reminder = await showTimePicker(
@@ -130,10 +156,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (reminder != null) {
       await NotificationPrefs.setTime(
-        NotificationPrefs.reminderHourKey, NotificationPrefs.reminderMinuteKey,
-        reminder.hour, reminder.minute,
+        NotificationPrefs.reminderHourKey,
+        NotificationPrefs.reminderMinuteKey,
+        reminder.hour,
+        reminder.minute,
       );
-      setState(() { _reminderHour = reminder.hour; _reminderMinute = reminder.minute; });
+      setState(() {
+        _reminderHour = reminder.hour;
+        _reminderMinute = reminder.minute;
+      });
     }
     if (briefing != null || reminder != null) {
       await NotificationScheduler(ref.read(dioProvider)).scheduleAll();
@@ -165,7 +196,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Not now')),
-            TextButton(onPressed: () { Navigator.pop(ctx); openAppSettings(); }, child: const Text('Open Settings')),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
           ],
         ),
       );
@@ -185,7 +222,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _testConnection() async {
-    setState(() { _testingConnection = true; _connectionOk = null; });
+    setState(() {
+      _testingConnection = true;
+      _connectionOk = null;
+    });
     try {
       final url = _serverUrl ?? '';
       final res = await Dio().get('$url/api/v1/health');
@@ -206,148 +246,223 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, kFabClearance),
         children: [
           // Account
           _sectionTitle('Account'),
-          Card(child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _row('Name', _name ?? '...'),
-              const SizedBox(height: 8),
-              _row('Email', _email ?? '...'),
-              const SizedBox(height: 16),
-              SizedBox(width: double.infinity, child: OutlinedButton(
-                onPressed: _signOut,
-                style: OutlinedButton.styleFrom(foregroundColor: NorthColors.red),
-                child: const Text('Sign Out'),
-              )),
-            ]),
-          )),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _row('Name', _name ?? '...'),
+                  const SizedBox(height: 8),
+                  _row('Email', _email ?? '...'),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _signOut,
+                      style: OutlinedButton.styleFrom(foregroundColor: NorthColors.red),
+                      child: const Text('Sign Out'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
 
           // Connection
           _sectionTitle('Connection'),
-          Card(child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _row('Server URL', _serverUrl ?? 'Not set'),
-              const SizedBox(height: 12),
-              Row(children: [
-                ElevatedButton(
-                  onPressed: _testingConnection ? null : _testConnection,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: NorthColors.accentMuted,
-                    foregroundColor: NorthColors.accent,
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _row('Server URL', _serverUrl ?? 'Not set'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _testingConnection ? null : _testConnection,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: NorthColors.accentMuted,
+                          foregroundColor: NorthColors.accent,
+                        ),
+                        child: _testingConnection
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Test Connection'),
+                      ),
+                      const SizedBox(width: 12),
+                      if (_connectionOk == true)
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle, size: 16, color: NorthColors.green),
+                            const SizedBox(width: 4),
+                            Text('Connected', style: TextStyle(fontSize: 12, color: NorthColors.green)),
+                          ],
+                        )
+                      else if (_connectionOk == false)
+                        Row(
+                          children: [
+                            Icon(Icons.error, size: 16, color: NorthColors.red),
+                            const SizedBox(width: 4),
+                            Text('Failed', style: TextStyle(fontSize: 12, color: NorthColors.red)),
+                          ],
+                        ),
+                    ],
                   ),
-                  child: _testingConnection
-                      ? const SizedBox(width: 16, height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Test Connection'),
-                ),
-                const SizedBox(width: 12),
-                if (_connectionOk == true)
-                  Row(children: [
-                    Icon(Icons.check_circle, size: 16, color: NorthColors.green),
-                    const SizedBox(width: 4),
-                    Text('Connected', style: TextStyle(fontSize: 12, color: NorthColors.green)),
-                  ])
-                else if (_connectionOk == false)
-                  Row(children: [
-                    Icon(Icons.error, size: 16, color: NorthColors.red),
-                    const SizedBox(width: 4),
-                    Text('Failed', style: TextStyle(fontSize: 12, color: NorthColors.red)),
-                  ]),
-              ]),
-              const Divider(height: 24, color: NorthColors.border1),
-              _row('Last synced', _lastSync == null ? 'Never' : lastSyncedText(_lastSync)),
-              const SizedBox(height: 8),
-              const Text('Next auto-sync: in 24 hours', style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
-              const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: OutlinedButton(
-                onPressed: _syncingNow ? null : _syncNow,
-                child: _syncingNow
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Sync now'),
-              )),
-            ]),
-          )),
+                  Divider(height: 24, color: NorthColors.border1),
+                  _row(
+                    'Last synced',
+                    _lastSync == null
+                        ? 'Never'
+                        : lastSyncedText(
+                            _lastSync,
+                            pending: OfflineStore.instance.pending.value,
+                            online: OfflineStore.instance.online.value,
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Next auto-sync: in 24 hours', style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _syncingNow ? null : _syncNow,
+                      child: _syncingNow
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Text('Sync now'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
 
           // SMS Auto-Import (Android only)
-          if (Platform.isAndroid) ...[
+          if (isAndroid) ...[
             _sectionTitle('SMS Auto-Import'),
-            Card(child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text(
-                  'Automatically log bank/UPI transactions from SMS. Nothing leaves your account.',
-                  style: TextStyle(fontSize: 12, color: NorthColors.fg5),
-                ),
-                const SizedBox(height: 12),
-                if (_smsStatus?.isGranted == true)
-                  Row(children: [
-                    Icon(Icons.check_circle, size: 16, color: NorthColors.green),
-                    const SizedBox(width: 6),
-                    Text('Enabled', style: TextStyle(fontSize: 13, color: NorthColors.green)),
-                  ])
-                else
-                  ElevatedButton(
-                    onPressed: _requestSmsPermission,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: NorthColors.accentMuted,
-                      foregroundColor: NorthColors.accent,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Automatically log bank/UPI transactions from SMS. Nothing leaves your account.',
+                      style: TextStyle(fontSize: 12, color: NorthColors.fg5),
                     ),
-                    child: const Text('Enable SMS Auto-Import'),
-                  ),
-              ]),
-            )),
+                    const SizedBox(height: 12),
+                    if (_smsStatus?.isGranted == true)
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle, size: 16, color: NorthColors.green),
+                          const SizedBox(width: 6),
+                          Text('Enabled', style: TextStyle(fontSize: 13, color: NorthColors.green)),
+                        ],
+                      )
+                    else
+                      ElevatedButton(
+                        onPressed: _requestSmsPermission,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: NorthColors.accentMuted,
+                          foregroundColor: NorthColors.accent,
+                        ),
+                        child: const Text('Enable SMS Auto-Import'),
+                      ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
           ],
 
           // Notifications
           _sectionTitle('Notifications'),
-          Card(child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(children: [
-              _notifToggle('Morning briefing', _fmtTime(_briefingHour, _briefingMinute), NotificationPrefs.morningBriefingKey),
-              _notifToggle('Habit reminder', _fmtTime(_reminderHour, _reminderMinute), NotificationPrefs.habitReminderKey),
-              _notifToggle('Streak at risk', '10:30 PM', NotificationPrefs.streakAtRiskKey),
-              _notifToggle('Transaction imported', null, NotificationPrefs.smsImportKey),
-              _notifToggle('Bill due alerts', null, NotificationPrefs.billDueKey),
-              _notifToggle('Budget exceeded', null, NotificationPrefs.budgetExceededKey),
-              const Divider(height: 1, color: NorthColors.border1),
-              ListTile(
-                title: const Text('Change times', style: TextStyle(fontSize: 14, color: NorthColors.fg1)),
-                subtitle: const Text('Morning briefing + habit reminder', style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
-                trailing: const Icon(Icons.chevron_right, color: NorthColors.fg5),
-                onTap: _changeTimes,
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  _notifToggle(
+                    'Morning briefing',
+                    _fmtTime(_briefingHour, _briefingMinute),
+                    NotificationPrefs.morningBriefingKey,
+                  ),
+                  _notifToggle(
+                    'Habit reminder',
+                    _fmtTime(_reminderHour, _reminderMinute),
+                    NotificationPrefs.habitReminderKey,
+                  ),
+                  _notifToggle('Streak at risk', '10:30 PM', NotificationPrefs.streakAtRiskKey),
+                  _notifToggle('Transaction imported', null, NotificationPrefs.smsImportKey),
+                  _notifToggle('Bill due alerts', null, NotificationPrefs.billDueKey),
+                  _notifToggle('Budget exceeded', null, NotificationPrefs.budgetExceededKey),
+                  Divider(height: 1, color: NorthColors.border1),
+                  ListTile(
+                    title: Text('Change times', style: TextStyle(fontSize: 14, color: NorthColors.fg1)),
+                    subtitle: Text(
+                      'Morning briefing + habit reminder',
+                      style: TextStyle(fontSize: 12, color: NorthColors.fg5),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: NorthColors.fg5),
+                    onTap: _changeTimes,
+                  ),
+                ],
               ),
-            ]),
-          )),
+            ),
+          ),
           const SizedBox(height: 20),
 
           // Appearance
           _sectionTitle('Appearance'),
-          Card(child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Theme', style: TextStyle(fontSize: 13, color: NorthColors.fg5)),
-              const SizedBox(height: 10),
-              Consumer(builder: (context, ref, _) {
-                final mode = ref.watch(themeModeProvider);
-                return SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
-                    ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
-                    ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto_outlined)),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).setMode(s.first),
-                );
-              }),
-            ]),
-          )),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Theme', style: TextStyle(fontSize: 13, color: NorthColors.fg5)),
+                  const SizedBox(height: 10),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final mode = ref.watch(themeModeProvider);
+                      return SegmentedButton<ThemeMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            label: Text('Light'),
+                            icon: Icon(Icons.light_mode_outlined),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            label: Text('Dark'),
+                            icon: Icon(Icons.dark_mode_outlined),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            label: Text('System'),
+                            icon: Icon(Icons.brightness_auto_outlined),
+                          ),
+                        ],
+                        selected: {mode},
+                        onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).setMode(s.first),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _sectionTitle('About'),
+          const _AboutCard(),
         ],
       ),
     );
@@ -355,23 +470,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _sectionTitle(String title) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(title, style: const TextStyle(
-        fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg4,
-        letterSpacing: 0.5)),
+    child: Text(
+      title,
+      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg4, letterSpacing: 0.5),
+    ),
   );
 
   Widget _notifToggle(String label, String? subtitle, String prefKey) => SwitchListTile(
-    title: Text(label, style: const TextStyle(fontSize: 14, color: NorthColors.fg1)),
-    subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12, color: NorthColors.fg5)) : null,
+    title: Text(label, style: TextStyle(fontSize: 14, color: NorthColors.fg1)),
+    subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: NorthColors.fg5)) : null,
     value: _notifEnabled[prefKey] ?? true,
     onChanged: (v) => _toggleNotif(prefKey, v),
     activeThumbColor: NorthColors.accent,
     dense: true,
   );
 
-  Widget _row(String label, String value) => Row(children: [
-    Text(label, style: const TextStyle(fontSize: 13, color: NorthColors.fg5)),
-    const Spacer(),
-    Text(value, style: const TextStyle(fontSize: 13, color: NorthColors.fg1)),
-  ]);
+  Widget _row(String label, String value) => Row(
+    children: [
+      Text(label, style: TextStyle(fontSize: 13, color: NorthColors.fg5)),
+      const Spacer(),
+      Text(value, style: TextStyle(fontSize: 13, color: NorthColors.fg1)),
+    ],
+  );
+}
+
+/// App icon, this app's version and build, and the paired Mac app's version —
+/// so it's obvious which build is installed and whether the two match.
+class _AboutCard extends ConsumerWidget {
+  const _AboutCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset('assets/app_icon.png', width: 52, height: 52),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snap) {
+                final info = snap.data;
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(kIsUat ? 'North OS UAT' : 'North OS', style: NorthText.section),
+                  const SizedBox(height: 2),
+                  Text(
+                    info == null ? 'Version …' : 'Version ${info.version} (build ${info.buildNumber})',
+                    style: NorthText.label,
+                  ),
+                  FutureBuilder(
+                    future: ref.read(dioProvider).get('/app-version'),
+                    builder: (context, mac) {
+                      final v = mac.data?.data is Map ? (mac.data!.data as Map)['version'] : null;
+                      return Text(v == null ? 'Mac app: not connected' : 'Mac app $v', style: NorthText.caption);
+                    },
+                  ),
+                ]);
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }

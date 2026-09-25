@@ -12,6 +12,7 @@ class MoreBottomSheet extends StatelessWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: NorthColors.bg2,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -49,7 +50,7 @@ class MoreBottomSheet extends StatelessWidget {
               Navigator.pop(context);
               context.go('/settings');
             }),
-            const Divider(height: 24, color: NorthColors.border1),
+            Divider(height: 24, color: NorthColors.border1),
             _tile(context, Icons.logout, 'Sign Out', () async {
               Navigator.pop(context);
               await SecureStore.clearAll();

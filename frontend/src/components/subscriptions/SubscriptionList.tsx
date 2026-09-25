@@ -32,18 +32,18 @@ type Filter = 'active' | 'paused' | 'cancelled' | 'all';
 /** Brand gradient for the top accent bar (3px) */
 function getSubAccentGrad(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes('netflix'))              return 'linear-gradient(90deg, #E50914, #FF5B6E)';
+  if (n.includes('netflix'))              return 'linear-gradient(90deg, #E50914, var(--accent-red))';
   if (n.includes('claude') || n.includes('anthropic')) return 'linear-gradient(90deg, #D4756E, #FFA0A0)';
-  if (n.includes('spotify'))              return 'linear-gradient(90deg, #1DB954, #3DFF98)';
-  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(90deg, #3EBEFF, #7FDBFF)';
-  if (n.includes('cursor'))               return 'linear-gradient(90deg, #8B7CFF, #B8A5FF)';
-  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(90deg, #FFB86B, #FFD76A)';
+  if (n.includes('spotify'))              return 'linear-gradient(90deg, #1DB954, var(--accent-green))';
+  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(90deg, var(--secondary-500), #7FDBFF)';
+  if (n.includes('cursor'))               return 'linear-gradient(90deg, var(--primary-500), var(--primary-300))';
+  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(90deg, var(--accent-orange), var(--accent-yellow))';
   if (n.includes('youtube'))              return 'linear-gradient(90deg, #FF0000, #FF7070)';
-  if (n.includes('openai') || n.includes('chatgpt')) return 'linear-gradient(90deg, #10a37f, #3DFF98)';
+  if (n.includes('openai') || n.includes('chatgpt')) return 'linear-gradient(90deg, #10a37f, var(--accent-green))';
   if (n.includes('notion'))               return 'linear-gradient(90deg, #ffffff, #cccccc)';
   if (n.includes('figma'))                return 'linear-gradient(90deg, #F24E1E, #FF7262)';
-  if (n.includes('github'))               return 'linear-gradient(90deg, #6e5494, #8B7CFF)';
-  if (n.includes('amazon') || n.includes('prime')) return 'linear-gradient(90deg, #FF9900, #FFD76A)';
+  if (n.includes('github'))               return 'linear-gradient(90deg, #6e5494, var(--primary-500))';
+  if (n.includes('amazon') || n.includes('prime')) return 'linear-gradient(90deg, #FF9900, var(--accent-yellow))';
   return 'linear-gradient(90deg, var(--primary-500), var(--secondary-500))';
 }
 
@@ -53,16 +53,16 @@ function getSubLogoGrad(name: string): string {
   if (n.includes('netflix'))              return 'linear-gradient(135deg, #E50914, #831010)';
   if (n.includes('claude') || n.includes('anthropic')) return 'linear-gradient(135deg, #FFA0A0, #D4756E)';
   if (n.includes('spotify'))              return 'linear-gradient(135deg, #1DB954, #15803D)';
-  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, #3EBEFF, #0F7AB8)';
-  if (n.includes('cursor'))               return 'linear-gradient(135deg, #232734, #0E1018)';
-  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(135deg, #FFB86B, #B56A00)';
+  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, var(--secondary-500), #0F7AB8)';
+  if (n.includes('cursor'))               return 'linear-gradient(135deg, var(--surface-hover), var(--bg-app))';
+  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(135deg, var(--accent-orange), #B56A00)';
   if (n.includes('youtube'))              return 'linear-gradient(135deg, #FF0000, #8B0000)';
   if (n.includes('openai') || n.includes('chatgpt')) return 'linear-gradient(135deg, #10a37f, #065F46)';
   if (n.includes('notion'))               return 'linear-gradient(135deg, #2d2d2d, #1a1a1a)';
   if (n.includes('figma'))                return 'linear-gradient(135deg, #F24E1E, #A52A00)';
   if (n.includes('github'))               return 'linear-gradient(135deg, #6e5494, #3d2b6e)';
   if (n.includes('amazon') || n.includes('prime')) return 'linear-gradient(135deg, #FF9900, #B36B00)';
-  return 'linear-gradient(135deg, var(--primary-500), #6352DB)';
+  return 'linear-gradient(135deg, var(--primary-500), var(--primary-500))';
 }
 
 type SubscriptionListProps = {
@@ -550,8 +550,8 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           onClick={() => setIsAutopay((v) => !v)}
           className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md border transition-colors"
           style={{
-            background: isAutopay ? 'rgba(139,124,255,0.08)' : 'transparent',
-            borderColor: isAutopay ? 'rgba(139,124,255,0.35)' : 'var(--border-default)',
+            background: isAutopay ? 'rgb(var(--primary-rgb) / 0.08)' : 'transparent',
+            borderColor: isAutopay ? 'rgb(var(--primary-rgb) / 0.35)' : 'var(--border-default)',
           }}
         >
           <span style={{
@@ -613,7 +613,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           width: 40, height: 40, borderRadius: 10, margin: '10px 0 10px 12px',
           background: logoGrad, flexShrink: 0,
           display: 'grid', placeItems: 'center',
-          font: '500 16px/1 var(--font-display)', color: 'white',
+          font: '500 16px/1 var(--font-display)', color: 'var(--on-primary)',
         }}>
           {sub.emoji || sub.name.charAt(0).toUpperCase()}
         </div>
@@ -640,8 +640,8 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
               <span style={{
                 padding: '2px 7px', borderRadius: 999,
                 font: '500 10px/1 var(--font-mono)',
-                background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)',
-                border: '1px solid rgba(139,124,255,0.25)',
+                background: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--primary-300)',
+                border: '1px solid rgb(var(--primary-rgb) / 0.25)',
               }}>
                 ⚡ Autopay
               </span>
@@ -787,7 +787,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           width: 44, height: 44, borderRadius: 12, flexShrink: 0,
           background: logoGrad,
           display: 'grid', placeItems: 'center',
-          font: '500 18px/1 var(--font-display)', color: 'white',
+          font: '500 18px/1 var(--font-display)', color: 'var(--on-primary)',
         }}>
           {sub.emoji || sub.name.charAt(0).toUpperCase()}
         </div>
@@ -873,7 +873,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
         <div style={{
           display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center',
           padding: 12, borderRadius: 12,
-          background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)',
+          background: 'rgb(var(--overlay-rgb) / 0.02)', border: '1px solid var(--border-subtle)',
           marginBottom: 12,
         }}>
           <div style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--surface-elev)', display: 'grid', placeItems: 'center', color: 'var(--fg-3)' }}>
@@ -881,7 +881,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           </div>
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--fg-1)' }}>
-              {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days} days`}
+              {days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days} days`}
             </div>
             <div style={{ color: 'var(--fg-4)', fontSize: 11, fontFamily: 'var(--font-mono)', marginTop: 2 }}>
               {sub.next_billing_date}
@@ -892,7 +892,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
             font: '500 10.5px/1 var(--font-mono)', letterSpacing: '0.06em',
             ...(days <= 7
               ? { background: 'rgba(255,184,107,0.14)', color: 'var(--accent-yellow)', border: '1px solid rgba(255,184,107,0.24)' }
-              : { background: 'rgba(255,255,255,0.04)', color: 'var(--fg-4)', border: '1px solid var(--border-default)' }),
+              : { background: 'rgb(var(--overlay-rgb) / 0.04)', color: 'var(--fg-4)', border: '1px solid var(--border-default)' }),
           }}>
             {days === 0 ? 'Today' : days <= 3 ? 'Soon' : days <= 7 ? 'This week' : 'OK'}
           </span>
@@ -935,7 +935,7 @@ function SubscriptionRow({ sub, displayMode = 'grid', onSave, onPause, onResume,
           {isPaused ? 'paused' : sub.amount === 0 ? 'trial' : 'active'}
         </span>
         {sub.is_autopay && (
-          <span style={{ padding: '2px 7px', borderRadius: 999, font: '500 10px/1 var(--font-mono)', background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.25)' }}>
+          <span style={{ padding: '2px 7px', borderRadius: 999, font: '500 10px/1 var(--font-mono)', background: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--primary-300)', border: '1px solid rgb(var(--primary-rgb) / 0.25)' }}>
             ⚡ Autopay
           </span>
         )}

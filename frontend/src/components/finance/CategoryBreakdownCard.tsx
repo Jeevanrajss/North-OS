@@ -12,8 +12,8 @@ const CAT_BAR_GRADS: Record<string, string> = {
   retail:        'linear-gradient(90deg, var(--accent-pink), var(--primary-500))',
   bills:         'linear-gradient(90deg, var(--accent-red), var(--accent-orange))',
   utilities:     'linear-gradient(90deg, var(--accent-red), var(--accent-orange))',
-  health:        'linear-gradient(90deg, #FF7AD9, var(--accent-pink))',
-  medical:       'linear-gradient(90deg, #FF7AD9, var(--accent-pink))',
+  health:        'linear-gradient(90deg, var(--accent-pink), var(--accent-pink))',
+  medical:       'linear-gradient(90deg, var(--accent-pink), var(--accent-pink))',
 };
 
 function getCatBarGrad(category: string): string {
@@ -126,7 +126,7 @@ export function CategoryBreakdownCard({ stats, meta, currency, budgetByCategory 
             <div style={{ gridColumn: '1 / -1', height: 4, borderRadius: 999, background: 'var(--surface-hover)', overflow: 'hidden', marginTop: 8, position: 'relative' }}>
               <div style={{ width: `${pct}%`, height: '100%', borderRadius: 999, background: barGrad, transition: 'width 500ms ease' }} />
               {bp && bp.budget > 0 && (
-                <div style={{ position: 'absolute', top: 0, height: '100%', width: 1, background: 'rgba(255,255,255,0.30)', left: `${Math.min((bp.budget / max) * 100, 100)}%` }} />
+                <div style={{ position: 'absolute', top: 0, height: '100%', width: 1, background: 'rgb(var(--overlay-rgb) / 0.30)', left: `${Math.min((bp.budget / max) * 100, 100)}%` }} />
               )}
             </div>
 

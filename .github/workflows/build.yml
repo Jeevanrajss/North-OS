@@ -1,0 +1,137 @@
+name: Build apps
+
+# Shared by "Release to UAT" and "Promote to production" so both channels are
+# built the same way. Produces one artifact, `apps-<channel>`, with the Mac
+# DMG and the Android APK (and the Windows installer when asked).
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: prod or uat
+        required: true
+        type: string
+      version:
+        description: e.g. 1.7.0-uat.2 or 1.7.0
+        required: true
+        type: string
+      ref:
+        description: Commit to build
+        required: true
+        type: string
+      windows:
+        type: boolean
+        default: false
+
+jobs:
+  mac:
+    name: Mac app (${{ inputs.channel }})
+    runs-on: macos-14   # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - run: python3 scripts/set_version.py ${{ inputs.version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # Frontend first — the PyInstaller spec bundles frontend/dist.
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: pip install pyinstaller -e ./backend
+      - run: pyinstaller backend.spec --noconfirm
+        working-directory: backend
+      - name: Package DMG
+        working-directory: electron
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # unsigned; right-click → Open on first launch
+        run: |
+          npm ci
+          npm run ${{ inputs.channel == 'uat' && 'dist:mac:uat' || 'dist:mac' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apps-${{ inputs.channel }}-mac
+          path: electron/dist/*.dmg
+          if-no-files-found: error
+
+  android:
+    name: Android app (${{ inputs.channel }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - id: v
+        run: python3 scripts/set_version.py ${{ inputs.version }} --github
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+      # A stable release key, so each new APK installs over the previous one.
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 not set — APK is signed with a throwaway debug key and won't update an installed app."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > mobile/android/app/release.jks
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > mobile/android/key.properties
+      - name: Build APK
+        working-directory: mobile
+        env:
+          # Optional repo variable: the Mac's Tailscale IP, to pre-fill pairing.
+          MAC_IP: ${{ vars.MAC_TAILSCALE_IP }}
+        run: |
+          PORT=${{ inputs.channel == 'uat' && '9848' || '9847' }}
+          flutter build apk --release --flavor ${{ inputs.channel }} \
+            --dart-define=CHANNEL=${{ inputs.channel }} \
+            ${MAC_IP:+--dart-define=SERVER_URL=http://$MAC_IP:$PORT} \
+            --build-name=${{ steps.v.outputs.name }} --build-number=${{ steps.v.outputs.code }}
+          LABEL=${{ inputs.channel == 'uat' && 'NorthOS-UAT-Android' || 'NorthOS-Android' }}
+          mkdir -p out && cp build/app/outputs/flutter-apk/app-${{ inputs.channel }}-release.apk "out/$LABEL-v${{ inputs.version }}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apps-${{ inputs.channel }}-android
+          path: mobile/out/*.apk
+          if-no-files-found: error
+
+  windows:
+    name: Windows app (${{ inputs.channel }})
+    if: inputs.windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - run: python scripts/set_version.py ${{ inputs.version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: pip install pyinstaller -e ./backend
+      - run: pyinstaller backend.spec --noconfirm
+        working-directory: backend
+      - run: npm ci && npm run dist:win
+        working-directory: electron
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apps-${{ inputs.channel }}-windows
+          path: electron/dist/*.exe
+          if-no-files-found: error

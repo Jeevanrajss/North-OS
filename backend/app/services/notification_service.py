@@ -2,13 +2,24 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime, time as time_t
+from datetime import date, datetime, time as time_t, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
 
 from app.models.notification import Notification
 
 log = logging.getLogger(__name__)
+
+
+def _created_today() -> tuple:
+    """Filter for notifications created on the Mac's local 'today'.
+
+    created_at is stored in UTC, so comparing its date with the local date
+    is wrong for part of every day (00:00–05:30 in India): a morning
+    briefing re-created then was never found and doubled up.
+    """
+    start = datetime.combine(date.today(), time_t.min).astimezone(timezone.utc).replace(tzinfo=None)
+    return Notification.created_at >= start, Notification.created_at < start + timedelta(days=1)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +109,7 @@ def check_morning_briefing(db: Session, force: bool = False, user_id: str = '') 
     already = db.query(Notification).filter(
         Notification.type == "morning_briefing",
         Notification.user_id == user_id,
-        sqlfunc.date(Notification.created_at) == str(today),
+        *_created_today(),
     ).first()
     if already:
         if not force:
@@ -360,7 +371,7 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
     already = db.query(Notification).filter(
         Notification.type == "habit_reminder",
         Notification.user_id == user_id,
-        sqlfunc.date(Notification.created_at) == str(today),
+        *_created_today(),
     ).first()
     if already:
         if not force:
@@ -377,8 +388,11 @@ def check_habit_reminders(db: Session, force: bool = False, user_id: str = '') -
         if count == 1
         else f"{count} habits pending: {names}{extra}."
     )
-    create_notification(db, "habit_reminder", "Habit Reminder 🔥", body, {"count": count}, user_id=user_id)
-    return 1
+    # A manual trigger is an explicit request: deliver it even in quiet hours,
+    # and only report what was actually created.
+    notif = create_notification(db, "habit_reminder", "Habit Reminder 🔥", body, {"count": count},
+                                skip_quiet=force, user_id=user_id)
+    return 1 if notif else 0
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +432,7 @@ def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '
             Notification.type == "sub_alert",
             Notification.user_id == user_id,
             Notification.data.contains(sub.id),
-            sqlfunc.date(Notification.created_at) == str(today),
+            *_created_today(),
         ).first()
         if already:
             if not force:
@@ -443,14 +457,14 @@ def check_subscription_alerts(db: Session, force: bool = False, user_id: str = '
             )
             title = "Renewal Due 🔔"
 
-        create_notification(
+        if create_notification(
             db, "sub_alert", title, msg,
             {"sub_id": sub.id, "days_until": delta, "name": sub.name,
              "amount": sub.amount, "currency": sub.currency,
              "is_autopay": sub.is_autopay},
-            user_id=user_id,
-        )
-        created += 1
+            skip_quiet=force, user_id=user_id,
+        ):
+            created += 1
     return created
 
 
@@ -518,11 +532,11 @@ def check_budget_warnings(db: Session, force: bool = False, user_id: str = '') -
 
         pct_str = f"{int(pct * 100)}%"
         body = f"{cat} is at {pct_str} of its ₹{budget.amount:,.0f} monthly budget."
-        create_notification(
+        if create_notification(
             db, "budget_warning", "Budget Warning 💰", body,
             {"category": cat, "spent": spent, "budget": budget.amount, "pct": pct},
-            user_id=user_id,
-        )
-        created += 1
+            skip_quiet=force, user_id=user_id,
+        ):
+            created += 1
 
     return created

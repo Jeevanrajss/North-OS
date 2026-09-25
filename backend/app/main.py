@@ -5,13 +5,17 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
 
 from app.config import get_settings
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.routers import accounts, ai, analytics, app_logs, auth, data, debt, finance, finance_advisor, financial_goals, goals, habit, health, health_tracking, investments, journal, settings, subscription, notifications
-from app.routers import import_router, sms, contacts, splits, insights
+from app.routers import import_router, sms, contacts, splits, insights, pairing
+from app.services import pairing as pairing_service
+from app.services.auth_service import JWT_ALGORITHM, JWT_SECRET
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,13 +28,18 @@ log = logging.getLogger("north-os")
 async def lifespan(app: FastAPI):
     log.info("Booting North OS backend")
     init_db()
+    if get_settings().app_env in ("dev", "desktop"):
+        # Create the single local owner up front so the UI's burst of parallel
+        # first requests can't race to insert it.
+        from app.services.auth_service import _get_or_create_local_user
+        with SessionLocal() as _db:
+            _get_or_create_local_user(_db)
     log.info("DB ready")
 
     # Backfill analytics snapshots on startup (idempotent — upserts existing rows).
     # Runs once per active user — a snapshot is now scoped to (user_id, date),
     # so a single anonymous backfill would only ever populate the local account.
     from app.services.analytics_engine import backfill_snapshots
-    from app.db import SessionLocal
     from app.models.user import User
     with SessionLocal() as _db:
         try:
@@ -42,6 +51,7 @@ async def lifespan(app: FastAPI):
 
     from app.scheduler import start_scheduler
     start_scheduler()
+
     yield
     from app.scheduler import stop_scheduler
     stop_scheduler()
@@ -57,8 +67,36 @@ def create_app() -> FastAPI:
         redirect_slashes=False,
     )
 
-    # CORS — allow all origins since auth is handled via JWT Bearer tokens.
-    # Electron desktop and Flutter mobile apps need to connect from any origin.
+    # Desktop backend reachable from a paired phone (Tailscale/LAN): anything
+    # not from this Mac must carry a current device token. Loopback requests
+    # (Electron UI, Vite proxy) keep the no-login local-owner behaviour.
+    _remote_open = {"/api/v1/ping", "/api/v1/pair/claim", "/api/v1/auth/refresh"}
+
+    @app.middleware("http")
+    async def guard_remote(request: Request, call_next):
+        if (
+            get_settings().app_env in ("dev", "desktop")
+            and pairing_service.is_remote(request.client.host if request.client else None)
+            and request.url.path.startswith("/api/")
+            and request.url.path not in _remote_open
+            and request.method != "OPTIONS"  # CORS preflight carries no data or credentials
+        ):
+            auth_header = request.headers.get("authorization", "")
+            allowed = False
+            if auth_header.lower().startswith("bearer "):
+                try:
+                    payload = jwt.decode(auth_header[7:], JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                    if payload.get("type") == "access" and "pv" in payload:
+                        with SessionLocal() as db:
+                            allowed = pairing_service.token_is_current(db, payload)
+                except JWTError:
+                    allowed = False
+            if not allowed:
+                return JSONResponse({"detail": "Pair this device with the Mac first."}, status_code=401)
+        return await call_next(request)
+
+    # Added after the guard so CORS is the outer layer and even the guard's
+    # 401s carry CORS headers. Auth is via Bearer tokens, not cookies.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -68,6 +106,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(pairing.router)
     app.include_router(auth.router)
     app.include_router(ai.router)
     app.include_router(journal.router)
@@ -95,7 +134,7 @@ def create_app() -> FastAPI:
     # Version endpoint — used by Electron to check running version
     @app.get("/api/v1/app-version")
     def app_version():
-        return {"version": cfg.app_version}
+        return {"version": cfg.app_version, "channel": cfg.app_channel}
 
     if cfg.app_env in ("production", "desktop"):
         # Packaged app: serve the built React frontend at "/"

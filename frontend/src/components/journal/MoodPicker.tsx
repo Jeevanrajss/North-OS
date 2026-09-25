@@ -28,7 +28,7 @@ export function MoodPicker({ selected, onChange, disabled }: Props) {
     onChange([...selected, code]);
   }
 
-  if (isLoading) return <div className="text-xs text-white/40">Loading moods…</div>;
+  if (isLoading) return <div className="text-xs text-fg-4">Loading moods…</div>;
   if (error || !data) return <div className="text-xs text-red-400">Couldn't load moods.</div>;
 
   const sorted: MoodCode[] = [...data].sort((a, b) => a.sort_order - b.sort_order);
@@ -51,15 +51,15 @@ export function MoodPicker({ selected, onChange, disabled }: Props) {
                 padding: '0 12px 0 10px',
                 ...(active
                   ? {
-                      background: 'linear-gradient(135deg, rgba(139,124,255,0.18), rgba(139,124,255,0.08))',
-                      borderColor: 'rgba(139,124,255,0.5)',
-                      color: 'white',
-                      boxShadow: '0 0 0 3px rgba(139,124,255,0.10)',
+                      background: 'linear-gradient(135deg, rgb(var(--primary-rgb) / 0.18), rgb(var(--primary-rgb) / 0.08))',
+                      borderColor: 'rgb(var(--primary-rgb) / 0.5)',
+                      color: 'var(--fg-1)',
+                      boxShadow: '0 0 0 3px rgb(var(--primary-rgb) / 0.10)',
                     }
                   : {
-                      background: 'rgba(255,255,255,0.02)',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      color: '#A0A9BC',
+                      background: 'rgb(var(--overlay-rgb) / 0.02)',
+                      borderColor: 'rgb(var(--overlay-rgb) / 0.08)',
+                      color: 'var(--fg-3)',
                     }),
                 opacity: disabled ? 0.5 : 1,
                 cursor: disabled ? 'not-allowed' : 'pointer',
@@ -72,10 +72,10 @@ export function MoodPicker({ selected, onChange, disabled }: Props) {
           );
         })}
       </div>
-      <div className="mt-2" style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>
+      <div className="mt-2" style={{ fontSize: 11, color: 'rgb(var(--overlay-rgb) / 0.30)' }}>
         Pick up to {MAX_MOODS_PER_DAY}
         {selected.length > 0 && (
-          <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.50)' }}>
+          <span style={{ marginLeft: 4, color: 'rgb(var(--overlay-rgb) / 0.50)' }}>
             {selected.length}/{MAX_MOODS_PER_DAY} selected
           </span>
         )}

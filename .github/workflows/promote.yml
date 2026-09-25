@@ -1,0 +1,93 @@
+name: Promote to production
+
+# Run by hand once a UAT build has passed testing:
+#   Actions → Promote to production → Run workflow → uat_tag = v1.7.0-uat.2
+# The run then WAITS for approval (the `production` environment requires a
+# reviewer). Only after "Approve and deploy" does it build the production
+# apps from the exact commit that was tested, publish release v1.7.0 (which
+# the production apps auto-update to), and move `main` to that commit.
+on:
+  workflow_dispatch:
+    inputs:
+      uat_tag:
+        description: UAT tag that passed testing (e.g. v1.7.0-uat.2)
+        required: true
+        type: string
+      windows:
+        description: Also build the Windows installer
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency: production-release
+
+jobs:
+  approve:
+    name: Approval
+    runs-on: ubuntu-latest
+    environment: production    # ← the approval gate (Settings → Environments)
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      sha: ${{ steps.v.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UAT_TAG: ${{ inputs.uat_tag }}
+        run: |
+          [[ "$UAT_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-uat\.[0-9]+$ ]] || { echo "::error::Not a UAT tag: $UAT_TAG"; exit 1; }
+          VERSION="${BASH_REMATCH[1]}"
+          git rev-parse -q --verify "refs/tags/$UAT_TAG" >/dev/null || { echo "::error::Tag $UAT_TAG doesn't exist"; exit 1; }
+          gh release view "$UAT_TAG" --json isPrerelease -q .isPrerelease | grep -q true \
+            || { echo "::error::$UAT_TAG was never released to UAT — only tested builds can be promoted"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::v$VERSION is already in production"; exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-list -n 1 "$UAT_TAG")" >> "$GITHUB_OUTPUT"
+          echo "Promoting $UAT_TAG ($(git rev-list -n 1 "$UAT_TAG" | cut -c1-7)) → v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: approve
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      channel: prod
+      version: ${{ needs.approve.outputs.version }}
+      ref: ${{ needs.approve.outputs.sha }}
+      windows: ${{ inputs.windows }}
+
+  release:
+    name: Publish production release
+    needs: [approve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: apps-prod-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.approve.outputs.version }}
+          target_commitish: ${{ needs.approve.outputs.sha }}
+          name: North OS ${{ needs.approve.outputs.version }}
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            Promoted from `${{ inputs.uat_tag }}` after UAT sign-off.
+
+            **First install on macOS:** right-click the DMG → Open (the app isn't code-signed yet). Updates after that install themselves.
+      # main always equals what's in production.
+      - name: Move main to the released commit
+        run: git push origin "${{ needs.approve.outputs.sha }}:refs/heads/main"

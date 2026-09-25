@@ -79,8 +79,8 @@ function CategoryPicker({ txnType, meta, onPick, onSkip, busy }: {
             }}
             onMouseEnter={(e) => {
               if (!busy) {
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.14)';
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,124,255,0.4)';
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.14)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--primary-rgb) / 0.4)';
                 (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary-300)';
               }
             }}
@@ -152,7 +152,7 @@ function SmsRow({ row, meta, onConfirm, onDismiss, confirming, dismissing, error
   return (
     <div style={{
       borderRadius: 12,
-      border: `1px solid ${error ? 'rgba(255,91,110,0.35)' : picking ? 'rgba(139,124,255,0.35)' : 'var(--border-default)'}`,
+      border: `1px solid ${error ? 'rgba(255,91,110,0.35)' : picking ? 'rgb(var(--primary-rgb) / 0.35)' : 'var(--border-default)'}`,
       background: 'var(--surface)',
       overflow: 'hidden',
       transition: 'border-color 0.15s',
@@ -245,7 +245,7 @@ function SmsRow({ row, meta, onConfirm, onDismiss, confirming, dismissing, error
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '6px 12px', borderRadius: 8, border: 'none',
             cursor: busy ? 'default' : 'pointer',
-            background: picking ? 'rgba(139,124,255,0.18)' : 'rgba(61,255,152,0.12)',
+            background: picking ? 'rgb(var(--primary-rgb) / 0.18)' : 'rgba(61,255,152,0.12)',
             color: picking ? 'var(--primary-300)' : 'var(--accent-green)',
             fontSize: 12, fontWeight: 500,
             transition: 'all 0.12s',
@@ -320,7 +320,6 @@ type Props = {
 export function SmsInbox({ queryKey }: Props) {
   const qc = useQueryClient();
   const [scanning, setScanning] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [scanMsg, setScanMsg] = useState('');
   // Per-row error state: smsId → error message
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
@@ -345,23 +344,6 @@ export function SmsInbox({ queryKey }: Props) {
     staleTime: Infinity,
   });
 
-  // Auto-sync HTTP SMS every 5 min when configured
-  useQuery({
-    queryKey: ['sms-auto-sync'],
-    queryFn: async () => {
-      if (!statusQ.data?.httpsms_configured) return null;
-      return api.sms.syncHttpSms();
-    },
-    enabled: !!statusQ.data?.httpsms_configured,
-    refetchInterval: 5 * 60_000,
-    staleTime: 4 * 60_000,
-    select: (data) => {
-      if (data && data.new_transactions > 0) {
-        qc.invalidateQueries({ queryKey: ['sms-pending'] });
-      }
-      return data;
-    },
-  });
 
   const confirmMut = useMutation({
     mutationFn: ({ id, category }: { id: string; category: string | null }) =>
@@ -426,27 +408,10 @@ export function SmsInbox({ queryKey }: Props) {
     }
   }
 
-  async function handleSyncHttpSms() {
-    setSyncing(true);
-    setScanMsg('');
-    try {
-      const res = await api.sms.syncHttpSms();
-      setScanMsg(res.new_transactions > 0
-        ? `Found ${res.new_transactions} new transaction${res.new_transactions > 1 ? 's' : ''}.`
-        : 'No new transactions found.');
-      qc.invalidateQueries({ queryKey: ['sms-pending'] });
-    } catch (e: unknown) {
-      setScanMsg(e instanceof Error ? e.message : 'Sync failed.');
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   const pending = pendingQ.data ?? [];
   const imessageAvailable = statusQ.data?.imessage_available ?? false;
-  const httpsmsConfigured = statusQ.data?.httpsms_configured ?? false;
 
-  if (pending.length === 0 && !imessageAvailable && !httpsmsConfigured) return null;
+  if (pending.length === 0 && !imessageAvailable) return null;
 
   return (
     <div className="card" style={{ padding: 20 }}>
@@ -461,8 +426,8 @@ export function SmsInbox({ queryKey }: Props) {
             <span style={{
               fontSize: 11, fontWeight: 600,
               padding: '2px 7px', borderRadius: 999,
-              background: 'rgba(139,124,255,0.15)', color: 'var(--primary-300)',
-              border: '1px solid rgba(139,124,255,0.30)',
+              background: 'rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary-300)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.30)',
               whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               {pending.length} pending
@@ -473,23 +438,6 @@ export function SmsInbox({ queryKey }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {scanMsg && (
             <span style={{ fontSize: 12, color: 'var(--fg-4)' }}>{scanMsg}</span>
-          )}
-          {httpsmsConfigured && (
-            <button
-              type="button"
-              onClick={handleSyncHttpSms}
-              disabled={syncing}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                background: 'var(--surface-elev)', border: '1px solid var(--border-default)',
-                color: 'var(--fg-3)', cursor: syncing ? 'default' : 'pointer',
-                opacity: syncing ? 0.6 : 1, transition: 'all 0.15s',
-              }}
-            >
-              <RefreshCw style={{ width: 12, height: 12, animation: syncing ? 'spin 1s linear infinite' : undefined }} />
-              {syncing ? 'Syncing…' : 'Sync HTTP SMS'}
-            </button>
           )}
           {imessageAvailable && (
             <button
@@ -514,13 +462,9 @@ export function SmsInbox({ queryKey }: Props) {
       {/* Empty state */}
       {pending.length === 0 && (
         <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--fg-4)', fontSize: 13 }}>
-          {imessageAvailable && httpsmsConfigured
-            ? 'No pending transactions. Use "Sync HTTP SMS" or "Scan iMessage" to fetch new ones.'
-            : imessageAvailable
-              ? 'No pending SMS transactions. Click "Scan iMessage" to check for new ones.'
-              : httpsmsConfigured
-                ? 'No pending transactions. Click "Sync HTTP SMS" to fetch the latest.'
-                : 'Waiting for SMS from your Android device…'}
+          {imessageAvailable
+            ? 'No pending SMS transactions. Click "Scan iMessage" to check for new ones.'
+            : 'Bank SMS from your paired Android phone appear here automatically.'}
         </div>
       )}
 

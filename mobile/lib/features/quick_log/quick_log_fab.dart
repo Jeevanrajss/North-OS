@@ -13,6 +13,8 @@ class QuickLogFab extends StatelessWidget {
       onPressed: () => QuickLogModal.show(context),
       backgroundColor: NorthColors.accent,
       elevation: 8,
+      // Circular so it fits BottomNav's CircularNotchedRectangle notch.
+      shape: const CircleBorder(),
       child: const Icon(Icons.add, color: Colors.white),
     );
   }

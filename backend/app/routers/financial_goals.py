@@ -59,7 +59,7 @@ def _compute_progress(goal: FinancialGoal, db: Session) -> dict[str, Any]:
     linked = goal.linked_ids()
     current = goal.current_amount
     if linked:
-        invs = db.query(Investment).filter(Investment.id.in_(linked)).all()
+        invs = db.query(Investment).filter(Investment.user_id == goal.user_id, Investment.id.in_(linked)).all()
         current = round(sum(i.total_invested for i in invs), 2)
 
     progress_pct = min(100.0, round(current / goal.target_amount * 100, 1)) if goal.target_amount > 0 else 0.0
@@ -81,6 +81,7 @@ def _compute_progress(goal: FinancialGoal, db: Session) -> dict[str, Any]:
             from app.models.investment_entry import InvestmentEntry
             invested_this_month = db.execute(
                 __import__("sqlalchemy").select(__import__("sqlalchemy").func.sum(InvestmentEntry.amount))
+                .where(InvestmentEntry.user_id == goal.user_id)
                 .where(InvestmentEntry.investment_id.in_(linked))
                 .where(InvestmentEntry.entry_date >= month_start)
             ).scalar() or 0.0
@@ -128,7 +129,7 @@ def list_goals(db: Session = Depends(get_db), current_user: User = Depends(get_c
 def create_goal(body: FinancialGoalIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = body.model_dump()
     linked = data.pop("linked_investment_ids", None) or []
-    goal = FinancialGoal(**data, linked_investment_ids=json.dumps(linked) if linked else None)
+    goal = FinancialGoal(**data, linked_investment_ids=json.dumps(linked) if linked else None, user_id=current_user.id)
     db.add(goal)
     db.commit()
     db.refresh(goal)

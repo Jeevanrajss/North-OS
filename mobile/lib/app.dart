@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'core/api/api_client.dart';
 import 'core/app_startup.dart';
+import 'core/offline/offline_store.dart';
 import 'core/storage/secure_storage.dart';
+import 'core/theme.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/bottom_nav.dart';
 import 'features/auth/setup_screen.dart';
@@ -74,6 +77,7 @@ class NorthApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => _NorthThemeSync(child: _FlushOnResume(child: child ?? const SizedBox())),
     );
   }
 }
@@ -97,4 +101,65 @@ class _AppShell extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Screens read `NorthColors.*` directly (no BuildContext), so when the app's
+/// brightness changes — the Settings toggle or the OS switching modes — swap
+/// the active palette here, then rebuild every element once, const widgets
+/// included, so nothing keeps the old mode's colours.
+class _NorthThemeSync extends StatelessWidget {
+  final Widget child;
+  const _NorthThemeSync({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = NorthPalette.of(Theme.of(context).brightness);
+    if (!identical(palette, NorthColors.current)) {
+      NorthColors.current = palette;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        void rebuild(Element el) {
+          el.markNeedsBuild();
+          el.visitChildren(rebuild);
+        }
+
+        (context as Element).visitChildren(rebuild);
+      });
+    }
+    return child;
+  }
+}
+
+/// Coming back to the app is the likeliest moment the Mac is reachable again
+/// — try to send the outbox then.
+class _FlushOnResume extends ConsumerStatefulWidget {
+  final Widget child;
+  const _FlushOnResume({required this.child});
+  @override
+  ConsumerState<_FlushOnResume> createState() => _FlushOnResumeState();
+}
+
+class _FlushOnResumeState extends ConsumerState<_FlushOnResume> {
+  late final AppLifecycleListener _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    _listener = AppLifecycleListener(
+      onResume: () async {
+        await OfflineStore.instance.flush(ref.read(dioProvider));
+        // Bank SMS that arrived while the app was in the background.
+        if (await SecureStore.isLoggedIn()) await importNewSms(ref);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _listener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

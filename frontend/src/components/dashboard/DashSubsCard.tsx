@@ -26,6 +26,7 @@ function fmtYearly(amount: number): string {
 }
 
 function describeDue(days: number): string {
+  if (days < 0) return `Overdue · ${-days} day${days === -1 ? '' : 's'}`;
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
   return `In ${days} days`;
@@ -119,7 +120,7 @@ export function DashSubsCard() {
                 width: 32, height: 32, borderRadius: 10,
                 background: getSubGradient(s.name),
                 display: 'grid', placeItems: 'center',
-                fontSize: 14, color: 'white', fontWeight: 500,
+                fontSize: 14, color: 'var(--on-primary)', fontWeight: 500,
                 fontFamily: 'var(--font-display)',
                 flexShrink: 0,
               }}>
@@ -137,7 +138,7 @@ export function DashSubsCard() {
               {/* Due */}
               <div>
                 <div style={{
-                  color: days_until <= 7 ? 'var(--accent-yellow)' : 'var(--fg-3)',
+                  color: days_until < 0 ? 'var(--accent-red)' : days_until <= 7 ? 'var(--accent-amber)' : 'var(--fg-3)',
                   fontSize: 12, fontWeight: 500, textAlign: 'right',
                 }}>
                   {describeDue(days_until)}
@@ -160,12 +161,12 @@ function getSubGradient(name: string): string {
   if (n.includes('netflix'))  return 'linear-gradient(135deg, #E50914, #831010)';
   if (n.includes('claude'))   return 'linear-gradient(135deg, #FFA0A0, #D4756E)';
   if (n.includes('spotify'))  return 'linear-gradient(135deg, #1DB954, #15803D)';
-  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, #3EBEFF, #0F7AB8)';
-  if (n.includes('cursor'))   return 'linear-gradient(135deg, #232734, #0E1018)';
-  if (n.includes('gym'))      return 'linear-gradient(135deg, #FFB86B, #B56A00)';
+  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, var(--secondary-500), #0F7AB8)';
+  if (n.includes('cursor'))   return 'linear-gradient(135deg, var(--surface-hover), var(--bg-app))';
+  if (n.includes('gym'))      return 'linear-gradient(135deg, var(--accent-orange), #B56A00)';
   if (n.includes('youtube'))  return 'linear-gradient(135deg, #FF0000, #8B0000)';
   if (n.includes('amazon') || n.includes('prime')) return 'linear-gradient(135deg, #00A8E1, #00486B)';
   if (n.includes('chatgpt') || n.includes('openai')) return 'linear-gradient(135deg, #74AA9C, #3D8C85)';
   // Default: primary gradient
-  return 'linear-gradient(135deg, var(--primary-500), #6352DB)';
+  return 'linear-gradient(135deg, var(--primary-500), var(--primary-500))';
 }

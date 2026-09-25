@@ -67,7 +67,7 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
           'focus-within:ring-1 focus-within:ring-accent/40',
           disabled && 'opacity-50 cursor-not-allowed',
         )}
-        style={{ background: 'rgba(0,0,0,0.30)', border: '1px solid rgba(255,255,255,0.09)' }}
+        style={{ background: 'var(--input-bg)', border: '1px solid rgb(var(--overlay-rgb) / 0.09)' }}
         onClick={() => inputRef.current?.focus()}
       >
         {tags.map((t) => (
@@ -93,7 +93,7 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
                   e.stopPropagation();
                   removeTag(t);
                 }}
-                className="hover:text-white ml-0.5"
+                className="hover:text-fg-1 ml-0.5"
                 aria-label={`Remove ${t}`}
                 style={{ color: 'rgba(184,165,255,0.60)' }}
               >
@@ -109,7 +109,7 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
           onKeyDown={onKey}
           disabled={disabled}
           className="flex-1 min-w-[8ch] bg-transparent text-sm outline-none placeholder:text-ink-500"
-          style={{ color: 'white' }}
+          style={{ color: 'var(--fg-1)' }}
           placeholder={tags.length === 0 ? placeholder ?? 'Add tags…' : ''}
         />
       </div>
@@ -124,7 +124,7 @@ export function TagChips({ tags, onChange, placeholder, disabled }: Props) {
               style={{
                 height: 22, padding: '0 9px',
                 borderRadius: 999,
-                background: 'rgba(255,255,255,0.03)',
+                background: 'rgb(var(--overlay-rgb) / 0.03)',
                 border: '1px solid var(--border-default)',
                 color: 'var(--fg-4)',
                 fontFamily: 'var(--font-mono)',

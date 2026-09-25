@@ -36,7 +36,10 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     app_host: str = "127.0.0.1"
     app_port: int = 8000
-    app_version: str = "1.3.0"
+    app_version: str = "1.7.0"
+    # "prod" or "uat" — set by the desktop shell (APP_CHANNEL). UAT builds run
+    # side by side with production, on their own port and data folder.
+    app_channel: str = "prod"
     timezone: str = "Asia/Kolkata"
     currency: str = "INR"
 

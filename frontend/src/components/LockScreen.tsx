@@ -237,8 +237,8 @@ export function LockScreen({ onUnlock }: Props) {
               gap: 9,
               padding: '12px',
               borderRadius: 12,
-              border: '1px solid rgba(139,124,255,0.35)',
-              background: 'rgba(139,124,255,0.10)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.35)',
+              background: 'rgb(var(--primary-rgb) / 0.10)',
               color: bioLoading ? 'var(--fg-4)' : 'var(--primary-300)',
               fontSize: 14,
               fontWeight: 500,
@@ -248,13 +248,13 @@ export function LockScreen({ onUnlock }: Props) {
             }}
             onMouseEnter={(e) => {
               if (!bioLoading) {
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.18)';
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,124,255,0.55)';
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.18)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--primary-rgb) / 0.55)';
               }
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.10)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,124,255,0.35)';
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.10)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--primary-rgb) / 0.35)';
             }}
           >
             <Fingerprint
@@ -290,7 +290,7 @@ export function LockScreen({ onUnlock }: Props) {
             padding: '11px 14px',
             borderRadius: 10,
             background: 'var(--surface-elev)',
-            border: `1px solid ${error ? 'var(--accent-red)' : 'rgba(255,255,255,0.08)'}`,
+            border: `1px solid ${error ? 'var(--accent-red)' : 'rgb(var(--overlay-rgb) / 0.08)'}`,
             color: 'var(--fg-1)',
             fontSize: 16,
             letterSpacing: '0.2em',
@@ -314,7 +314,7 @@ export function LockScreen({ onUnlock }: Props) {
             borderRadius: 10,
             background: 'var(--grad-primary)',
             border: 'none',
-            color: 'white',
+            color: 'var(--on-primary)',
             fontSize: 14,
             fontWeight: 600,
             letterSpacing: '-0.01em',

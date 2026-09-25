@@ -17,7 +17,7 @@ All auto-creates a JournalDay row on first touch for a date.
 from __future__ import annotations
 
 from datetime import date as date_cls
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -304,7 +304,14 @@ def patch_day(d: date_cls, patch: DayPatch, db: Session = Depends(get_db), curre
 @router.post("/days/{d}/entries", response_model=EntryOut, status_code=201)
 async def create_entry(d: date_cls, payload: EntryIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     _get_or_create_day(db, d, current_user.id)
+    if payload.id:
+        existing = db.query(JournalEntry).filter(JournalEntry.id == payload.id).execution_options(include_deleted=True).first()
+        if existing is not None:
+            if existing.user_id != current_user.id:
+                raise HTTPException(409, "Entry id already in use")
+            return existing  # replayed create from an offline device
     entry = JournalEntry(
+        **({"id": payload.id} if payload.id else {}),
         day_date=d,
         content_json=payload.content_json,
         content_text=payload.content_text,
@@ -349,7 +356,7 @@ def delete_entry(entry_id: str, db: Session = Depends(get_db), current_user: Use
     entry = db.query(JournalEntry).filter(JournalEntry.id == entry_id, JournalEntry.user_id == current_user.id).first()
     if entry is None:
         raise HTTPException(404, "Entry not found")
-    db.delete(entry)
+    entry.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()
     return None
 
@@ -419,13 +426,15 @@ async def summarize_day_endpoint(d: date_cls, db: Session = Depends(get_db), cur
         user_id=current_user.id,
     )
 
-    # Write all four fields (AI returns None for missing areas).
-    day.summary_highlights = summary["highlights"]
-    day.summary_wins = summary["wins"]
-    day.summary_learnings = summary["learnings"]
-    day.summary_gratitude = summary["gratitude"]
-    db.commit()
-    db.refresh(day)
+    # An all-None result means the LLM was offline or the day had too little
+    # to summarise — keep whatever the user already wrote.
+    if any(summary.values()):
+        day.summary_highlights = summary["highlights"]
+        day.summary_wins = summary["wins"]
+        day.summary_learnings = summary["learnings"]
+        day.summary_gratitude = summary["gratitude"]
+        db.commit()
+        db.refresh(day)
     return _serialize_day(db, day, current_user.id)
 
 

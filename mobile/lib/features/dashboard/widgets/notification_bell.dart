@@ -29,6 +29,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
   Future<void> _openPanel() async {
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: NorthColors.bg2,
       shape: const RoundedRectangleBorder(
@@ -53,7 +54,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
             right: 6, top: 6,
             child: Container(
               padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(color: NorthColors.red, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: NorthColors.red, shape: BoxShape.circle),
               constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
               child: Text('$_unread', textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
@@ -100,26 +101,34 @@ class _NotificationSheetState extends ConsumerState<_NotificationSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Notifications', style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+              Text(
+                'Notifications',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+              ),
               const SizedBox(height: 12),
               Flexible(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator(color: NorthColors.accent))
+                    ? Center(child: CircularProgressIndicator(color: NorthColors.accent))
                     : _items.isEmpty
-                        ? const EmptyState(message: 'No notifications yet', icon: Icons.notifications_none)
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: _items.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: NorthColors.border1),
-                            itemBuilder: (_, i) {
-                              final n = _items[i] as Map<String, dynamic>;
-                              return ListTile(
-                                title: Text(n['title'] as String? ?? '', style: const TextStyle(color: NorthColors.fg1, fontSize: 14)),
-                                subtitle: Text(n['body'] as String? ?? '', style: const TextStyle(color: NorthColors.fg4, fontSize: 12)),
-                              );
-                            },
-                          ),
+                    ? const EmptyState(message: 'No notifications yet', icon: Icons.notifications_none)
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _items.length,
+                        separatorBuilder: (_, __) => Divider(height: 1, color: NorthColors.border1),
+                        itemBuilder: (_, i) {
+                          final n = _items[i] as Map<String, dynamic>;
+                          return ListTile(
+                            title: Text(
+                              n['title'] as String? ?? '',
+                              style: TextStyle(color: NorthColors.fg1, fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              n['body'] as String? ?? '',
+                              style: TextStyle(color: NorthColors.fg4, fontSize: 12),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),

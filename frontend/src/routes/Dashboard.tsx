@@ -127,9 +127,9 @@ export function Dashboard() {
         style={{
           borderRadius: 24,
           background: `
-            radial-gradient(420px 280px at 100% -10%, rgba(139,124,255,0.16), transparent 60%),
+            radial-gradient(420px 280px at 100% -10%, rgb(var(--primary-rgb) / 0.16), transparent 60%),
             radial-gradient(280px 200px at 0% 110%, rgba(62,190,255,0.12), transparent 60%),
-            linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+            linear-gradient(180deg, rgb(var(--overlay-rgb) / 0.02), rgb(var(--overlay-rgb) / 0)),
             var(--surface)
           `,
           border: '1px solid var(--border-default)',
@@ -142,7 +142,7 @@ export function Dashboard() {
           style={{
             right: -80, top: -80,
             width: 280, height: 280,
-            background: 'radial-gradient(circle, rgba(139,124,255,0.25), transparent 70%)',
+            background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.25), transparent 70%)',
             filter: 'blur(20px)',
           }}
         />
@@ -156,8 +156,8 @@ export function Dashboard() {
             className="inline-flex items-center"
             style={{
               height: 22, padding: '0 10px', borderRadius: 999,
-              background: 'rgba(139,124,255,0.12)',
-              border: '1px solid rgba(139,124,255,0.24)',
+              background: 'rgb(var(--primary-rgb) / 0.12)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.24)',
               color: 'var(--primary-300)',
               font: '500 10.5px/1 var(--font-mono)',
               letterSpacing: '0.04em',
@@ -176,7 +176,7 @@ export function Dashboard() {
         >
           {getGreeting()}{userName
             ? <>,{' '}<span style={{
-                background: 'linear-gradient(135deg, #B8A5FF 0%, #FF7AD9 100%)',
+                background: 'linear-gradient(135deg, var(--primary-300) 0%, var(--accent-pink) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -214,20 +214,20 @@ export function Dashboard() {
                 value={`${habitStats?.overall_current_streak ?? '—'}`}
                 unit={`day${(habitStats?.overall_current_streak ?? 0) !== 1 ? 's' : ''}`}
                 to="/app/habits"
-                tileBg="rgba(8,9,16,0.45)"
+                tileBg="color-mix(in srgb, var(--bg-app) 55%, transparent)"
               />
             ),
             isEnabled('journal') && (
               <KpiTile
                 key="journal"
-                iconBg="rgba(139,124,255,0.14)"
+                iconBg="rgb(var(--primary-rgb) / 0.14)"
                 iconColor="var(--primary-300)"
                 icon={<BookText className="w-[18px] h-[18px]" />}
                 label="Journal Streak"
                 value={`${journalStats?.current_streak ?? '—'}`}
                 unit={`day${(journalStats?.current_streak ?? 0) !== 1 ? 's' : ''}`}
                 to="/app/journal"
-                tileBg="rgba(8,9,16,0.45)"
+                tileBg="color-mix(in srgb, var(--bg-app) 55%, transparent)"
               />
             ),
             isEnabled('finance') && (
@@ -236,10 +236,10 @@ export function Dashboard() {
                 iconBg="rgba(184,165,255,0.10)"
                 iconColor="var(--primary-300)"
                 icon={<Wallet className="w-[18px] h-[18px]" />}
-                label="Subs this month"
+                label="Month spend"
                 value={finSummary ? fmtCurrency(finSummary.total_expense, displayCurrency) : '—'}
                 to="/app/finance"
-                tileBg="rgba(8,9,16,0.45)"
+                tileBg="color-mix(in srgb, var(--bg-app) 55%, transparent)"
               />
             ),
             isEnabled('subscriptions') && (
@@ -252,7 +252,7 @@ export function Dashboard() {
                 value={dueThisWeek === 0 && trialsEndingSoon === 0 ? '0' : `${dueThisWeek + trialsEndingSoon}`}
                 unit={dueThisWeek > 0 || trialsEndingSoon > 0 ? 'renewals' : undefined}
                 to="/app/subscriptions"
-                tileBg="rgba(8,9,16,0.45)"
+                tileBg="color-mix(in srgb, var(--bg-app) 55%, transparent)"
                 highlight={dueThisWeek > 0 || trialsEndingSoon > 0}
               />
             ),
@@ -262,7 +262,7 @@ export function Dashboard() {
           return (
             <div
               className="relative grid gap-3 mt-7"
-              style={{ gridTemplateColumns: `repeat(${tiles.length}, 1fr)` }}
+              style={{ gridTemplateColumns: `repeat(auto-fit, minmax(170px, 1fr))` }}
             >
               {tiles}
             </div>

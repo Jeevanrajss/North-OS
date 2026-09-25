@@ -1,3 +1,4 @@
+import { useTheme, type ThemePref } from '@/lib/theme';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import {
   isBiometricAvailable, registerBiometric,
 } from '@/components/LockScreen';
 import { PageHeader } from '@/components/PageHeader';
-import { api, type LLMHealthResult, ProviderPreset, LLMTestResult, type FinanceCategoryOut, type FinanceCategoryIn, type FinanceCategoryType, type SmsDebugResult } from '@/lib/api';
+import { api, type LLMHealthResult, ProviderPreset, LLMTestResult, type FinanceCategoryOut, type FinanceCategoryIn, type FinanceCategoryType } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { CURRENCY_OPTS } from '@/components/subscriptions/subUtils';
 import { MODULE_CONFIGS } from '@/lib/modules';
@@ -56,11 +57,11 @@ function ConnectionStatusPill({ result, isLoading }: { result?: LLMHealthResult;
 // ---------------------------------------------------------------------------
 const inputCls =
   'w-full rounded-lg px-3 py-2 text-sm text-ink-200 outline-none placeholder:text-ink-500 disabled:opacity-50 transition-colors'
-  + ' focus:border-[rgba(139,124,255,0.50)]';
+  + ' focus:border-[rgb(var(--primary-rgb) / 0.50)]';
 
 const selectCls =
   'w-full rounded-lg px-3 py-2 text-sm text-ink-200 outline-none transition-colors'
-  + ' focus:border-[rgba(139,124,255,0.50)]';
+  + ' focus:border-[rgb(var(--primary-rgb) / 0.50)]';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -88,7 +89,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       <h2 className="text-[10.5px] font-medium uppercase tracking-[0.12em] text-ink-500 shrink-0">
         {children}
       </h2>
-      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.05)' }} />
+      <div style={{ flex: 1, height: 1, background: 'rgb(var(--overlay-rgb) / 0.05)' }} />
     </div>
   );
 }
@@ -116,7 +117,7 @@ function BtnSecondary({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="px-4 py-2 rounded-lg text-xs font-medium text-ink-400 hover:text-ink-200 border border-[rgba(255,255,255,0.08)] hover:bg-white/5 active:scale-[0.97] active:opacity-80 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+      className="px-4 py-2 rounded-lg text-xs font-medium text-ink-400 hover:text-ink-200 border border-[rgb(var(--overlay-rgb) / 0.08)] hover:bg-white/5 active:scale-[0.97] active:opacity-80 disabled:opacity-40 disabled:pointer-events-none transition-colors"
     >
       {children}
     </button>
@@ -340,7 +341,7 @@ function FinanceCategoriesPanel() {
                 <button
                   onClick={() => updateMut.mutate({ id: cat.id, patch: { name: editName, emoji: editEmoji } })}
                   disabled={!editName.trim() || updateMut.isPending}
-                  style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 6, background: 'var(--primary-500)', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 500 }}
+                  style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 6, background: 'var(--primary-500)', border: 'none', color: 'var(--on-primary)', cursor: 'pointer', fontWeight: 500 }}
                 >
                   Save
                 </button>
@@ -357,7 +358,7 @@ function FinanceCategoriesPanel() {
                 <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>{cat.emoji}</span>
                 <span style={{ flex: 1, fontSize: 13.5, color: 'var(--fg-1)', fontWeight: 500 }}>{cat.name}</span>
                 {cat.type === 'both' && (
-                  <span style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 999, background: 'rgba(139,124,255,0.15)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.25)', fontWeight: 500 }}>both</span>
+                  <span style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 999, background: 'rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary-300)', border: '1px solid rgb(var(--primary-rgb) / 0.25)', fontWeight: 500 }}>both</span>
                 )}
                 {cat.is_system && (
                   <span title="System category — cannot be deleted" style={{ fontSize: 11, color: 'var(--fg-disabled)' }}>🔒</span>
@@ -413,7 +414,7 @@ function FinanceCategoriesPanel() {
             {/* Emoji quick-picks */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {EMOJI_SUGGESTIONS.map(e => (
-                <button key={e} onClick={() => setAddEmoji(e)} style={{ fontSize: 16, background: addEmoji === e ? 'rgba(139,124,255,0.20)' : 'var(--surface-elev)', border: `1px solid ${addEmoji === e ? 'rgba(139,124,255,0.40)' : 'var(--border-subtle)'}`, borderRadius: 6, padding: '2px 4px', cursor: 'pointer' }}>{e}</button>
+                <button key={e} onClick={() => setAddEmoji(e)} style={{ fontSize: 16, background: addEmoji === e ? 'rgb(var(--primary-rgb) / 0.20)' : 'var(--surface-elev)', border: `1px solid ${addEmoji === e ? 'rgb(var(--primary-rgb) / 0.40)' : 'var(--border-subtle)'}`, borderRadius: 6, padding: '2px 4px', cursor: 'pointer' }}>{e}</button>
               ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -422,7 +423,7 @@ function FinanceCategoriesPanel() {
                 <button
                   key={t}
                   onClick={() => setAddType(t)}
-                  style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: addType === t ? 600 : 400, background: addType === t ? 'rgba(139,124,255,0.15)' : 'var(--surface-elev)', border: `1px solid ${addType === t ? 'rgba(139,124,255,0.40)' : 'var(--border-default)'}`, color: addType === t ? 'var(--primary-300)' : 'var(--fg-3)' }}
+                  style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: addType === t ? 600 : 400, background: addType === t ? 'rgb(var(--primary-rgb) / 0.15)' : 'var(--surface-elev)', border: `1px solid ${addType === t ? 'rgb(var(--primary-rgb) / 0.40)' : 'var(--border-default)'}`, color: addType === t ? 'var(--primary-300)' : 'var(--fg-3)' }}
                 >
                   {t}
                 </button>
@@ -437,7 +438,7 @@ function FinanceCategoriesPanel() {
                 <button
                   disabled={!addName.trim() || createMut.isPending}
                   onClick={() => createMut.mutate({ name: addName.trim(), emoji: addEmoji || '💸', type: addType })}
-                  style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, background: 'var(--primary-500)', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 500, opacity: !addName.trim() ? 0.4 : 1 }}
+                  style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, background: 'var(--primary-500)', border: 'none', color: 'var(--on-primary)', cursor: 'pointer', fontWeight: 500, opacity: !addName.trim() ? 0.4 : 1 }}
                 >
                   {createMut.isPending ? 'Adding…' : 'Add'}
                 </button>
@@ -475,8 +476,8 @@ function ModulesPanel() {
           <span style={{
             fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
             padding: '2px 8px', borderRadius: 999,
-            background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)',
-            border: '1px solid rgba(139,124,255,0.25)',
+            background: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--primary-300)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.25)',
           }}>
             Always on
           </span>
@@ -512,7 +513,7 @@ function ModulesPanel() {
                 aria-label={on ? `Disable ${mod.label}` : `Enable ${mod.label}`}
                 style={{
                   width: 42, height: 24, borderRadius: 12, flexShrink: 0,
-                  background: on ? 'var(--primary-500)' : 'rgba(255,255,255,0.12)',
+                  background: on ? 'var(--primary-500)' : 'rgb(var(--overlay-rgb) / 0.12)',
                   border: 'none', cursor: 'pointer', position: 'relative',
                   transition: 'background 200ms',
                 }}
@@ -541,338 +542,29 @@ function ModulesPanel() {
 // ── SMS Setup Panel ─────────────────────────────────────────────────────────
 
 function SmsSetupPanel() {
-  const qc = useQueryClient();
-
   const statusQ = useQuery({
     queryKey: ['sms-status'],
     queryFn: () => api.sms.status(),
     staleTime: 30_000,
   });
-
-  // API key state — load from backend settings
-  const settingsQ = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.settings.getAll(),
-    staleTime: Infinity,
-  });
-
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeyDirty, setApiKeyDirty] = useState(false);
-  const [savingKey, setSavingKey] = useState(false);
-  const [keySaved, setKeySaved] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
-  const [debugData, setDebugData] = useState<SmsDebugResult | null>(null);
-  const [debugging, setDebugging] = useState(false);
-
-  // Encryption key state
-  const [encKey, setEncKey] = useState('');
-  const [encKeyDirty, setEncKeyDirty] = useState(false);
-  const [savingEncKey, setSavingEncKey] = useState(false);
-  const [encKeySaved, setEncKeySaved] = useState(false);
-  const [showEncKey, setShowEncKey] = useState(false);
-
-  // Populate inputs when settings load
-  useEffect(() => {
-    const stored = settingsQ.data?.http_sms_api_key ?? '';
-    if (stored && !apiKeyDirty) setApiKey(stored);
-    const storedEnc = settingsQ.data?.http_sms_encryption_key ?? '';
-    if (storedEnc && !encKeyDirty) setEncKey(storedEnc);
-  }, [settingsQ.data, apiKeyDirty, encKeyDirty]);
-
-  async function saveApiKey() {
-    setSavingKey(true);
-    try {
-      await api.settings.update({ http_sms_api_key: apiKey.trim() });
-      setApiKeyDirty(false);
-      setKeySaved(true);
-      setTimeout(() => setKeySaved(false), 2000);
-      qc.invalidateQueries({ queryKey: ['sms-status'] });
-      qc.invalidateQueries({ queryKey: ['settings'] });
-    } finally {
-      setSavingKey(false);
-    }
-  }
-
-  async function saveEncKey() {
-    setSavingEncKey(true);
-    try {
-      await api.settings.update({ http_sms_encryption_key: encKey.trim() });
-      setEncKeyDirty(false);
-      setEncKeySaved(true);
-      setTimeout(() => setEncKeySaved(false), 2000);
-      qc.invalidateQueries({ queryKey: ['sms-status'] });
-      qc.invalidateQueries({ queryKey: ['settings'] });
-    } finally {
-      setSavingEncKey(false);
-    }
-  }
-
-  async function handleSync() {
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      const res = await api.sms.syncHttpSms();
-      const checked = res.messages_checked ?? 0;
-      setSyncMsg(res.new_transactions > 0
-        ? `✓ ${res.new_transactions} new transaction${res.new_transactions > 1 ? 's' : ''} found (${checked} messages scanned).`
-        : `✓ Scanned ${checked} messages — no new transactions.`);
-      qc.invalidateQueries({ queryKey: ['sms-pending'] });
-      await qc.refetchQueries({ queryKey: ['sms-status'] }); // force immediate refetch, bypass stale time
-    } catch (e: unknown) {
-      setSyncMsg(e instanceof Error ? e.message : 'Sync failed.');
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function handleDebug() {
-    setDebugging(true);
-    setDebugData(null);
-    try {
-      const res = await api.sms.debug();
-      setDebugData(res);
-    } catch (e: unknown) {
-      setDebugData({ error: e instanceof Error ? e.message : 'Debug failed' });
-    } finally {
-      setDebugging(false);
-    }
-  }
-
-  const status = statusQ.data;
-  const imAvail = status?.imessage_available ?? false;
-  const httpSmsConfigured = status?.httpsms_configured ?? false;
-  const encryptionEnabled = status?.httpsms_encryption_enabled ?? false;
-  const lastSync = status?.httpsms_last_sync;
-
-  function fmtLastSync(iso: string | null | undefined) {
-    if (!iso) return null;
-    const d = new Date(iso);
-    return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-
-  const codeSty: React.CSSProperties = {
-    display: 'block', padding: '10px 14px', borderRadius: 9,
-    background: 'var(--input-bg)', border: '1px solid var(--input-border)',
-    color: 'var(--fg-2)', fontSize: 12, fontFamily: 'var(--font-mono)',
-    wordBreak: 'break-all', userSelect: 'all' as const,
-  };
+  const imAvail = statusQ.data?.imessage_available ?? false;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-      {/* ── HTTP SMS card ── */}
+      {/* ── Android phone (North OS app) ── */}
       <div className="card" style={{ padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 18 }}>📱</span>
           <h4 style={{ margin: 0, font: '500 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
-            HTTP SMS (Android)
+            Android phone
           </h4>
-          {httpSmsConfigured && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-              padding: '2px 7px', borderRadius: 999,
-              background: 'rgba(61,255,152,0.12)', color: 'var(--accent-green)',
-              border: '1px solid rgba(61,255,152,0.25)',
-            }}>Connected</span>
-          )}
         </div>
-        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: 'var(--fg-4)', lineHeight: 1.6 }}>
-          You've installed <strong style={{ color: 'var(--fg-2)' }}>HTTP SMS</strong> — great. No forwarding rules needed.
-          The app automatically sends all SMS to their cloud. Paste your API key below and click <em>Sync</em> to pull bank transactions in.
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--fg-4)', lineHeight: 1.6 }}>
+          The North OS app reads bank SMS on your phone (with the SMS permission you grant it), parses them there,
+          and sends only the amount, merchant and last 4 digits to this Mac — never the message text, and no
+          third-party service. Pair your phone under <strong style={{ color: 'var(--fg-2)' }}>Phone</strong> above.
         </p>
-
-        {/* API key input row */}
-        <Label>HTTP SMS API Key</Label>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <input
-              type="password"
-              value={apiKey}
-              placeholder="Paste your API key from httpsms.com/keys"
-              onChange={(e) => { setApiKey(e.target.value); setApiKeyDirty(true); }}
-              className={inputCls}
-              style={{ paddingRight: apiKey ? 32 : undefined }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={saveApiKey}
-            disabled={!apiKey.trim() || savingKey}
-            className="px-4 py-2 rounded-lg text-xs font-medium text-accent border border-accent/40 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-          >
-            {savingKey ? 'Saving…' : keySaved ? '✓ Saved' : 'Save'}
-          </button>
-        </div>
-
-        {/* Sync button + last sync */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={handleSync}
-            disabled={!httpSmsConfigured || syncing}
-            className="px-4 py-2 rounded-lg text-xs font-medium text-accent border border-accent/40 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-          >
-            {syncing ? 'Syncing…' : 'Sync now'}
-          </button>
-          {lastSync && !syncMsg && (
-            <span style={{ fontSize: 11.5, color: 'var(--fg-disabled)' }}>
-              Last sync: {fmtLastSync(lastSync)}
-            </span>
-          )}
-          {syncMsg && (
-            <span style={{ fontSize: 12, color: syncMsg.startsWith('✓') ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {syncMsg}
-            </span>
-          )}
-        </div>
-
-        <p style={{ margin: '12px 0 0', fontSize: 11.5, color: 'var(--fg-disabled)', lineHeight: 1.5 }}>
-          Get your key at <strong>httpsms.com → API Keys</strong>. The app will filter for bank senders automatically (HDFCBK, ICICIB, SBI, Axis, etc.).
-        </p>
-
-        {/* ── E2E Encryption ── */}
-        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 13 }}>🔒</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-2)' }}>End-to-End Encryption</span>
-            {encryptionEnabled && (
-              <span style={{
-                fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-                padding: '2px 7px', borderRadius: 999,
-                background: 'rgba(61,255,152,0.12)', color: 'var(--accent-green)',
-                border: '1px solid rgba(61,255,152,0.25)',
-              }}>Enabled</span>
-            )}
-          </div>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.6 }}>
-            If you've set an encryption key in the HTTP SMS Android app (Settings → Encryption Key),
-            paste the same passphrase here. Messages will be AES-256 decrypted before being parsed.
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <input
-                type={showEncKey ? 'text' : 'password'}
-                value={encKey}
-                placeholder="Passphrase from HTTP SMS Android app"
-                onChange={(e) => { setEncKey(e.target.value); setEncKeyDirty(true); }}
-                className={inputCls}
-                style={{ paddingRight: 32 }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowEncKey((v) => !v)}
-                style={{
-                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', padding: 2,
-                  color: 'var(--fg-4)',
-                }}
-              >
-                {showEncKey
-                  ? <EyeOff style={{ width: 14, height: 14 }} />
-                  : <Eye style={{ width: 14, height: 14 }} />
-                }
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={saveEncKey}
-              disabled={!encKey.trim() || savingEncKey}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-accent border border-accent/40 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 transition-all"
-            >
-              {savingEncKey ? 'Saving…' : encKeySaved ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
-        </div>
-
-        {/* Debug section */}
-        {httpSmsConfigured && (
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                type="button"
-                onClick={handleDebug}
-                disabled={debugging}
-                style={{
-                  padding: '5px 12px', borderRadius: 7, fontSize: 11.5, fontWeight: 500,
-                  background: 'var(--input-bg)', border: '1px solid var(--input-border)',
-                  color: 'var(--fg-4)', cursor: debugging ? 'default' : 'pointer',
-                  opacity: debugging ? 0.6 : 1,
-                }}
-              >
-                {debugging ? 'Running…' : '🔍 Diagnose'}
-              </button>
-              <span style={{ fontSize: 11.5, color: 'var(--fg-disabled)' }}>
-                Shows what threads &amp; messages the API returns
-              </span>
-            </div>
-
-            {debugData && (
-              <div style={{ marginTop: 10 }}>
-                {/* Threads summary */}
-                {Array.isArray(debugData.threads) && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11.5, color: 'var(--fg-4)', marginBottom: 6 }}>
-                      <strong style={{ color: 'var(--fg-2)' }}>{debugData.threads.length}</strong> threads found
-                      {' · '}<strong style={{ color: 'var(--accent-green)' }}>
-                        {debugData.threads.filter((t) => t.is_bank).length}
-                      </strong> matched as bank senders
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {debugData.threads.map((t, i) => (
-                        <span key={i} style={{
-                          fontSize: 11, padding: '3px 8px', borderRadius: 6,
-                          background: t.is_bank ? 'rgba(61,255,152,0.10)' : 'var(--surface-elev)',
-                          border: `1px solid ${t.is_bank ? 'rgba(61,255,152,0.25)' : 'var(--border-subtle)'}`,
-                          color: t.is_bank ? 'var(--accent-green)' : 'var(--fg-4)',
-                        }}>
-                          {t.contact}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Parse samples */}
-                {Array.isArray(debugData.parse_samples) && debugData.parse_samples.length > 0 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11.5, color: 'var(--fg-4)', marginBottom: 6 }}>Sample message parse results:</div>
-                    {debugData.parse_samples.map((s, i) => (
-                      <div key={i} style={{
-                        padding: '8px 10px', borderRadius: 8, marginBottom: 6,
-                        background: 'var(--surface-elev)', border: '1px solid var(--border-subtle)',
-                        fontSize: 11.5,
-                      }}>
-                        <div style={{ color: 'var(--fg-3)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>
-                          [{s.sender}] {s.body_preview}
-                        </div>
-                        <div style={{ color: s.parsed_ok ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                          {s.parsed_ok
-                            ? `✓ Parsed — ${s.parsed_type} ₹${s.parsed_amount}`
-                            : '✗ Not recognised as a transaction'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Always show full raw JSON — essential when threads=0 */}
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ fontSize: 11.5, color: 'var(--fg-4)', cursor: 'pointer' }}>
-                    Raw API response
-                  </summary>
-                  <pre style={{
-                    ...codeSty,
-                    marginTop: 6, maxHeight: 400, overflow: 'auto',
-                    fontSize: 10.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                  }}>
-                    {JSON.stringify(debugData, null, 2)}
-                  </pre>
-                </details>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── iMessage card ── */}
@@ -886,9 +578,9 @@ function SmsSetupPanel() {
             <span style={{
               fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
               padding: '2px 7px', borderRadius: 999,
-              background: imAvail ? 'rgba(61,255,152,0.12)' : 'rgba(255,255,255,0.05)',
+              background: imAvail ? 'rgba(61,255,152,0.12)' : 'rgb(var(--overlay-rgb) / 0.05)',
               color: imAvail ? 'var(--accent-green)' : 'var(--fg-4)',
-              border: `1px solid ${imAvail ? 'rgba(61,255,152,0.25)' : 'rgba(255,255,255,0.08)'}`,
+              border: `1px solid ${imAvail ? 'rgba(61,255,152,0.25)' : 'rgb(var(--overlay-rgb) / 0.08)'}`,
             }}>
               {imAvail ? '✓ Available' : 'Not detected'}
             </span>
@@ -1020,7 +712,7 @@ function AppLockPanel() {
         style={{
           width: '100%', padding: '9px 12px', borderRadius: 9,
           background: 'var(--surface-elev)',
-          border: `1px solid ${opts?.hasError ? 'rgba(255,91,110,0.4)' : 'rgba(255,255,255,0.08)'}`,
+          border: `1px solid ${opts?.hasError ? 'rgba(255,91,110,0.4)' : 'rgb(var(--overlay-rgb) / 0.08)'}`,
           color: 'var(--fg-1)', fontSize: 14,
           letterSpacing: '0.15em', outline: 'none', boxSizing: 'border-box',
           opacity: (opts?.disabled ?? busy) ? 0.6 : 1,
@@ -1214,7 +906,7 @@ function AppLockPanel() {
                 style={{
                   width: '100%', padding: '9px 12px', borderRadius: 9,
                   background: 'var(--surface-elev)',
-                  border: `1px solid ${bioError ? 'rgba(255,91,110,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                  border: `1px solid ${bioError ? 'rgba(255,91,110,0.4)' : 'rgb(var(--overlay-rgb) / 0.08)'}`,
                   color: 'var(--fg-1)', fontSize: 14,
                   letterSpacing: '0.15em', outline: 'none', boxSizing: 'border-box',
                   opacity: bioBusy ? 0.6 : 1,
@@ -1263,7 +955,7 @@ function NotifToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => 
       onClick={() => onChange(!on)}
       style={{
         width: 46, height: 26, borderRadius: 13, flexShrink: 0,
-        background: on ? 'var(--primary-500)' : 'rgba(255,255,255,0.12)',
+        background: on ? 'var(--primary-500)' : 'rgb(var(--overlay-rgb) / 0.12)',
         border: 'none', cursor: 'pointer', position: 'relative',
         transition: 'background 200ms',
       }}
@@ -1288,8 +980,8 @@ function fmt12(hhmm: string): string {
 
 const timeInputCls =
   'rounded-lg px-3 py-1.5 text-sm tabular-nums text-ink-200 outline-none '
-  + 'bg-[var(--surface-elev)] border border-[rgba(255,255,255,0.08)] '
-  + 'focus:border-[rgba(139,124,255,0.50)]';
+  + 'bg-[var(--surface-elev)] border border-[rgb(var(--overlay-rgb) / 0.08)] '
+  + 'focus:border-[rgb(var(--primary-rgb) / 0.50)]';
 
 function NotificationSettingsPanel() {
   const qc = useQueryClient();
@@ -1449,8 +1141,8 @@ function NotificationSettingsPanel() {
           style={{
             padding: '14px 20px', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 16,
-            background: permDenied ? 'rgba(255,91,110,0.06)' : 'rgba(139,124,255,0.06)',
-            border: `1px solid ${permDenied ? 'rgba(255,91,110,0.20)' : 'rgba(139,124,255,0.20)'}`,
+            background: permDenied ? 'rgba(255,91,110,0.06)' : 'rgb(var(--primary-rgb) / 0.06)',
+            border: `1px solid ${permDenied ? 'rgba(255,91,110,0.20)' : 'rgb(var(--primary-rgb) / 0.20)'}`,
           }}
         >
           <div>
@@ -1729,7 +1421,7 @@ function UpdateChecker() {
         height: 28, padding: '0 12px', borderRadius: 8,
         fontSize: 11.5, fontWeight: 500,
         color: status === 'done' ? 'var(--accent-green)' : status === 'error' ? 'var(--fg-4)' : 'var(--fg-3)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid rgb(var(--overlay-rgb) / 0.08)',
         background: 'transparent',
         cursor: status === 'checking' ? 'default' : 'pointer',
         transition: 'color 200ms',
@@ -1888,6 +1580,227 @@ function CloudConnectionSection() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Appearance — theme choice, remembered on this device.
+function AppearanceSection() {
+  const { pref, theme, setPref } = useTheme();
+  const options: { id: ThemePref; label: string; hint: string }[] = [
+    { id: 'system', label: 'System', hint: 'Match macOS' },
+    { id: 'light', label: 'Light', hint: 'Bright rooms' },
+    { id: 'dark', label: 'Dark', hint: 'Easy at night' },
+  ];
+  return (
+    <div role="radiogroup" aria-label="Theme" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      {options.map((o) => {
+        const selected = pref === o.id;
+        const previewDark = o.id === 'dark' || (o.id === 'system' && theme === 'dark');
+        return (
+          <button
+            key={o.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => setPref(o.id)}
+            style={{
+              textAlign: 'left', padding: 12, borderRadius: 12, cursor: 'pointer',
+              background: 'var(--surface-elev)',
+              border: `1.5px solid ${selected ? 'var(--primary-500)' : 'var(--border-default)'}`,
+              boxShadow: selected ? '0 0 0 3px var(--primary-soft)' : 'none',
+            }}
+          >
+            {/* Mini preview of the theme */}
+            <div style={{ height: 56, borderRadius: 8, marginBottom: 10, padding: 8, display: 'flex', gap: 6,
+              background: previewDark ? '#0E1018' : '#F5F6FA', border: '1px solid var(--border-default)' }}>
+              <div style={{ width: 14, borderRadius: 4, background: previewDark ? '#080910' : '#FFFFFF' }} />
+              <div style={{ flex: 1, borderRadius: 4, background: previewDark ? '#151827' : '#FFFFFF', padding: 6 }}>
+                <div style={{ height: 5, width: '60%', borderRadius: 3, background: previewDark ? '#C9D0E0' : '#303748' }} />
+                <div style={{ height: 5, width: '35%', borderRadius: 3, marginTop: 5, background: previewDark ? '#8B7CFF' : '#5B4BD6' }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg-1)' }}>{o.label}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{o.hint}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Phone — pair the mobile app with this Mac for direct access over Tailscale
+// (or the home Wi-Fi). Always talks to the local backend; pairing endpoints
+// refuse requests that don't come from this Mac.
+// ---------------------------------------------------------------------------
+type PairStart = { code: string; expires_in: number; port: number; addresses: { ip: string; kind: 'tailscale' | 'lan' }[] };
+type PairedDevice = { id: string; name: string; paired_at: string };
+
+function PhoneSection() {
+  const toast = useToast();
+  const local = window.location.origin;
+  const [pair, setPair] = useState<PairStart | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [devices, setDevices] = useState<PairedDevice[]>([]);
+  // null outside the Electron app (e.g. browser dev mode) — toggle hidden.
+  const [openAtLogin, setOpenAtLogin] = useState<boolean | null>(null);
+  useEffect(() => {
+    (window as any).electronAPI?.getOpenAtLogin?.().then((v: boolean) => setOpenAtLogin(v)).catch(() => {});
+  }, []);
+
+  const loadDevices = async () => {
+    try {
+      const res = await fetch(`${local}/api/v1/pair/devices`);
+      if (res.ok) setDevices(await res.json());
+    } catch {
+      // best-effort list
+    }
+  };
+
+  useEffect(() => { loadDevices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Countdown + poll for the phone claiming the code, so the panel updates
+  // on its own the moment pairing succeeds.
+  useEffect(() => {
+    if (!pair) return;
+    const before = devices.length;
+    const tick = setInterval(async () => {
+      setSecondsLeft((s) => {
+        if (s <= 1) { setPair(null); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`${local}/api/v1/pair/devices`);
+        const list: PairedDevice[] = res.ok ? await res.json() : [];
+        if (list.length > before) {
+          setDevices(list);
+          setPair(null);
+          toast.success(`Paired ${list[list.length - 1].name}`);
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+    return () => { clearInterval(tick); clearInterval(poll); };
+  }, [pair]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startPairing = async () => {
+    const res = await fetch(`${local}/api/v1/pair/start`, { method: 'POST' });
+    if (!res.ok) { toast.error('Could not start pairing'); return; }
+    const data: PairStart = await res.json();
+    setPair(data);
+    setSecondsLeft(data.expires_in);
+  };
+
+  const unpairOne = async (d: PairedDevice) => {
+    if (!confirm(`Remove ${d.name}? It will need a new code to reconnect.`)) return;
+    const res = await fetch(`${local}/api/v1/pair/devices/${encodeURIComponent(d.id)}`, { method: 'DELETE' });
+    if (res.ok) toast.success(`Removed ${d.name}`);
+    else toast.error(`Could not remove ${d.name}`);
+    loadDevices();
+  };
+
+  const unpairAll = async () => {
+    if (!confirm('Unpair every phone? They will need a new code to reconnect.')) return;
+    await fetch(`${local}/api/v1/pair/devices`, { method: 'DELETE' });
+    toast.success('All phones unpaired');
+    loadDevices();
+  };
+
+  const tailscale = pair?.addresses.find((a) => a.kind === 'tailscale');
+  const address = (ip: string) => `http://${ip}:${pair?.port}`;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p className="text-xs text-ink-500">
+        Your phone talks directly to this Mac over Tailscale — no cloud. This Mac keeps the only copy of
+        your data; the phone queues anything you add while the Mac is off and sends it the next time it can reach it.
+      </p>
+
+      {pair ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Label>Pairing code</Label>
+            <div style={{ font: '700 34px/1 var(--font-mono, monospace)', letterSpacing: '0.3em', color: 'var(--fg-1)' }}>
+              {pair.code}
+            </div>
+            <div className="text-xs text-ink-500" style={{ marginTop: 6 }}>
+              Expires in {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} · single use
+            </div>
+          </div>
+          <div>
+            <Label>Mac address to enter on the phone</Label>
+            {tailscale ? (
+              <code className="text-sm" style={{ color: 'var(--accent-purple)' }}>{address(tailscale.ip)}</code>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--accent-amber, #FFBE3D)' }}>
+                No Tailscale address found. Install Tailscale on this Mac and sign in with the same account as
+                your phone — or use a home Wi-Fi address below (works only at home).
+              </p>
+            )}
+            {pair.addresses.filter((a) => a.kind === 'lan').map((a) => (
+              <div key={a.ip} className="text-xs text-ink-500" style={{ marginTop: 4 }}>
+                Home Wi-Fi only: <code>{address(a.ip)}</code>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={() => setPair(null)} className="text-xs text-ink-500 hover:text-ink-300 self-start">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div><BtnPrimary onClick={startPairing}>Pair a phone</BtnPrimary></div>
+      )}
+
+      {openAtLogin !== null && (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={openAtLogin}
+            onChange={async (e) => setOpenAtLogin(await (window as any).electronAPI.setOpenAtLogin(e.target.checked))}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            <span className="text-sm text-ink-300">Start North OS when I log in</span>
+            <span className="text-xs text-ink-500" style={{ display: 'block', marginTop: 2 }}>
+              Runs quietly in the background so your phone can reach this Mac without opening the app.
+              Closing the window keeps it running; quit from the Dock to stop it.
+            </span>
+          </span>
+        </label>
+      )}
+
+      <div>
+        <Label>Paired phones</Label>
+        {devices.length === 0 ? (
+          <p className="text-xs text-ink-500">None yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {devices.map((d) => (
+              <div key={d.id} className="text-sm text-ink-300" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check className="w-4 h-4 text-green-400" /> {d.name}
+                <span className="text-xs text-ink-500">· paired {new Date(d.paired_at).toLocaleDateString()}</span>
+                <button
+                  type="button"
+                  onClick={() => unpairOne(d)}
+                  aria-label={`Remove ${d.name}`}
+                  className="text-xs text-ink-500 hover:text-red-400 transition-colors"
+                  style={{ marginLeft: 'auto', padding: '4px 8px' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={unpairAll} className="text-xs text-ink-500 hover:text-red-400 transition-colors self-start" style={{ marginTop: 4 }}>
+              Unpair all phones
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2129,7 +2042,9 @@ export function Settings() {
         <nav style={{ position: 'sticky', top: 88, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {([
             { id: 'profile',       label: 'Profile',       icon: '👤' },
+            { id: 'appearance',    label: 'Appearance',    icon: '🎨' },
             { id: 'connection',    label: 'Connection',    icon: '🌐' },
+            { id: 'phone',         label: 'Phone',         icon: '📱' },
             { id: 'ai',            label: 'AI Provider',   icon: '🤖' },
             { id: 'notifications', label: 'Notifications', icon: '🔔' },
             { id: 'sms',           label: 'SMS Config',    icon: '💬' },
@@ -2263,11 +2178,27 @@ export function Settings() {
           </div>
         </section>
 
+        {/* ── Appearance ────────────────────────────────────────── */}
+        <section id="sec-appearance" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
+          <SectionHead title="Appearance" desc="Light, dark, or follow your Mac." />
+          <div className="card" style={{ padding: 20 }}>
+            <AppearanceSection />
+          </div>
+        </section>
+
         {/* ── Connection (cloud mode) ──────────────────────────── */}
         <section id="sec-connection" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
           <SectionHead title="Connection" desc="Switch between local backend and a cloud server." />
           <div className="card" style={{ padding: 20 }}>
             <CloudConnectionSection />
+          </div>
+        </section>
+
+        {/* ── Phone ─────────────────────────────────────────────── */}
+        <section id="sec-phone" style={{ scrollMarginTop: 88, marginBottom: 56 }}>
+          <SectionHead title="Phone" desc="Pair the North OS mobile app with this Mac — direct and private, no cloud." />
+          <div className="card" style={{ padding: 20 }}>
+            <PhoneSection />
           </div>
         </section>
 
@@ -2319,9 +2250,9 @@ export function Settings() {
                     'flex flex-col items-center gap-1.5 rounded-xl border py-3 px-2 text-center transition-all',
                     active
                       ? 'border-accent/50 bg-accent/10'
-                      : 'border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.14)] hover:bg-white/4',
+                      : 'border-[rgb(var(--overlay-rgb) / 0.07)] hover:border-[rgb(var(--overlay-rgb) / 0.14)] hover:bg-white/4',
                   )}
-                  style={!active ? { background: 'rgba(255,255,255,0.02)' } : {}}
+                  style={!active ? { background: 'rgb(var(--overlay-rgb) / 0.02)' } : {}}
                 >
                   <span className="text-xl">{p?.emoji ?? '🔧'}</span>
                   <span className={cn(
@@ -2559,8 +2490,8 @@ export function Settings() {
             style={{
               padding: '12px 16px',
               borderRadius: 12,
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(255,255,255,0.05)',
+              background: 'rgb(var(--overlay-rgb) / 0.02)',
+              border: '1px solid rgb(var(--overlay-rgb) / 0.05)',
             }}
           >
             <span style={{ fontSize: 16 }}>🏷️</span>
@@ -2605,7 +2536,7 @@ export function Settings() {
                   display: 'inline-flex', alignItems: 'center', gap: 7,
                   padding: '7px 16px', borderRadius: 8,
                   font: '500 13px/1 var(--font-sans)',
-                  color: 'rgba(255,91,110,0.75)',
+                  color: 'var(--accent-red)',
                   background: 'rgba(239,68,68,0.1)',
                   border: '1px solid rgba(239,68,68,0.4)',
                   cursor: 'pointer', whiteSpace: 'nowrap',
@@ -2639,7 +2570,7 @@ export function Settings() {
           <div
             style={{
               position: 'fixed', inset: 0, zIndex: 9000,
-              background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+              background: 'var(--scrim)', backdropFilter: 'blur(6px)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 24,
             }}
@@ -2658,7 +2589,7 @@ export function Settings() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '18px 22px 14px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                borderBottom: '1px solid rgb(var(--overlay-rgb) / 0.06)',
               }}>
                 <AlertTriangle style={{ width: 18, height: 18, color: 'var(--accent-red)', flexShrink: 0 }} />
                 <span style={{ font: '600 15px/1.2 var(--font-display)', color: 'var(--fg-1)' }}>
@@ -2671,7 +2602,7 @@ export function Settings() {
                   {[1, 2, 3].map(s => (
                     <div key={s} style={{
                       width: 6, height: 6, borderRadius: '50%',
-                      background: s <= wipeStep ? 'var(--accent-red)' : 'rgba(255,255,255,0.15)',
+                      background: s <= wipeStep ? 'var(--accent-red)' : 'rgb(var(--overlay-rgb) / 0.15)',
                       transition: 'background 0.2s',
                     }} />
                   ))}
@@ -2697,7 +2628,7 @@ export function Settings() {
                         style={{
                           padding: '8px 18px', borderRadius: 8, fontSize: 13,
                           color: 'var(--fg-3)', background: 'transparent',
-                          border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
+                          border: '1px solid rgb(var(--overlay-rgb) / 0.1)', cursor: 'pointer',
                         }}
                       >
                         Cancel
@@ -2745,7 +2676,7 @@ export function Settings() {
                         style={{
                           padding: '8px 18px', borderRadius: 8, fontSize: 13,
                           color: 'var(--fg-3)', background: 'transparent',
-                          border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
+                          border: '1px solid rgb(var(--overlay-rgb) / 0.1)', cursor: 'pointer',
                         }}
                       >
                         Cancel
@@ -2782,7 +2713,7 @@ export function Settings() {
                         background: 'var(--surface-elev)',
                         border: wipeConfirmText === 'delete my data'
                           ? '1px solid rgba(239,68,68,0.6)'
-                          : '1px solid rgba(255,255,255,0.1)',
+                          : '1px solid rgb(var(--overlay-rgb) / 0.1)',
                         color: 'var(--fg-1)', outline: 'none',
                         marginBottom: 20,
                         fontFamily: 'var(--font-mono)',
@@ -2796,7 +2727,7 @@ export function Settings() {
                         style={{
                           padding: '8px 18px', borderRadius: 8, fontSize: 13,
                           color: 'var(--fg-3)', background: 'transparent',
-                          border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer',
+                          border: '1px solid rgb(var(--overlay-rgb) / 0.1)', cursor: 'pointer',
                         }}
                       >
                         Cancel

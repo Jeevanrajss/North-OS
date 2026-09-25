@@ -6,6 +6,7 @@ import App from './App';
 import { ErrorBoundary, logError } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/contexts/ToastContext';
 import './styles/globals.css';
+import './lib/theme';
 
 // Toast instance available globally for React Query error callbacks
 // (before the React tree renders — wired via a module-level ref)

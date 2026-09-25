@@ -1,10 +1,12 @@
+import { todayISO } from '@/lib/date';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { chartAxis, chartGrid, chartTooltip } from '@/lib/chart';
 import { PageHeader } from '@/components/PageHeader';
 import { api, type HealthLog, type HealthLogIn } from '@/lib/api';
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = todayISO();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Energy star selector
@@ -200,7 +202,7 @@ export function Health() {
           <StatChip label="Avg sleep"    value={stats.avg_sleep_hours != null ? `${stats.avg_sleep_hours}` : '—'} unit="hrs"  color="var(--primary-500)" />
           <StatChip label="Avg energy"   value={stats.avg_energy_level != null ? `${stats.avg_energy_level}` : '—'} unit="/ 5" color="var(--accent-yellow)" />
           <StatChip label="Exercise days"value={String(stats.exercise_days)} unit={`/ ${stats.days_with_data}d`} color="var(--accent-green)" />
-          <StatChip label="Water (total)"value={String(stats.total_water_glasses)} unit="glasses"            color="var(--accent-blue, #3EBEFF)" />
+          <StatChip label="Water (total)"value={String(stats.total_water_glasses)} unit="glasses"            color="var(--accent-blue, var(--secondary-500))" />
         </div>
       )}
 
@@ -341,10 +343,10 @@ export function Health() {
                 </div>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} interval={Math.floor(chartData.length / 5)} />
-                    <YAxis domain={[0, 12]} tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 11, color: 'var(--fg-1)' }} formatter={(v) => [`${v}h`, 'Sleep']} />
+                    <CartesianGrid {...chartGrid} />
+                    <XAxis dataKey="date" {...chartAxis} interval={Math.floor(chartData.length / 5)} />
+                    <YAxis domain={[0, 12]} {...chartAxis} />
+                    <Tooltip {...chartTooltip} formatter={(v) => [`${v}h`, 'Sleep']} />
                     <Line type="monotone" dataKey="sleep" stroke="var(--primary-400)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
@@ -357,10 +359,10 @@ export function Health() {
                 </div>
                 <ResponsiveContainer width="100%" height={120}>
                   <LineChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} interval={Math.floor(chartData.length / 5)} />
-                    <YAxis domain={[0, 5]} ticks={[1,2,3,4,5]} tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 11, color: 'var(--fg-1)' }} formatter={(v) => [`${v}/5`, 'Energy']} />
+                    <CartesianGrid {...chartGrid} />
+                    <XAxis dataKey="date" {...chartAxis} interval={Math.floor(chartData.length / 5)} />
+                    <YAxis domain={[0, 5]} ticks={[1,2,3,4,5]} {...chartAxis} />
+                    <Tooltip {...chartTooltip} formatter={(v) => [`${v}/5`, 'Energy']} />
                     <Line type="monotone" dataKey="energy" stroke="var(--accent-yellow)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
@@ -373,11 +375,11 @@ export function Health() {
                 </div>
                 <ResponsiveContainer width="100%" height={120}>
                   <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} interval={Math.floor(chartData.length / 5)} />
-                    <YAxis tick={{ fill: 'var(--fg-4)', fontSize: 9 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-elev)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 11, color: 'var(--fg-1)' }} formatter={(v) => [`${v} min`, 'Exercise']} />
-                    <Bar dataKey="exercise" fill="rgba(61,255,152,0.50)" radius={[4, 4, 0, 0]} />
+                    <CartesianGrid {...chartGrid} />
+                    <XAxis dataKey="date" {...chartAxis} interval={Math.floor(chartData.length / 5)} />
+                    <YAxis {...chartAxis} />
+                    <Tooltip {...chartTooltip} formatter={(v) => [`${v} min`, 'Exercise']} />
+                    <Bar dataKey="exercise" fill="var(--chart-5)" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

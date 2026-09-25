@@ -38,11 +38,11 @@ interface Props {
 
 const inputCls =
   'w-full rounded-lg px-3 py-2 text-sm text-[var(--fg-2)] outline-none transition-colors ' +
-  'bg-[var(--surface-elev)] border border-[rgba(255,255,255,0.07)] focus:border-[rgba(139,124,255,0.50)]';
+  'bg-[var(--surface-elev)] border border-[rgb(var(--overlay-rgb) / 0.07)] focus:border-[rgb(var(--primary-rgb) / 0.50)]';
 
 const selectCls =
   'w-full rounded-lg px-3 py-2 text-sm text-[var(--fg-2)] outline-none transition-colors ' +
-  'bg-[var(--surface-elev)] border border-[rgba(255,255,255,0.07)] focus:border-[rgba(139,124,255,0.50)]';
+  'bg-[var(--surface-elev)] border border-[rgb(var(--overlay-rgb) / 0.07)] focus:border-[rgb(var(--primary-rgb) / 0.50)]';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -193,13 +193,13 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--scrim)', backdropFilter: 'blur(4px)' }}>
       <div style={{
         position: 'relative', width: '100%', maxWidth: 780, maxHeight: '90vh',
         display: 'flex', flexDirection: 'column',
         background: 'var(--surface)', borderRadius: 20,
         border: '1px solid var(--border-default)',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+        boxShadow: 'var(--elev-3)',
         overflow: 'hidden',
       }}>
 
@@ -234,7 +234,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 10, fontWeight: 700,
                     background: isActive ? 'var(--primary-500)' : isDone ? 'var(--accent-green)' : 'var(--surface-elev)',
-                    color: (isActive || isDone) ? 'white' : 'var(--fg-4)',
+                    color: (isActive || isDone) ? 'var(--on-primary)' : 'var(--fg-4)',
                     border: `1px solid ${isActive ? 'var(--primary-500)' : isDone ? 'var(--accent-green)' : 'var(--border-default)'}`,
                     flexShrink: 0,
                   }}>
@@ -312,7 +312,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     gap: 10, borderRadius: 12, padding: '32px 20px',
                     border: `2px dashed ${dragging ? 'var(--primary-400)' : file ? 'var(--accent-green)' : 'var(--border-default)'}`,
-                    background: dragging ? 'rgba(139,124,255,0.06)' : file ? 'rgba(61,255,152,0.04)' : 'var(--surface-elev)',
+                    background: dragging ? 'rgb(var(--primary-rgb) / 0.06)' : file ? 'rgba(61,255,152,0.04)' : 'var(--surface-elev)',
                     cursor: 'pointer', transition: 'all 200ms',
                   }}
                 >
@@ -417,8 +417,8 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                         style={{
                           flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12.5,
                           cursor: 'pointer', transition: 'all 200ms', fontWeight: active ? 500 : 400,
-                          background: active ? 'rgba(139,124,255,0.15)' : 'var(--surface-elev)',
-                          border: `1px solid ${active ? 'rgba(139,124,255,0.50)' : 'var(--border-default)'}`,
+                          background: active ? 'rgb(var(--primary-rgb) / 0.15)' : 'var(--surface-elev)',
+                          border: `1px solid ${active ? 'rgb(var(--primary-rgb) / 0.50)' : 'var(--border-default)'}`,
                           color: active ? 'var(--primary-300)' : 'var(--fg-3)',
                         }}
                       >
@@ -464,7 +464,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
               {/* Summary bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--fg-4)' }}>
                 {preview?.bank_detected && (
-                  <span style={{ padding: '2px 10px', borderRadius: 999, background: 'rgba(139,124,255,0.14)', border: '1px solid rgba(139,124,255,0.30)', color: 'var(--primary-300)', fontWeight: 500, fontSize: 12 }}>
+                  <span style={{ padding: '2px 10px', borderRadius: 999, background: 'rgb(var(--primary-rgb) / 0.14)', border: '1px solid rgb(var(--primary-rgb) / 0.30)', color: 'var(--primary-300)', fontWeight: 500, fontSize: 12 }}>
                     {preview.bank_detected}
                   </span>
                 )}
@@ -540,7 +540,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                               </span>
                             )}
                             {row.is_cc_payment && (
-                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(139,124,255,0.12)', color: 'var(--primary-300)', border: '1px solid rgba(139,124,255,0.25)', whiteSpace: 'nowrap' }}>
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--primary-300)', border: '1px solid rgb(var(--primary-rgb) / 0.25)', whiteSpace: 'nowrap' }}>
                                 CC Payment
                               </span>
                             )}
@@ -550,7 +550,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                               </span>
                             )}
                             {row.is_investment && (
-                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(61,190,255,0.12)', color: '#3EBEFF', border: '1px solid rgba(61,190,255,0.25)', whiteSpace: 'nowrap' }}>
+                              <span style={{ padding: '1px 5px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(61,190,255,0.12)', color: 'var(--secondary-500)', border: '1px solid rgba(61,190,255,0.25)', whiteSpace: 'nowrap' }}>
                                 SIP/Investment
                               </span>
                             )}
@@ -580,7 +580,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                           {row.is_investment && (
                             <div style={{ marginTop: 4 }}>
                               {row.suggested_investment_name ? (
-                                <span style={{ fontSize: 10, color: '#3EBEFF', fontFamily: 'var(--font-mono)' }}>
+                                <span style={{ fontSize: 10, color: 'var(--secondary-500)', fontFamily: 'var(--font-mono)' }}>
                                   → {row.suggested_investment_name}
                                 </span>
                               ) : (
@@ -649,7 +649,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 onClick={onClose}
                 style={{
                   marginTop: 8, height: 38, padding: '0 24px', borderRadius: 10,
-                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                   background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
                   boxShadow: 'var(--elev-glow)',
                 }}
@@ -682,7 +682,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 style={{
                   height: 34, padding: '0 18px', borderRadius: 8,
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                   background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
                   opacity: (!file || !accountId || previewMut.isPending) ? 0.4 : 1,
                   transition: 'opacity 200ms',
@@ -707,7 +707,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 style={{
                   height: 34, padding: '0 18px', borderRadius: 8,
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                   background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
                   opacity: previewMut.isPending ? 0.4 : 1,
                 }}
@@ -727,7 +727,7 @@ export function ImportModal({ accounts, meta, onClose, onImported }: Props) {
                 style={{
                   height: 34, padding: '0 18px', borderRadius: 8,
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                   background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
                   opacity: (includedCount === 0 || confirmMut.isPending) ? 0.4 : 1,
                 }}

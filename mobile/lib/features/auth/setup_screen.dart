@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,8 @@ import '../../core/config.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../core/theme.dart';
 
+/// Pair this phone with the North OS desktop app on your Mac. The Mac shows
+/// its address and a one-time 6-digit code in Settings → Phone.
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
   @override
@@ -13,61 +17,68 @@ class SetupScreen extends ConsumerStatefulWidget {
 }
 
 class _SetupScreenState extends ConsumerState<SetupScreen> {
-  final _emailCtl = TextEditingController();
-  final _passCtl = TextEditingController();
-  final _nameCtl = TextEditingController();
-  final _inviteCtl = TextEditingController();
-
-  bool _isRegister = false;
+  final _addressCtl = TextEditingController(text: kDefaultServerUrl);
+  final _codeCtl = TextEditingController();
   bool _submitting = false;
   String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    // Server address is fixed — no user-facing entry step.
-    SecureStore.setServerUrl(kDefaultServerUrl);
+  /// Accepts "100.101.1.2:9847", "jeevans-mac:9847" or a full URL.
+  String _normalise(String raw) {
+    var s = raw.trim().replaceAll(RegExp(r'/+$'), '');
+    if (!s.startsWith('http://') && !s.startsWith('https://')) s = 'http://$s';
+    final uri = Uri.tryParse(s);
+    if (uri != null && !uri.hasPort) s = '$s:$kDesktopPort'; // this channel's desktop app port
+    return s;
   }
 
-  Future<void> _submit() async {
-    setState(() { _submitting = true; _error = null; });
+  Future<void> _pair() async {
+    final url = _normalise(_addressCtl.text);
+    final code = _codeCtl.text.trim();
+    if (code.length != 6) {
+      setState(() => _error = 'Enter the 6-digit code shown on your Mac.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 6)));
     try {
-      final url = kDefaultServerUrl;
-      final dio = Dio(BaseOptions(followRedirects: true, maxRedirects: 3));
-      Response res;
-
-      if (_isRegister) {
-        res = await dio.post('$url/api/v1/auth/register', data: {
-          'name': _nameCtl.text.trim(),
-          'email': _emailCtl.text.trim(),
-          'password': _passCtl.text,
-          'invite_code': _inviteCtl.text.trim(),
-        });
-      } else {
-        res = await dio.post('$url/api/v1/auth/login', data: {
-          'email': _emailCtl.text.trim(),
-          'password': _passCtl.text,
-        });
-      }
-
-      final data = res.data as Map<String, dynamic>;
-      await SecureStore.saveTokens(
-        data['access_token'] as String,
-        data['refresh_token'] as String,
+      await dio.get('$url/api/v1/ping');
+    } on DioException {
+      setState(() {
+        _submitting = false;
+        _error =
+            "Can't reach your Mac at $url.\nCheck that Tailscale is on for both devices and the North OS app is open on the Mac.";
+      });
+      return;
+    }
+    try {
+      final res = await dio.post(
+        '$url/api/v1/pair/claim',
+        data: {
+          'code': code,
+          'device_name': kIsWeb
+              ? 'Browser'
+              : Platform.isAndroid
+              ? 'Android phone'
+              : Platform.isIOS
+              ? 'iPhone'
+              : 'Phone',
+        },
       );
+      final data = res.data as Map<String, dynamic>;
+      await SecureStore.setServerUrl(url);
+      await SecureStore.saveTokens(data['access_token'] as String, data['refresh_token'] as String);
       if (mounted) context.go('/');
     } on DioException catch (e) {
-      String detail;
-      if (e.response?.data is Map) {
-        detail = (e.response!.data as Map)['detail']?.toString() ?? 'Request failed';
-      } else {
-        detail = 'Request failed (${e.response?.statusCode ?? e.type.name})';
-      }
-      setState(() { _error = detail; });
-    } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(
+        () => _error = e.response?.statusCode == 401
+            ? 'That code is wrong or has expired. Get a new one from your Mac.'
+            : 'Pairing failed (${e.response?.statusCode ?? e.type.name}).',
+      );
     } finally {
-      setState(() { _submitting = false; });
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -75,91 +86,94 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              Text('North OS', style: TextStyle(
-                fontSize: 32, fontWeight: FontWeight.w700, color: NorthColors.fg1,
-              )),
-              const SizedBox(height: 8),
-              Text('Sign in to your account', style: TextStyle(
-                fontSize: 15, color: NorthColors.fg4,
-              )),
-              const SizedBox(height: 40),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(NorthSpace.xl, 56, NorthSpace.xl, NorthSpace.xl),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset('assets/app_icon.png', width: 64, height: 64),
+              ),
+            ),
+            const SizedBox(height: NorthSpace.lg),
+            Text(
+              'North OS',
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+            ),
+            const SizedBox(height: NorthSpace.sm),
+            Text('Pair with your Mac', style: NorthText.bodyMuted.copyWith(fontSize: 15)),
+            const SizedBox(height: NorthSpace.xl),
+            _step('1', 'On your Mac, open North OS → Settings → Phone → Pair a phone.'),
+            _step('2', 'Make sure Tailscale is on here and on the Mac (same account).'),
+            _step('3', 'Enter the address and code the Mac shows.'),
+            const SizedBox(height: NorthSpace.xl),
+            TextField(
+              controller: _addressCtl,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: 'Mac address', hintText: 'http://100.x.y.z:$kDesktopPort'),
+            ),
+            const SizedBox(height: NorthSpace.md),
+            TextField(
+              controller: _codeCtl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.w600),
+              decoration: const InputDecoration(labelText: 'Pairing code', counterText: ''),
+              onSubmitted: (_) => _pair(),
+            ),
+            const SizedBox(height: NorthSpace.lg),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _pair,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Pair'),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: NorthSpace.lg),
+                child: Text(_error!, style: TextStyle(color: NorthColors.red, fontSize: 13, height: 1.4)),
+              ),
+            const SizedBox(height: NorthSpace.xl),
+            Text(
+              'Your data stays on your Mac. This phone keeps a cached copy for offline viewing '
+              'and queues anything you add until the Mac is reachable.',
+              style: NorthText.caption.copyWith(height: 1.4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              Row(children: [
-                _tabButton('Sign in', !_isRegister, () => setState(() => _isRegister = false)),
-                const SizedBox(width: 12),
-                _tabButton('Register', _isRegister, () => setState(() => _isRegister = true)),
-              ]),
-              const SizedBox(height: 20),
-              if (_isRegister) ...[
-                TextField(
-                  controller: _nameCtl,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  textCapitalization: TextCapitalization.words,
-                ),
-                const SizedBox(height: 12),
-              ],
-              TextField(
-                controller: _emailCtl,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passCtl,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-              if (_isRegister) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _inviteCtl,
-                  decoration: const InputDecoration(labelText: 'Invite code'),
-                ),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
-                  child: _submitting
-                      ? const SizedBox(width: 18, height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(_isRegister ? 'Create Account' : 'Sign In'),
-                ),
-              ),
-
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(_error!, style: TextStyle(color: NorthColors.red, fontSize: 13)),
-                ),
-            ],
+  Widget _step(String n, String text) => Padding(
+    padding: const EdgeInsets.only(bottom: NorthSpace.sm),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: NorthColors.accentMuted, shape: BoxShape.circle),
+          child: Text(
+            n,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: NorthColors.accent),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _tabButton(String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? NorthColors.accentMuted : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+        const SizedBox(width: NorthSpace.md),
+        Expanded(
+          child: Text(text, style: NorthText.body.copyWith(color: NorthColors.fg3, height: 1.35)),
         ),
-        child: Text(label, style: TextStyle(
-          color: active ? NorthColors.accent : NorthColors.fg4,
-          fontWeight: FontWeight.w600, fontSize: 14,
-        )),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }

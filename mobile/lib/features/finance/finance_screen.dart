@@ -5,6 +5,7 @@ import 'tabs/transactions_tab.dart';
 import 'tabs/debt_tab.dart';
 import 'tabs/wealth_tab.dart';
 import 'tabs/goals_tab.dart';
+import '../splits/widgets/splits_view.dart';
 
 class FinanceScreen extends StatelessWidget {
   const FinanceScreen({super.key});
@@ -12,19 +13,21 @@ class FinanceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Finance'),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             labelColor: NorthColors.accent,
             unselectedLabelColor: NorthColors.fg5,
             indicatorColor: NorthColors.accent,
+            dividerColor: NorthColors.border1,
             tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Overview'),
               Tab(text: 'Transactions'),
+              Tab(text: 'Splits'),
               Tab(text: 'Debt & EMI'),
               Tab(text: 'My Wealth'),
               Tab(text: 'Goals'),
@@ -35,6 +38,7 @@ class FinanceScreen extends StatelessWidget {
           children: [
             OverviewTab(),
             TransactionsTab(),
+            SplitsView(),
             DebtTab(),
             WealthTab(),
             GoalsTab(),

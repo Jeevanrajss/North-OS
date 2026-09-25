@@ -32,11 +32,11 @@ export function SubInsightsCard() {
       borderRadius: 16,
       padding: '18px 20px',
       background: `
-        radial-gradient(360px 200px at 90% 0%, rgba(139,124,255,0.14), transparent 60%),
-        linear-gradient(135deg, rgba(139,124,255,0.04), rgba(139,124,255,0.01)),
+        radial-gradient(360px 200px at 90% 0%, rgb(var(--primary-rgb) / 0.14), transparent 60%),
+        linear-gradient(135deg, rgb(var(--primary-rgb) / 0.04), rgb(var(--primary-rgb) / 0.01)),
         var(--surface)
       `,
-      border: '1px solid rgba(139,124,255,0.20)',
+      border: '1px solid rgb(var(--primary-rgb) / 0.20)',
       overflow: 'hidden',
     }}>
       {/* AI tag */}
@@ -66,12 +66,12 @@ export function SubInsightsCard() {
             padding: '4px 10px', borderRadius: 8,
             font: '500 12px/1 var(--font-sans)',
             color: 'var(--primary-300)',
-            background: 'rgba(139,124,255,0.10)',
-            border: '1px solid rgba(139,124,255,0.22)',
+            background: 'rgb(var(--primary-rgb) / 0.10)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.22)',
             cursor: 'pointer', flexShrink: 0,
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.20)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.10)'; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.20)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.10)'; }}
         >
           {slot.isPending
             ? <><Loader2 style={{ width: 11, height: 11 }} className="animate-spin" /> Analysing…</>
@@ -89,7 +89,7 @@ export function SubInsightsCard() {
       {slot.isPending && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
           {[90, 75, 60].map((w, i) => (
-            <div key={i} className="animate-pulse" style={{ height: 12, borderRadius: 6, background: 'rgba(139,124,255,0.12)', width: `${w}%` }} />
+            <div key={i} className="animate-pulse" style={{ height: 12, borderRadius: 6, background: 'rgb(var(--primary-rgb) / 0.12)', width: `${w}%` }} />
           ))}
         </div>
       )}
@@ -121,7 +121,7 @@ export function SubInsightsCard() {
             <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{
                 flexShrink: 0, width: 20, height: 20, borderRadius: '50%',
-                background: 'rgba(139,124,255,0.15)', border: '1px solid rgba(139,124,255,0.30)',
+                background: 'rgb(var(--primary-rgb) / 0.15)', border: '1px solid rgb(var(--primary-rgb) / 0.30)',
                 color: 'var(--primary-300)',
                 fontSize: 10, fontWeight: 600,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

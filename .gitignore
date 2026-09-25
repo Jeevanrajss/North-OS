@@ -50,3 +50,10 @@ HANDOFF.md
 .claude/
 assets/
 north-os-debug.apk
+
+# Playwright E2E output
+frontend/test-results/
+frontend/playwright-report/
+
+# Versioned builds handed to devices (DMG / APK)
+releases/

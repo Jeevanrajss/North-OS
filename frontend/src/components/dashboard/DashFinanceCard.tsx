@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, type MonthlySummary } from '@/lib/api';
@@ -184,7 +185,7 @@ function DebtSipStrip() {
   if (!isEnabled('finance')) return null;
 
   const today = new Date();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const monthStart = toISODate(new Date(today.getFullYear(), today.getMonth(), 1));
 
   const { data: debtSummary } = useQuery({
     queryKey: ['debt-summary-dash'],
@@ -225,7 +226,7 @@ function DebtSipStrip() {
       {hasSip && (
         <Link to="/app/finance?tab=wealth" style={{ flex: 1, textDecoration: 'none', minWidth: 120 }}>
           <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(61,190,255,0.07)', border: '1px solid rgba(61,190,255,0.18)' }}>
-            <div style={{ fontSize: 10, color: '#3EBEFF', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>SIP this month</div>
+            <div style={{ fontSize: 10, color: 'var(--secondary-500)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>SIP this month</div>
             <div style={{ font: '500 16px/1 var(--font-display)', color: 'var(--fg-1)' }}>
               ₹{Math.round(invSummary.sip_this_month).toLocaleString('en-IN')}
             </div>

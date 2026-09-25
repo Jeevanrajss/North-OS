@@ -133,7 +133,7 @@ export function MonthCalendar({
             fontWeight: 500,
             color: !inMonth
               ? 'var(--fg-disabled)'
-              : color || (today ? 'white' : 'var(--fg-3)'),
+              : color || (today ? 'var(--fg-1)' : 'var(--fg-3)'),
             transition: 'var(--transition)',
             cursor: 'pointer',
             border: 'none',
@@ -144,14 +144,14 @@ export function MonthCalendar({
             boxStyle = {
               ...boxStyle,
               background: 'var(--surface-elev)',
-              color: 'white',
-              boxShadow: 'inset 0 0 0 1.5px var(--primary-500), 0 0 12px rgba(139,124,255,0.40)',
+              color: 'var(--fg-1)',
+              boxShadow: 'inset 0 0 0 1.5px var(--primary-500), 0 0 12px rgb(var(--primary-rgb) / 0.40)',
             };
           }
           if (selected && !today) {
             boxStyle = {
               ...boxStyle,
-              boxShadow: 'inset 0 0 0 1.5px rgba(139,124,255,0.85)',
+              boxShadow: 'inset 0 0 0 1.5px rgb(var(--primary-rgb) / 0.85)',
             };
           }
 
@@ -165,7 +165,7 @@ export function MonthCalendar({
               onMouseEnter={(e) => { if (!today && !bg) (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--fg-1)'; }}
               onMouseLeave={(e) => {
                 if (!today && !bg) (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                (e.currentTarget as HTMLButtonElement).style.color = !inMonth ? 'var(--fg-disabled)' : color || (today ? 'white' : 'var(--fg-3)');
+                (e.currentTarget as HTMLButtonElement).style.color = !inMonth ? 'var(--fg-disabled)' : color || (today ? 'var(--fg-1)' : 'var(--fg-3)');
               }}
             >
               {d.getDate()}

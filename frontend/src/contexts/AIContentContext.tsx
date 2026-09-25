@@ -11,6 +11,7 @@
  *   'finance-insights'
  *   'journal-reflect-2026-05-14'
  */
+import { todayISO } from '@/lib/date';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { classifyLLMError, type ErrorKind } from './BriefingContext';
 
@@ -28,7 +29,7 @@ export const EMPTY_SLOT: AISlot = { text: null, isPending: false, error: null, e
 
 // ── localStorage helpers (keyed by today's date so stale cache is ignored) ──
 
-const _today = new Date().toISOString().slice(0, 10);
+const _today = todayISO();
 const _PREFIX = 'aiSlot';
 
 export function readAICache(key: string): string | null {

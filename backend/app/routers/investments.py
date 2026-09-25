@@ -73,21 +73,28 @@ def _inv_out(inv: Investment) -> dict[str, Any]:
     }
 
 
-def _recompute_goal(db: Session, goal_id: str) -> None:
-    """Recompute FinancialGoal.current_amount from all linked investments."""
-    try:
-        from app.models.financial_goal import FinancialGoal
-        goal = db.get(FinancialGoal, goal_id)
-        if not goal:
-            return
-        linked = goal.linked_ids()
-        if goal_id not in linked:
-            linked.append(goal_id)
-        invs = db.query(Investment).filter(Investment.user_id == current_user.id).filter(Investment.id.in_(linked)).all()
-        goal.current_amount = round(sum(i.total_invested for i in invs), 2)
-        db.flush()
-    except Exception as e:
-        log.debug("Goal recompute skipped: %s", e)
+def _recompute_goal(db: Session, inv: Investment) -> None:
+    """Link `inv` into its FinancialGoal and recompute current_amount from all
+    linked investments. The link is persisted because the goal read path
+    derives progress from `linked_investment_ids` alone."""
+    import json
+
+    from app.models.financial_goal import FinancialGoal
+
+    goal = (
+        db.query(FinancialGoal)
+        .filter(FinancialGoal.id == inv.goal_id, FinancialGoal.user_id == inv.user_id)
+        .first()
+    )
+    if not goal:
+        return
+    linked = goal.linked_ids()
+    if inv.id not in linked:
+        linked.append(inv.id)
+        goal.linked_investment_ids = json.dumps(linked)
+    invs = db.query(Investment).filter(Investment.user_id == inv.user_id, Investment.id.in_(linked)).all()
+    goal.current_amount = round(sum(i.total_invested for i in invs), 2)
+    db.flush()
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -126,7 +133,7 @@ def list_investments(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.post("", status_code=201)
 def create_investment(body: InvestmentIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    inv = Investment(**body.model_dump())
+    inv = Investment(**body.model_dump(), user_id=current_user.id)
     db.add(inv)
     db.commit()
     db.refresh(inv)
@@ -172,6 +179,7 @@ def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db), current
         account=inv.name,
         notes=body.notes or f"{body.entry_type.title()} — {inv.name}",
         investment_id=inv.id,
+        user_id=current_user.id,
     )
     db.add(t)
     db.flush()
@@ -184,6 +192,7 @@ def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db), current
         entry_date=body.entry_date,
         entry_type=body.entry_type,
         notes=body.notes,
+        user_id=current_user.id,
     )
     db.add(entry)
 
@@ -194,7 +203,7 @@ def add_entry(inv_id: str, body: EntryIn, db: Session = Depends(get_db), current
 
     # If linked to a financial goal, recompute goal progress
     if inv.goal_id:
-        _recompute_goal(db, inv.goal_id)
+        _recompute_goal(db, inv)
 
     db.commit()
     db.refresh(inv)

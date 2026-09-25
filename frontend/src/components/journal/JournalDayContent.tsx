@@ -94,13 +94,13 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
         borderRadius: 20,
         padding: 28,
         background: [
-          'radial-gradient(360px 240px at 80% 0%, rgba(139,124,255,0.22), transparent 60%)',
+          'radial-gradient(360px 240px at 80% 0%, rgb(var(--primary-rgb) / 0.22), transparent 60%)',
           'radial-gradient(280px 200px at 10% 100%, rgba(62,190,255,0.16), transparent 60%)',
-          'linear-gradient(135deg, rgba(139,124,255,0.08), rgba(139,124,255,0.02))',
+          'linear-gradient(135deg, rgb(var(--primary-rgb) / 0.08), rgb(var(--primary-rgb) / 0.02))',
           'var(--surface)',
         ].join(', '),
-        border: '1px solid rgba(139,124,255,0.28)',
-        boxShadow: '0 0 40px rgba(139,124,255,0.15)',
+        border: '1px solid rgb(var(--primary-rgb) / 0.28)',
+        boxShadow: '0 0 40px rgb(var(--primary-rgb) / 0.15)',
       }}
     >
       {/* Corner orb */}
@@ -108,7 +108,7 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
         className="absolute pointer-events-none"
         style={{
           top: -40, right: -40, width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(139,124,255,0.4) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.4) 0%, transparent 70%)',
           filter: 'blur(8px)',
         }}
       />
@@ -129,7 +129,7 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
       {/* Content */}
       <div className="relative z-10 flex-1">
         <h3
-          className="text-white leading-tight mb-2"
+          className="text-fg-1 leading-tight mb-2"
           style={{ font: '500 24px/1.2 var(--font-display)', letterSpacing: '-0.01em', marginTop: 12 }}
         >
           Ask anything about today.
@@ -146,10 +146,10 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
           type="button"
           disabled={!day || slot.isPending}
           onClick={handleReflect}
-          className="btn-ghost inline-flex items-center gap-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-ghost inline-flex items-center gap-2 text-sm font-medium text-fg-1 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.16)',
+            background: 'rgb(var(--overlay-rgb) / 0.08)',
+            border: '1px solid rgb(var(--overlay-rgb) / 0.16)',
           }}
         >
           {slot.isPending
@@ -182,8 +182,8 @@ function ReflectCard({ iso, day }: { iso: string; day: Day | undefined }) {
 
       {/* Reflection output */}
       {slot.text && (
-        <div className="relative z-10 rounded-xl p-3 text-sm text-white/90 leading-relaxed"
-          style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="relative z-10 rounded-xl p-3 text-sm text-fg-2 leading-relaxed"
+          style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgb(var(--overlay-rgb) / 0.08)' }}>
           {renderBold(slot.text)}
         </div>
       )}
@@ -279,10 +279,10 @@ export function JournalDayContent({ date }: Props) {
           style={{
             borderRadius: 20,
             background: [
-              'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))',
+              'linear-gradient(180deg, rgb(var(--overlay-rgb) / 0.02), rgb(var(--overlay-rgb) / 0))',
               'var(--surface)',
             ].join(', '),
-            border: '1px solid rgba(255,255,255,0.08)',
+            border: '1px solid rgb(var(--overlay-rgb) / 0.08)',
             padding: '28px 32px',
             display: 'flex',
             flexDirection: 'column',
@@ -293,7 +293,7 @@ export function JournalDayContent({ date }: Props) {
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: 'radial-gradient(420px 280px at 100% -10%, rgba(139,124,255,0.10), transparent 60%)',
+              background: 'radial-gradient(420px 280px at 100% -10%, rgb(var(--primary-rgb) / 0.10), transparent 60%)',
             }}
           />
           {/* Mood */}
@@ -366,8 +366,8 @@ export function JournalDayContent({ date }: Props) {
                 height: 26, padding: '0 10px', borderRadius: 8,
                 font: '500 11.5px/1 var(--font-sans)',
                 color: 'var(--primary-300)',
-                background: 'rgba(139,124,255,0.10)',
-                border: '1px solid rgba(139,124,255,0.22)',
+                background: 'rgb(var(--primary-rgb) / 0.10)',
+                border: '1px solid rgb(var(--primary-rgb) / 0.22)',
                 cursor: 'pointer',
               }}
             >
@@ -426,8 +426,8 @@ export function JournalDayContent({ date }: Props) {
             style={{
               height: 26, padding: '0 10px',
               color: 'var(--primary-300)',
-              background: 'rgba(139,124,255,0.10)',
-              border: '1px solid rgba(139,124,255,0.22)',
+              background: 'rgb(var(--primary-rgb) / 0.10)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.22)',
             }}
           >
             {summarizeMut.isPending
@@ -465,25 +465,25 @@ function EntriesEmptyState({ onStart }: { onStart: () => void }) {
         borderRadius: 12,
         padding: 32,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-        background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)',
+        background: 'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgb(var(--overlay-rgb) / 0.012) 12px, rgb(var(--overlay-rgb) / 0.012) 24px)',
         cursor: 'pointer',
         transition: 'border-color 200ms, background 200ms',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,124,255,0.40)';
-        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.04)';
+        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--primary-rgb) / 0.40)';
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.04)';
       }}
       onMouseLeave={e => {
         (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)';
         (e.currentTarget as HTMLButtonElement).style.background =
-          'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgba(255,255,255,0.012) 12px, rgba(255,255,255,0.012) 24px)';
+          'repeating-linear-gradient(135deg, transparent 0, transparent 12px, rgb(var(--overlay-rgb) / 0.012) 12px, rgb(var(--overlay-rgb) / 0.012) 24px)';
       }}
     >
       <div style={{
         width: 40, height: 40, borderRadius: 12,
         display: 'grid', placeItems: 'center',
-        background: 'rgba(139,124,255,0.10)',
-        border: '1px solid rgba(139,124,255,0.22)',
+        background: 'rgb(var(--primary-rgb) / 0.10)',
+        border: '1px solid rgb(var(--primary-rgb) / 0.22)',
         color: 'var(--primary-300)',
       }}>
         <Pencil style={{ width: 16, height: 16 }} />

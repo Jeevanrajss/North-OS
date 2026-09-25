@@ -8,13 +8,13 @@ function getLogoGrad(name: string): string {
   if (n.includes('netflix'))              return 'linear-gradient(135deg, #E50914, #831010)';
   if (n.includes('claude') || n.includes('anthropic')) return 'linear-gradient(135deg, #FFA0A0, #D4756E)';
   if (n.includes('spotify'))              return 'linear-gradient(135deg, #1DB954, #15803D)';
-  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, #3EBEFF, #0F7AB8)';
-  if (n.includes('cursor'))               return 'linear-gradient(135deg, #232734, #0E1018)';
-  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(135deg, #FFB86B, #B56A00)';
+  if (n.includes('apple') || n.includes('icloud')) return 'linear-gradient(135deg, var(--secondary-500), #0F7AB8)';
+  if (n.includes('cursor'))               return 'linear-gradient(135deg, var(--surface-hover), var(--bg-app))';
+  if (n.includes('gym') || n.includes('fitness'))   return 'linear-gradient(135deg, var(--accent-orange), #B56A00)';
   if (n.includes('youtube'))              return 'linear-gradient(135deg, #FF0000, #8B0000)';
   if (n.includes('openai') || n.includes('chatgpt')) return 'linear-gradient(135deg, #10a37f, #065F46)';
   if (n.includes('notion'))               return 'linear-gradient(135deg, #2d2d2d, #1a1a1a)';
-  return 'linear-gradient(135deg, var(--primary-500), #6352DB)';
+  return 'linear-gradient(135deg, var(--primary-500), var(--primary-500))';
 }
 
 function fmtBillingDate(dateStr: string): string {
@@ -81,7 +81,7 @@ export function UpcomingRenewals() {
                     {fmtBillingDate(s.next_billing_date)}
                   </span>
                   <span style={{ color: 'var(--fg-4)', font: '500 10px/1 var(--font-mono)', marginTop: 5, letterSpacing: '0.04em' }}>
-                    {days_until === 0 ? 'TODAY' : days_until === 1 ? 'TOMORROW' : `IN ${days_until} DAYS`}
+                    {days_until < 0 ? `OVERDUE ${-days_until}D` : days_until === 0 ? 'TODAY' : days_until === 1 ? 'TOMORROW' : `IN ${days_until} DAYS`}
                   </span>
                 </div>
 
@@ -91,7 +91,7 @@ export function UpcomingRenewals() {
                   background: logoGrad,
                   border: isCursor ? '1px solid var(--border-strong)' : 'none',
                   display: 'grid', placeItems: 'center',
-                  font: '500 13px/1 var(--font-display)', color: 'white',
+                  font: '500 13px/1 var(--font-display)', color: 'var(--on-primary)',
                 }}>
                   {s.emoji || s.name.charAt(0).toUpperCase()}
                 </div>

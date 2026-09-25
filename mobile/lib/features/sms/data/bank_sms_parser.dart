@@ -11,7 +11,24 @@ class BankSmsParser {
     return _parseWithRegex(body);
   }
 
+  // Bank SMS that mention an amount but aren't a completed transaction —
+  // counting them double-counts the real debit that follows (OTP) or books
+  // money that never moved (reminders, requests, offers).
+  static final _notATransaction = RegExp(
+    r'\b(otp|one[\s-]?time password|verification code|will be debited|is due|due on|has requested|requested money|collect request)\b',
+    caseSensitive: false,
+  );
+  static final _promo = RegExp(r'\b(offer|cashback|discount|pre-?approved|apply now|win)\b', caseSensitive: false);
+  static final _moneyMoved = RegExp(
+    r'\b(debited|credited|spent|withdrawn|received|paid|deducted|deposited|refund(?:ed)?)\b',
+    caseSensitive: false,
+  );
+
   ParsedTransaction? _parseWithRegex(String body) {
+    if (_notATransaction.hasMatch(body)) return null;
+    // "Get ₹500 cashback!" is an ad; "₹50 cashback credited" is real money.
+    if (_promo.hasMatch(body) && !_moneyMoved.hasMatch(body)) return null;
+
     final amountRegex = RegExp(
       r'(?:Rs\.?|INR|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)',
       caseSensitive: false,

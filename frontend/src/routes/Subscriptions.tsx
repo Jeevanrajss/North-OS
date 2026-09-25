@@ -74,7 +74,7 @@ export function Subscriptions() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 36, padding: '0 16px', borderRadius: 10,
-              font: '500 13px/1 var(--font-sans)', color: 'white',
+              font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)',
               boxShadow: 'var(--elev-1), var(--elev-glow)',
               border: 'none', cursor: 'pointer',
@@ -93,7 +93,7 @@ export function Subscriptions() {
           borderRadius: 24,
           padding: '32px 36px',
           background: `
-            radial-gradient(420px 280px at 100% -10%, rgba(139,124,255,0.16), transparent 60%),
+            radial-gradient(420px 280px at 100% -10%, rgb(var(--primary-rgb) / 0.16), transparent 60%),
             radial-gradient(280px 200px at 0% 110%, rgba(255,184,107,0.10), transparent 60%),
             var(--surface)
           `,
@@ -114,7 +114,7 @@ export function Subscriptions() {
             style={{
               font: '500 64px/1 var(--font-display)',
               letterSpacing: '-0.03em',
-              background: 'linear-gradient(135deg, #FFFFFF 30%, #B8A5FF 100%)',
+              background: 'linear-gradient(135deg, var(--fg-1) 30%, var(--primary-300) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -154,13 +154,13 @@ export function Subscriptions() {
           <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
             <defs>
               <linearGradient id="sub-ring-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%"   stopColor="#8B7CFF" />
-                <stop offset="50%"  stopColor="#FF7AD9" />
-                <stop offset="100%" stopColor="#3EBEFF" />
+                <stop offset="0%"   stopColor="var(--primary-500)" />
+                <stop offset="50%"  stopColor="var(--accent-pink)" />
+                <stop offset="100%" stopColor="var(--secondary-500)" />
               </linearGradient>
             </defs>
             {/* Track */}
-            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgb(var(--overlay-rgb) / 0.05)" strokeWidth="10" />
             {/* Filled arc */}
             <circle
               cx="50" cy="50" r="40" fill="none"
@@ -181,7 +181,7 @@ export function Subscriptions() {
               </div>
               <div style={{
                 font: '500 38px/1 var(--font-display)', letterSpacing: '-0.02em', marginTop: 8,
-                background: 'linear-gradient(135deg, #FFFFFF 30%, #B8A5FF 100%)',
+                background: 'linear-gradient(135deg, var(--fg-1) 30%, var(--primary-300) 100%)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>
                 {fmtCurrency(monthlyTotal, displayCurrency)}

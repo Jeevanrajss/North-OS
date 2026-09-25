@@ -18,7 +18,6 @@ class AppDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return DropdownButtonFormField<T>(
       initialValue: value,
       isExpanded: true,
@@ -26,11 +25,11 @@ class AppDropdown<T> extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: isDark ? NorthColors.bg3 : Colors.white,
+        fillColor: NorthColors.bg3,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? NorthColors.border2 : const Color(0xFFE2E8F0)),
+          borderSide: BorderSide(color: NorthColors.border2),
         ),
       ),
       items: items,

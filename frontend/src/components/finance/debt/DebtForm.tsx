@@ -185,8 +185,8 @@ export function DebtForm({ initial, onSave, onCancel }: Props) {
       {calc && (
         <div style={{
           padding: '12px 14px', borderRadius: 12,
-          background: calc.months < 999 ? 'rgba(139,124,255,0.08)' : 'rgba(255,91,110,0.08)',
-          border: `1px solid ${calc.months < 999 ? 'rgba(139,124,255,0.25)' : 'rgba(255,91,110,0.25)'}`,
+          background: calc.months < 999 ? 'rgb(var(--primary-rgb) / 0.08)' : 'rgba(255,91,110,0.08)',
+          border: `1px solid ${calc.months < 999 ? 'rgb(var(--primary-rgb) / 0.25)' : 'rgba(255,91,110,0.25)'}`,
         }}>
           <div style={{ fontSize: 11, color: 'var(--fg-4)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Payoff estimate

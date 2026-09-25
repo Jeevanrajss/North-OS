@@ -46,9 +46,9 @@ export function StreakCard() {
             style={{
               height: 28, borderRadius: 4,
               background: p.entry_count > 0
-                ? 'linear-gradient(180deg, var(--primary-500), var(--primary-700, #6352DB))'
+                ? 'linear-gradient(180deg, var(--primary-500), var(--primary-700, var(--primary-500)))'
                 : 'var(--surface-hover)',
-              boxShadow: p.entry_count > 0 ? '0 0 10px rgba(139,124,255,0.30)' : 'none',
+              boxShadow: p.entry_count > 0 ? '0 0 10px rgb(var(--primary-rgb) / 0.30)' : 'none',
             }}
             title={p.date ? `${p.date}: ${p.entry_count} entr${p.entry_count === 1 ? 'y' : 'ies'}` : ''}
           />

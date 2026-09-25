@@ -36,6 +36,7 @@ class TagOut(BaseModel):
 class EntryIn(BaseModel):
     """Create or replace an entry's content."""
 
+    id: str | None = Field(default=None, min_length=8, max_length=36, description="Client id for idempotent offline creates")
     content_json: str = Field(default="[]", description="BlockNote blocks as JSON string")
     content_text: str = Field(default="", description="Plain-text render for search + embed")
 

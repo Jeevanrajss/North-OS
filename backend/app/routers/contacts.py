@@ -1,6 +1,8 @@
 """Contacts router — people you split expenses with."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -54,5 +56,5 @@ def delete_contact(contact_id: str, db: Session = Depends(get_db), current_user:
     contact = db.query(Contact).filter(Contact.id == contact_id, Contact.user_id == current_user.id).first()
     if contact is None:
         raise HTTPException(status_code=404, detail="Contact not found")
-    db.delete(contact)
+    contact.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()

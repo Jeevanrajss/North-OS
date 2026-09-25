@@ -38,24 +38,28 @@ class _WealthTabState extends ConsumerState<WealthTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    final fmt = NumberFormat('#,##0', 'en_IN');
+    final fmt = NumberFormat('#,##,##0', 'en_IN');
     final totalInvested = (_summary?['total_invested'] as num?)?.toDouble() ?? 0;
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, kFabClearance),
         children: [
           Card(
             color: NorthColors.bg3,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(children: [
-                Text(fmt.format(totalInvested), style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
-                const SizedBox(height: 2),
-                const Text('Total Invested', style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
-              ]),
+              child: Column(
+                children: [
+                  Text(
+                    fmt.format(totalInvested),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('Total Invested', style: TextStyle(fontSize: 12, color: NorthColors.fg5)),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -65,14 +69,18 @@ class _WealthTabState extends ConsumerState<WealthTab> {
               color: NorthColors.amber.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(children: [
-              const Icon(Icons.info_outline, size: 14, color: NorthColors.amber),
-              const SizedBox(width: 8),
-              const Expanded(child: Text(
-                "Amounts shown are what you've put in, not current market value.",
-                style: TextStyle(fontSize: 11, color: NorthColors.amber),
-              )),
-            ]),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: NorthColors.amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Amounts shown are what you've put in, not current market value.",
+                    style: TextStyle(fontSize: 11, color: NorthColors.amber),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           ..._investments.map((inv) => _invCard(inv, fmt)),
@@ -89,28 +97,37 @@ class _WealthTabState extends ConsumerState<WealthTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Text(inv.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Expanded(child: Text(inv.name, style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w600, color: NorthColors.fg1))),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: NorthColors.blue.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+            Row(
+              children: [
+                Text(inv.emoji, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    inv.name,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+                  ),
                 ),
-                child: Text(inv.investmentType.replaceAll('_', ' '),
-                    style: const TextStyle(fontSize: 10, color: NorthColors.blue)),
-              ),
-            ]),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: NorthColors.blue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    inv.investmentType.replaceAll('_', ' '),
+                    style: TextStyle(fontSize: 10, color: NorthColors.blue),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text(fmt.format(inv.totalInvested), style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+            Text(
+              fmt.format(inv.totalInvested),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+            ),
             if (inv.sipAmount != null && inv.sipAmount! > 0) ...[
               const SizedBox(height: 4),
-              Text('SIP: ${fmt.format(inv.sipAmount!)}/mo', style: const TextStyle(
-                  fontSize: 12, color: NorthColors.fg4)),
+              Text('SIP: ${fmt.format(inv.sipAmount!)}/mo', style: TextStyle(fontSize: 12, color: NorthColors.fg4)),
             ],
           ],
         ),

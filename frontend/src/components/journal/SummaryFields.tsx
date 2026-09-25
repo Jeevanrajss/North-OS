@@ -59,10 +59,10 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: 1,
-        background: anyFocused ? 'rgba(139,124,255,0.20)' : 'rgba(255,255,255,0.06)',
+        background: anyFocused ? 'rgb(var(--primary-rgb) / 0.20)' : 'rgb(var(--overlay-rgb) / 0.06)',
         borderRadius: 12,
         border: anyFocused
-          ? '1px solid rgba(139,124,255,0.40)'
+          ? '1px solid rgb(var(--primary-rgb) / 0.40)'
           : '1px solid var(--border-default)',
         overflow: 'hidden',
         transition: 'border-color 200ms, background 200ms',
@@ -75,7 +75,7 @@ export function SummaryFields({ values, onPatch, disabled }: Props) {
             key={f.key}
             style={{
               background: isFocused
-                ? 'rgba(139,124,255,0.06)'
+                ? 'rgb(var(--primary-rgb) / 0.06)'
                 : 'var(--input-bg)',
               padding: '16px 18px',
               display: 'flex',

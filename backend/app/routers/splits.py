@@ -24,12 +24,29 @@ class SplitIn(BaseModel):
     notes: str | None = None
 
 
+class ShareIn(BaseModel):
+    contact_id: str
+    count: int = Field(..., ge=1, le=100)
+
+
+class SplitBatchIn(BaseModel):
+    """Weighted split of one transaction: everyone (you included) takes a
+    number of shares; one share = amount / total shares, and each contact
+    owes count × one share. Dinner ₹1,000 with Asha ×2, Bala ×1 and you ×1
+    … totalling 10 shares → ₹100 a share, Asha owes ₹200."""
+    transaction_id: str
+    shares: list[ShareIn] = Field(..., min_length=1, max_length=50)
+    self_count: int = Field(1, ge=0, le=100)
+    notes: str | None = None
+
+
 class SplitOut(BaseModel):
     id: str
     transaction_id: str
     contact_id: str
     contact_name: str
     split_amount: float
+    share_count: int | None
     notes: str | None
     status: str
     settled_at: str | None
@@ -37,6 +54,7 @@ class SplitOut(BaseModel):
     # Denormalized transaction context for display — "Swiggy · 5 Jul"
     transaction_label: str | None
     transaction_date: str | None
+    transaction_amount: float | None
 
 
 def _to_out(split: Split, contact_name: str, txn: Transaction | None) -> SplitOut:
@@ -46,12 +64,14 @@ def _to_out(split: Split, contact_name: str, txn: Transaction | None) -> SplitOu
         contact_id=split.contact_id,
         contact_name=contact_name,
         split_amount=split.split_amount,
+        share_count=split.share_count,
         notes=split.notes,
         status=split.status,
         settled_at=split.settled_at.isoformat() if split.settled_at else None,
         created_at=split.created_at.isoformat(),
         transaction_label=(txn.payee or txn.category) if txn else None,
         transaction_date=txn.date.isoformat() if txn else None,
+        transaction_amount=txn.amount if txn else None,
     )
 
 
@@ -123,6 +143,79 @@ def create_split(payload: SplitIn, db: Session = Depends(get_db), current_user: 
     return _to_out(split, contact.name, txn)
 
 
+@router.post("/batch", response_model=list[SplitOut], status_code=201)
+def create_split_batch(payload: SplitBatchIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ids = [sh.contact_id for sh in payload.shares]
+    if len(set(ids)) != len(ids):
+        raise HTTPException(status_code=422, detail="Each person can only be picked once")
+
+    txn = db.query(Transaction).filter(
+        Transaction.id == payload.transaction_id, Transaction.user_id == current_user.id
+    ).first()
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    contacts = {
+        c.id: c
+        for c in db.query(Contact).filter(Contact.id.in_(ids), Contact.user_id == current_user.id).all()
+    }
+    if len(contacts) != len(ids):
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    total_shares = payload.self_count + sum(sh.count for sh in payload.shares)
+    splits = [
+        Split(
+            transaction_id=txn.id,
+            contact_id=sh.contact_id,
+            split_amount=round(txn.amount * sh.count / total_shares, 2),
+            share_count=sh.count,
+            notes=payload.notes,
+            user_id=current_user.id,
+        )
+        for sh in payload.shares
+    ]
+    db.add_all(splits)
+    db.commit()  # all shares or none
+    for sp in splits:
+        db.refresh(sp)
+    return [_to_out(sp, contacts[sp.contact_id].name, txn) for sp in splits]
+
+
+@router.get("/people")
+def splits_by_person(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Pending splits grouped by who owes you, biggest balance first."""
+    pending = list_splits(status="pending", db=db, current_user=current_user)
+    people: dict[str, dict] = {}
+    for sp in pending:
+        p = people.setdefault(sp.contact_id, {
+            "contact_id": sp.contact_id, "contact_name": sp.contact_name, "total": 0.0, "splits": [],
+        })
+        p["total"] = round(p["total"] + sp.split_amount, 2)
+        p["splits"].append(sp)
+    ordered = sorted(people.values(), key=lambda p: (-p["total"], p["contact_name"].lower()))
+    return {
+        "total_pending": round(sum(p["total"] for p in ordered), 2),
+        "people_count": len(ordered),
+        "people": ordered,
+    }
+
+
+@router.post("/people/{contact_id}/settle")
+def settle_person(contact_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """They paid you back everything — settle all their pending splits."""
+    pending = db.query(Split).filter(
+        Split.user_id == current_user.id, Split.contact_id == contact_id, Split.status == "pending"
+    ).all()
+    if not pending:
+        raise HTTPException(status_code=404, detail="Nothing pending for this person")
+    now = datetime.now(timezone.utc)
+    for sp in pending:
+        sp.status = "settled"
+        sp.settled_at = now
+    db.commit()
+    return {"settled": len(pending), "amount": round(sum(sp.split_amount for sp in pending), 2)}
+
+
 @router.patch("/{split_id}/settle", response_model=SplitOut)
 def settle_split(split_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     split = db.query(Split).filter(Split.id == split_id, Split.user_id == current_user.id).first()
@@ -143,5 +236,5 @@ def delete_split(split_id: str, db: Session = Depends(get_db), current_user: Use
     split = db.query(Split).filter(Split.id == split_id, Split.user_id == current_user.id).first()
     if split is None:
         raise HTTPException(status_code=404, detail="Split not found")
-    db.delete(split)
+    split.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()

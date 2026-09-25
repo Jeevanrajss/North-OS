@@ -67,7 +67,7 @@ export function Goals() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 36, padding: '0 16px', borderRadius: 10,
-              font: '500 13px/1 var(--font-sans)', color: 'white',
+              font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)',
               boxShadow: 'var(--elev-1), var(--elev-glow)',
               border: 'none', cursor: 'pointer',
@@ -151,7 +151,7 @@ export function Goals() {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 height: 38, padding: '0 18px', borderRadius: 10,
-                font: '500 13px/1 var(--font-sans)', color: 'white',
+                font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                 background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
               }}
             >

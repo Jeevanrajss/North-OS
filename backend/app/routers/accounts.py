@@ -121,7 +121,7 @@ def create_account(payload: AccountIn, db: Session = Depends(get_db), current_us
 @router.get("/{acct_id}", response_model=AccountOut)
 def get_account(acct_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
-    if acct is None:
+    if acct is None or acct.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Account not found")
     return acct
 
@@ -129,7 +129,7 @@ def get_account(acct_id: str, db: Session = Depends(get_db), current_user: User 
 @router.patch("/{acct_id}", response_model=AccountOut)
 def update_account(acct_id: str, patch: AccountPatch, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
-    if acct is None:
+    if acct is None or acct.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Account not found")
     for k, v in patch.model_dump(exclude_unset=True).items():
         setattr(acct, k, v)
@@ -150,7 +150,7 @@ def update_account(acct_id: str, patch: AccountPatch, db: Session = Depends(get_
 @router.delete("/{acct_id}", status_code=204)
 def delete_account(acct_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     acct = db.get(Account, acct_id)
-    if acct is None:
+    if acct is None or acct.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Account not found")
     acct.is_active = False  # type: ignore[assignment]
     db.commit()
@@ -165,7 +165,7 @@ def card_tip(req: CardTipRequest, db: Session = Depends(get_db), current_user: U
     the given transaction category than the card that was actually used."""
     credit_cards = (
         db.query(Account)
-        .filter(Account.is_active.is_(True), Account.type == "credit_card")
+        .filter(Account.user_id == current_user.id, Account.is_active.is_(True), Account.type == "credit_card")
         .all()
     )
 

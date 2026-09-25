@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date';
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
@@ -64,7 +65,7 @@ function BriefingError({ kind, message }: { kind: ErrorKind | null; message: str
 
 export function DashAIBriefing() {
   const qc = useQueryClient();
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayISO = useMemo(() => toISODate(new Date()), []);
 
   const { data: habits } = useQuery<HabitsTodayResponse>({
     queryKey: ['habits-today', todayISO],
@@ -106,11 +107,11 @@ export function DashAIBriefing() {
     <div style={{
       position: 'relative', borderRadius: 16, padding: '18px 20px',
       background: `
-        radial-gradient(360px 200px at 90% 0%, rgba(139,124,255,0.20), transparent 60%),
-        linear-gradient(135deg, rgba(139,124,255,0.06), rgba(139,124,255,0.01)),
+        radial-gradient(360px 200px at 90% 0%, rgb(var(--primary-rgb) / 0.20), transparent 60%),
+        linear-gradient(135deg, rgb(var(--primary-rgb) / 0.06), rgb(var(--primary-rgb) / 0.01)),
         var(--surface)
       `,
-      border: '1px solid rgba(139,124,255,0.24)',
+      border: '1px solid rgb(var(--primary-rgb) / 0.24)',
       overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -189,7 +190,7 @@ export function DashAIBriefing() {
               style={{
                 height: 36, padding: '0 14px', borderRadius: 10,
                 display: 'inline-flex', alignItems: 'center', gap: 8,
-                font: '500 13px/1 var(--font-sans)', color: 'white',
+                font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                 background: 'var(--grad-primary)',
                 boxShadow: 'var(--elev-1), var(--elev-glow)',
                 border: 'none', cursor: 'pointer', transition: 'var(--transition)',

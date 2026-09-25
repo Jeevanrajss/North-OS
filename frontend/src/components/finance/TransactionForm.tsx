@@ -1,3 +1,4 @@
+import { todayISO } from '@/lib/date';
 import { useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { type FinanceMeta, type Transaction, type TransactionIn, type TransactionType } from '@/lib/api';
@@ -7,7 +8,8 @@ type Props = {
   meta: FinanceMeta;
   initial?: Transaction | null;
   defaultType?: TransactionType;
-  onSubmit: (payload: TransactionIn) => Promise<void>;
+  /** opts.split — open the split drawer for the new expense once it's saved. */
+  onSubmit: (payload: TransactionIn, opts?: { split: boolean }) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -17,11 +19,12 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
   const [type, setType] = useState<TransactionType>(initial?.type ?? defaultType);
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
   const [currency, setCurrency] = useState(initial?.currency ?? 'INR');
-  const [date, setDate] = useState(initial?.date ?? new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(initial?.date ?? todayISO());
   const [category, setCategory] = useState(initial?.category ?? '');
   const [account, setAccount] = useState(initial?.account ?? '');
   const [payee, setPayee] = useState(initial?.payee ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [split, setSplit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
         account: account || null,
         payee: payee || null,
         notes: notes || null,
-      });
+      }, { split: split && type === 'expense' && !initial });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
@@ -195,6 +198,16 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
         />
       </div>
 
+      {type === 'expense' && !initial && (
+        <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none" style={{ color: 'var(--fg-2)' }}>
+          <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
+          <span>
+            Split with friends
+            <span className="block text-xs" style={{ color: 'var(--fg-4)' }}>Choose who owes you right after saving</span>
+          </span>
+        </label>
+      )}
+
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       {/* Actions */}
@@ -211,7 +224,7 @@ export function TransactionForm({ meta, initial, defaultType = 'expense', onSubm
               : 'bg-accent/15 border border-accent/30 text-accent hover:bg-accent/25',
           )}
         >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : initial ? 'Save Changes' : 'Add Transaction'}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : initial ? 'Save Changes' : split && type === 'expense' ? 'Add & split' : 'Add Transaction'}
         </button>
         <button
           type="button"

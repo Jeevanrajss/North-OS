@@ -55,7 +55,7 @@ export function PayoffStrategyCard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {list?.map((item: { debt_id?: string; priority: number; name: string; outstanding: number; interest_rate: number; emi_amount: number; months_to_payoff: number; why_first: string }) => (
           <div key={item.debt_id ?? item.name} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 12px', background: 'var(--surface-elev)', borderRadius: 10 }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', background: item.priority === 1 ? 'var(--grad-primary)' : 'var(--surface-hover)', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: item.priority === 1 ? 'white' : 'var(--fg-4)', flexShrink: 0 }}>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: item.priority === 1 ? 'var(--grad-primary)' : 'var(--surface-hover)', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: item.priority === 1 ? 'var(--on-primary)' : 'var(--fg-4)', flexShrink: 0 }}>
               {item.priority}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -81,7 +81,7 @@ export function PayoffStrategyCard() {
       )}
 
       {/* Method explanation */}
-      <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(139,124,255,0.05)', border: '1px solid rgba(139,124,255,0.15)', borderRadius: 10, fontSize: 11, color: 'var(--fg-4)', lineHeight: 1.6 }}>
+      <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgb(var(--primary-rgb) / 0.05)', border: '1px solid rgb(var(--primary-rgb) / 0.15)', borderRadius: 10, fontSize: 11, color: 'var(--fg-4)', lineHeight: 1.6 }}>
         <b style={{ color: 'var(--fg-3)' }}>Avalanche</b> targets highest-interest debt first — saves the most money overall.{' '}
         <b style={{ color: 'var(--fg-3)' }}>Snowball</b> targets smallest balance first — builds momentum fastest. Both strategies clear all debt by the same date.
       </div>

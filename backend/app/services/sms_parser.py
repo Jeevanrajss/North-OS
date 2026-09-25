@@ -201,6 +201,14 @@ def _sender_bank(sender: Optional[str]) -> Optional[str]:
 # Public API
 # ---------------------------------------------------------------------------
 
+# Mention an amount but aren't a completed transaction — an OTP precedes the
+# real debit SMS, so counting it double-books the payment.
+_NOT_A_TXN_RE = re.compile(
+    r"\b(otp|one[\s-]?time password|verification code|will be debited|is due|due on|has requested|requested money|collect request)\b",
+    re.IGNORECASE,
+)
+
+
 def parse_sms(body: str, sender: Optional[str] = None) -> dict:
     """
     Returns:
@@ -219,6 +227,9 @@ def parse_sms(body: str, sender: Optional[str] = None) -> dict:
         "balance": None,
         "date": _today_str(),
     }
+
+    if _NOT_A_TXN_RE.search(body_clean):
+        return result
 
     # ── Detect direction ──────────────────────────────────────────────────
     txn_type: Optional[str] = None

@@ -36,3 +36,5 @@ class SmsTransaction(Base):
 
     status        = Column(String(20),  nullable=False, default="pending")  # pending|confirmed|dismissed
     transaction_id = Column(String,     nullable=True)           # FK to finance.Transaction after confirm
+    updated_at    = Column(DateTime, nullable=True, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at    = Column(DateTime, nullable=True)

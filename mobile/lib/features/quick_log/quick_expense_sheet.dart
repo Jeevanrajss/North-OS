@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
+import '../../core/models/transaction.dart';
+import '../../core/offline/offline_store.dart';
 import '../../core/theme.dart';
+import '../splits/widgets/add_split_sheet.dart';
 
 class QuickExpenseSheet extends ConsumerStatefulWidget {
   const QuickExpenseSheet({super.key});
@@ -12,7 +15,9 @@ class QuickExpenseSheet extends ConsumerStatefulWidget {
 
 class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
   final _amountCtl = TextEditingController();
+  final _payeeCtl = TextEditingController();
   final _notesCtl = TextEditingController();
+  bool _split = false;
   String _category = 'Food & Dining';
   bool _saving = false;
   List<String> _categories = [];
@@ -47,25 +52,55 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
     });
   }
 
+  @override
+  void dispose() {
+    _amountCtl.dispose();
+    _payeeCtl.dispose();
+    _notesCtl.dispose();
+    super.dispose();
+  }
+
   Future<void> _save(String type) async {
     final amount = double.tryParse(_amountCtl.text.trim());
     if (amount == null || amount <= 0) return;
     setState(() => _saving = true);
     try {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      await ref.read(dioProvider).post('/finance/transactions', data: {
+      // Client id makes the create safe to queue and resend while the Mac
+      // is unreachable (the Mac returns the existing row on a replay).
+      final body = {
+        'id': newId(),
         'type': type,
         'amount': amount,
         'date': today,
         'category': _category,
+        'payee': _payeeCtl.text.trim().isNotEmpty ? _payeeCtl.text.trim() : null,
         'currency': 'INR',
         'notes': _notesCtl.text.trim().isNotEmpty ? _notesCtl.text.trim() : null,
-      });
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved ${NumberFormat('#,##0').format(amount)} as $type')),
-        );
+      };
+      final res = await ref
+          .read(dioProvider)
+          .post(
+            '/finance/transactions',
+            data: body,
+            options: queueable(optimistic: body),
+          );
+      if (!mounted) return;
+      final splitting = _split && type == 'expense';
+      // 202 = queued while the Mac is unreachable: the expense isn't on the
+      // Mac yet, so there's nothing to attach a split to.
+      final queued = res.statusCode == 202;
+      final rootNav = Navigator.of(context, rootNavigator: true);
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      if (splitting && !queued) {
+        AddSplitSheet.show(rootNav.context, Transaction.fromJson(res.data as Map<String, dynamic>));
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(splitting
+              ? 'Saved offline — open it in Transactions to split once the Mac is reachable'
+              : 'Saved ${NumberFormat('#,##,##0').format(amount)} as $type'),
+        ));
       }
     } catch (e) {
       if (mounted) {
@@ -74,7 +109,7 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
         );
       }
     }
-    setState(() => _saving = false);
+    if (mounted) setState(() => _saving = false);
   }
 
   @override
@@ -89,15 +124,17 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
             Center(child: Container(width: 36, height: 4,
                 decoration: BoxDecoration(color: NorthColors.fg5, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
-            const Text('Quick Entry', style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1)),
+            Text(
+              'Quick Entry',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _amountCtl,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: NorthColors.fg1),
-              decoration: const InputDecoration(
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+              decoration: InputDecoration(
                 prefixText: '₹ ',
                 prefixStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: NorthColors.fg4),
                 hintText: '0',
@@ -124,24 +161,38 @@ class _QuickExpenseSheetState extends ConsumerState<QuickExpenseSheet> {
               ),
             const SizedBox(height: 12),
             TextField(
-              controller: _notesCtl,
-              decoration: const InputDecoration(
-                hintText: 'Notes (optional)',
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 14, color: NorthColors.fg3),
+              controller: _payeeCtl,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(hintText: 'What for? e.g. Dinner at BBQ Nation', isDense: true),
+              style: TextStyle(fontSize: 14, color: NorthColors.fg1),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _notesCtl,
+              decoration: const InputDecoration(hintText: 'Notes (optional)', isDense: true),
+              style: TextStyle(fontSize: 14, color: NorthColors.fg3),
+            ),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              value: _split,
+              onChanged: (v) => setState(() => _split = v),
+              contentPadding: EdgeInsets.zero,
+              secondary: Icon(Icons.group_outlined, color: _split ? NorthColors.accent : NorthColors.fg4),
+              title: Text('Split with friends', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
+              subtitle: Text('Pick who owes you right after saving', style: TextStyle(fontSize: 12, color: NorthColors.fg4)),
+            ),
+            const SizedBox(height: 8),
             Row(children: [
               Expanded(child: ElevatedButton.icon(
                 onPressed: _saving ? null : () => _save('expense'),
                 style: ElevatedButton.styleFrom(backgroundColor: NorthColors.red.withValues(alpha: 0.8)),
-                icon: const Icon(Icons.arrow_downward, size: 16),
-                label: const Text('Expense'),
+                icon: Icon(_split ? Icons.group_outlined : Icons.arrow_downward, size: 16),
+                label: Text(_split ? 'Expense & split' : 'Expense'),
               )),
               const SizedBox(width: 12),
               Expanded(child: ElevatedButton.icon(
-                onPressed: _saving ? null : () => _save('income'),
+                // Income isn't something you split with friends.
+                onPressed: (_saving || _split) ? null : () => _save('income'),
                 style: ElevatedButton.styleFrom(backgroundColor: NorthColors.green.withValues(alpha: 0.8)),
                 icon: const Icon(Icons.arrow_upward, size: 16),
                 label: const Text('Income'),

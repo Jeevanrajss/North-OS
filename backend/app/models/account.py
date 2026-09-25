@@ -35,3 +35,4 @@ class Account(Base):
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    deleted_at = Column(DateTime, nullable=True)

@@ -18,8 +18,7 @@ class FilterChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = isDark ? NorthColors.accent : Theme.of(context).colorScheme.primary;
+    final primary = NorthColors.accent;
 
     return SizedBox(
       height: height,
@@ -30,10 +29,17 @@ class FilterChipRow extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: Text(opt, style: const TextStyle(fontSize: 12)),
+              label: Text(
+                opt,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? primary : NorthColors.fg3,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
               selected: isSelected,
               selectedColor: primary.withValues(alpha: 0.15),
-              side: isSelected ? BorderSide(color: primary) : null,
+              side: BorderSide(color: isSelected ? primary : NorthColors.border2),
               onSelected: (_) => onSelected(opt),
               visualDensity: VisualDensity.compact,
             ),

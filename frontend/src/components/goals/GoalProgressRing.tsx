@@ -16,7 +16,7 @@ export function GoalProgressRing({ pct, size = 52, stroke = 5, color = 'var(--pr
       <circle
         cx={size / 2} cy={size / 2} r={r}
         fill="none"
-        stroke="rgba(255,255,255,0.07)"
+        stroke="rgb(var(--overlay-rgb) / 0.07)"
         strokeWidth={stroke}
       />
       {/* Progress arc */}

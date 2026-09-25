@@ -5,22 +5,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: {
-          50:  '#F4F1FF',
-          100: '#E9ECF5',
-          200: '#C9D0E0',   // fg-2  secondary text
-          300: '#A0A9BC',   // fg-3  tertiary / placeholder
-          400: '#7B8498',   // fg-4  muted / caption
-          500: '#5A6275',   // fg-disabled
-          600: '#3A4050',   // neutral-600
-          700: '#232734',   // surface-hover
-          800: '#1C2030',   // surface-elevated
-          900: '#151827',   // surface (cards)
-          950: '#0E1018',   // bg-app
-        },
+        // Theme-aware: each shade is a CSS variable (RGB triplet) that
+        // flips between dark and light — see --ink-* in globals.css.
+        ink: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((n) => [n, `rgb(var(--ink-${n}) / <alpha-value>)`]),
+        ),
+        fg: { 1: 'var(--fg-1)', 2: 'var(--fg-2)', 3: 'var(--fg-3)', 4: 'var(--fg-4)' },
         accent: {
-          DEFAULT: '#8B7CFF',              // primary-500
-          hover:   '#9D8DFF',              // primary-400
+          DEFAULT: 'rgb(var(--primary-rgb) / <alpha-value>)',
+          hover:   'rgb(var(--primary-rgb) / <alpha-value>)',
           muted:   '#4E3FB8',              // primary-800
           glow:    'rgba(139,124,255,0.15)',
         },

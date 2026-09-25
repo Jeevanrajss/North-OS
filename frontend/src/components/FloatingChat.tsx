@@ -90,7 +90,7 @@ export function FloatingChat() {
           height: '440px',
           background: 'linear-gradient(180deg, #0e0e20 0%, #08080f 100%)',
           borderColor: 'rgba(124,58,237,0.2)',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,58,237,0.1)',
+          boxShadow: 'var(--elev-3), 0 0 0 1px var(--border-default)',
         }}
       >
         {/* Header */}
@@ -185,7 +185,7 @@ export function FloatingChat() {
             type="button"
             onClick={() => send()}
             disabled={!input.trim() || mut.isPending}
-            className="p-1.5 rounded-lg border border-accent/30 text-white disabled:opacity-40 transition-all shrink-0"
+            className="p-1.5 rounded-lg border border-accent/30 text-fg-1 disabled:opacity-40 transition-all shrink-0"
             style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)' }}
           >
             {mut.isPending
@@ -206,7 +206,7 @@ export function FloatingChat() {
           'focus:outline-none',
           open
             ? 'bg-ink-800 border border-ink-700 text-ink-300 hover:bg-ink-700'
-            : 'text-white border border-accent/30',
+            : 'text-fg-1 border border-accent/30',
         )}
         style={open ? {} : {
           background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',

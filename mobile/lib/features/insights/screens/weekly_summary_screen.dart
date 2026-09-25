@@ -24,12 +24,21 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final res = await ref.read(dioProvider).get('/insights/weekly-summary');
-      setState(() { _data = res.data as Map<String, dynamic>; _loading = false; });
+      setState(() {
+        _data = res.data as Map<String, dynamic>;
+        _loading = false;
+      });
     } catch (_) {
-      setState(() { _loading = false; _error = 'Could not load week summary.'; });
+      setState(() {
+        _loading = false;
+        _error = 'Could not load week summary.';
+      });
     }
   }
 
@@ -41,20 +50,22 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
         onRefresh: _load,
         color: NorthColors.accent,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: NorthColors.accent))
+            ? Center(child: CircularProgressIndicator(color: NorthColors.accent))
             : _error != null
-                ? ListView(children: [
-                    const SizedBox(height: 120),
-                    EmptyState(message: _error!, icon: Icons.cloud_off),
-                  ])
-                : _buildContent(),
+            ? ListView(
+                children: [
+                  const SizedBox(height: 120),
+                  EmptyState(message: _error!, icon: Icons.cloud_off),
+                ],
+              )
+            : _buildContent(),
       ),
     );
   }
 
   Widget _buildContent() {
     final d = _data!;
-    final fmt = NumberFormat('#,##0', 'en_IN');
+    final fmt = NumberFormat('#,##,##0', 'en_IN');
     DateTime? weekStart, weekEnd;
     try {
       weekStart = DateTime.parse(d['week_start'] as String);
@@ -75,41 +86,54 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
         if (weekStart != null && weekEnd != null)
           Text(
             'Week of ${DateFormat('d MMM').format(weekStart)} – ${DateFormat('d MMM').format(weekEnd)}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: NorthColors.fg1),
           ),
         const SizedBox(height: 16),
         AppCard(
-          child: Column(children: [
-            Row(children: [
-              const Text('Habits', style: TextStyle(fontSize: 14, color: NorthColors.fg3)),
-              const Spacer(),
-              Expanded(
-                flex: 3,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    minHeight: 8,
-                    backgroundColor: NorthColors.bg3,
-                    color: NorthColors.green,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text('Habits', style: TextStyle(fontSize: 14, color: NorthColors.fg3)),
+                  const Spacer(),
+                  Expanded(
+                    flex: 3,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: progress.clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: NorthColors.bg3,
+                        color: NorthColors.green,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '$habitsDone/$habitsTotal days',
+                    style: TextStyle(fontSize: 13, color: NorthColors.fg1, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Text('$habitsDone/$habitsTotal days', style: const TextStyle(fontSize: 13, color: NorthColors.fg1, fontWeight: FontWeight.w600)),
-            ]),
-            const SizedBox(height: 14),
-            _statRow('Spent', '₹${fmt.format(spent)}'),
-            const SizedBox(height: 8),
-            _statRow('Saved', '₹${fmt.format(saved)}', valueColor: saved >= 0 ? NorthColors.green : NorthColors.red),
-            const SizedBox(height: 8),
-            _statRow('Top category', topCategory != null
-                ? '${topCategory['category']} ₹${fmt.format((topCategory['amount'] as num).toDouble())}'
-                : '—'),
-          ]),
+              const SizedBox(height: 14),
+              _statRow('Spent', '₹${fmt.format(spent)}'),
+              const SizedBox(height: 8),
+              _statRow('Saved', '₹${fmt.format(saved)}', valueColor: saved >= 0 ? NorthColors.green : NorthColors.red),
+              const SizedBox(height: 8),
+              _statRow(
+                'Top category',
+                topCategory != null
+                    ? '${topCategory['category']} ₹${fmt.format((topCategory['amount'] as num).toDouble())}'
+                    : '—',
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
-        const Text('Insights this week', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
+        Text(
+          'Insights this week',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+        ),
         const SizedBox(height: 10),
         if (insights.isEmpty)
           const EmptyState(message: 'No insights yet this week', icon: Icons.insights_outlined)
@@ -117,22 +141,36 @@ class _WeeklySummaryScreenState extends ConsumerState<WeeklySummaryScreen> {
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: insights.map((i) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('· ', style: TextStyle(color: NorthColors.fg4, fontSize: 14)),
-                  Expanded(child: Text(i, style: const TextStyle(color: NorthColors.fg3, fontSize: 13, height: 1.4))),
-                ]),
-              )).toList(),
+              children: insights
+                  .map(
+                    (i) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('· ', style: TextStyle(color: NorthColors.fg4, fontSize: 14)),
+                          Expanded(
+                            child: Text(i, style: TextStyle(color: NorthColors.fg3, fontSize: 13, height: 1.4)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
       ],
     );
   }
 
-  Widget _statRow(String label, String value, {Color? valueColor}) => Row(children: [
-    Text(label, style: const TextStyle(fontSize: 14, color: NorthColors.fg3)),
-    const Spacer(),
-    Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: valueColor ?? NorthColors.fg1)),
-  ]);
+  Widget _statRow(String label, String value, {Color? valueColor}) => Row(
+    children: [
+      Text(label, style: TextStyle(fontSize: 14, color: NorthColors.fg3)),
+      const Spacer(),
+      Text(
+        value,
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: valueColor ?? NorthColors.fg1),
+      ),
+    ],
+  );
 }

@@ -10,8 +10,10 @@ class GoalCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Active Goals', style: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
+        Text(
+          'Active Goals',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 100,
@@ -33,23 +35,24 @@ class GoalCards extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${g['emoji'] ?? ''} ${g['title'] ?? ''}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                            color: NorthColors.fg1)),
+                    Text(
+                      '${g['emoji'] ?? ''} ${g['title'] ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: NorthColors.fg1),
+                    ),
                     const Spacer(),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: (pct / 100).clamp(0.0, 1.0),
                         backgroundColor: NorthColors.bg3,
-                        valueColor: const AlwaysStoppedAnimation(NorthColors.accent),
+                        valueColor: AlwaysStoppedAnimation(NorthColors.accent),
                         minHeight: 6,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('${pct.toStringAsFixed(0)}%', style: const TextStyle(
-                        fontSize: 11, color: NorthColors.fg4)),
+                    Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 11, color: NorthColors.fg4)),
                   ],
                 ),
               );

@@ -58,8 +58,8 @@ export function Journal() {
         style={{
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          background: 'rgba(14,16,24,0.80)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--bg-app) 80%, transparent)',
+          borderBottom: '1px solid rgb(var(--overlay-rgb) / 0.04)',
         }}
       >
         <div
@@ -105,7 +105,7 @@ export function Journal() {
 
             <div
               className="flex items-center gap-2"
-              style={{ padding: '0 14px', height: 32, fontSize: 13, fontWeight: 500, color: 'white' }}
+              style={{ padding: '0 14px', height: 32, fontSize: 13, fontWeight: 500, color: 'var(--fg-1)' }}
             >
               {/* Purple dot */}
               <span
@@ -187,8 +187,8 @@ export function Journal() {
               className="inline-flex items-center"
               style={{
                 height: 22, padding: '0 10px', borderRadius: 999,
-                background: 'rgba(139,124,255,0.12)',
-                border: '1px solid rgba(139,124,255,0.24)',
+                background: 'rgb(var(--primary-rgb) / 0.12)',
+                border: '1px solid rgb(var(--primary-rgb) / 0.24)',
                 color: 'var(--primary-300)',
                 font: '500 10.5px/1 var(--font-mono)',
                 letterSpacing: '0.04em',
@@ -212,7 +212,7 @@ export function Journal() {
               font: '500 56px/1.05 var(--font-display)',
               letterSpacing: '-0.025em',
               margin: '8px 0 4px',
-              color: 'white',
+              color: 'var(--fg-1)',
             }}
           >
             <span style={{ color: 'var(--fg-3)', fontWeight: 300 }}>
@@ -235,8 +235,8 @@ export function Journal() {
         <div
           className="flex items-center gap-1 mb-6"
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgb(var(--overlay-rgb) / 0.04)',
+            border: '1px solid rgb(var(--overlay-rgb) / 0.06)',
             borderRadius: 12,
             padding: 4,
             width: 'fit-content',
@@ -255,9 +255,9 @@ export function Journal() {
                 cursor: 'pointer',
                 transition: 'all 180ms ease',
                 textTransform: 'capitalize',
-                background: activeTab === tab ? 'rgba(139,124,255,0.15)' : 'transparent',
+                background: activeTab === tab ? 'rgb(var(--primary-rgb) / 0.15)' : 'transparent',
                 color: activeTab === tab ? 'var(--primary-300)' : 'var(--fg-4)',
-                border: activeTab === tab ? '1px solid rgba(139,124,255,0.25)' : '1px solid transparent',
+                border: activeTab === tab ? '1px solid rgb(var(--primary-rgb) / 0.25)' : '1px solid transparent',
               }}
             >
               {tab}

@@ -487,6 +487,134 @@ def _dev_migrate_add_user_id(conn, table_name: str) -> None:
             log.warning("Could not add %s.user_id: %s", table_name, e)
 
 
+def _dev_migrate_health_logs_per_user_unique(conn) -> None:
+    """health_logs.log_date used to be UNIQUE across all users, so a second
+    account could never log a date someone else had. Swap that index for a
+    UNIQUE(user_id, log_date) one. Existing rows can't conflict: dates were
+    globally unique before."""
+    try:
+        indexes = conn.execute(text("PRAGMA index_list(health_logs)")).all()
+    except Exception as e:
+        log.debug("PRAGMA failed for health_logs: %s", e)
+        return
+    by_name = {r[1]: bool(r[2]) for r in indexes}
+    if by_name.get("ix_health_logs_log_date"):
+        conn.execute(text("DROP INDEX ix_health_logs_log_date"))
+        conn.execute(text("CREATE INDEX ix_health_logs_log_date ON health_logs (log_date)"))
+        log.info("Dev migration: health_logs.log_date no longer globally unique")
+    if "uq_health_log_user_date" not in by_name:
+        conn.execute(text("CREATE UNIQUE INDEX uq_health_log_user_date ON health_logs (user_id, log_date)"))
+
+
+def _dev_migrate_splits_share_count(conn) -> None:
+    """Weighted splits — how many shares each person takes."""
+    rows = conn.execute(text("PRAGMA table_info(splits)")).all()
+    if rows and "share_count" not in {r[1] for r in rows}:
+        conn.execute(text("ALTER TABLE splits ADD COLUMN share_count INTEGER"))
+        log.info("Dev migration: added splits.share_count column")
+
+
+def _dev_migrate_add_deleted_at(conn, table_name: str) -> None:
+    """Phase 12a — add deleted_at DATETIME NULL for sync tombstones.
+
+    Soft-delete marker: a non-null deleted_at means the row was removed and
+    the removal should propagate on sync. Distinct from domain states like
+    archived_at / cancelled_at.
+    """
+    try:
+        rows = conn.execute(text(f"PRAGMA table_info({table_name})")).all()
+    except Exception as e:
+        log.debug("PRAGMA failed for %s: %s", table_name, e)
+        return
+    if "deleted_at" not in {r[1] for r in rows}:
+        try:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN deleted_at DATETIME"))
+            log.info("Dev migration: added %s.deleted_at column", table_name)
+        except Exception as e:
+            log.warning("Could not add %s.deleted_at: %s", table_name, e)
+
+
+def _dev_migrate_add_updated_at(conn, table_name: str) -> None:
+    """Phase 12a — add updated_at DATETIME for sync last-write-wins, backfilled
+    to created_at (or now) so existing rows have a stable baseline timestamp."""
+    try:
+        rows = conn.execute(text(f"PRAGMA table_info({table_name})")).all()
+    except Exception as e:
+        log.debug("PRAGMA failed for %s: %s", table_name, e)
+        return
+    existing = {r[1] for r in rows}
+    if "updated_at" not in existing:
+        try:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN updated_at DATETIME"))
+            if "created_at" in existing:
+                conn.execute(text(f"UPDATE {table_name} SET updated_at = created_at WHERE updated_at IS NULL"))
+            else:
+                conn.execute(text(f"UPDATE {table_name} SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
+            log.info("Dev migration: added %s.updated_at column (backfilled)", table_name)
+        except Exception as e:
+            log.warning("Could not add %s.updated_at: %s", table_name, e)
+
+
+_soft_delete_filter_installed = False
+
+
+def _install_soft_delete_filter() -> None:
+    """Phase 12a — globally exclude soft-deleted rows from every ORM SELECT.
+
+    Any query touching a synced model automatically gets `deleted_at IS NULL`
+    appended (including relationship loads), so soft-deleted rows vanish from
+    every list/detail view without editing each query. The sync PULL endpoint
+    opts back in with `.execution_options(include_deleted=True)` because it
+    must see tombstones to propagate deletions to other devices.
+    """
+    global _soft_delete_filter_installed
+    if _soft_delete_filter_installed:
+        return
+
+    from sqlalchemy.orm import with_loader_criteria
+    from app.models.account import Account
+    from app.models.budget import Budget
+    from app.models.contact import Contact
+    from app.models.debt import Debt
+    from app.models.debt_payment import DebtPayment
+    from app.models.finance import Transaction
+    from app.models.financial_goal import FinancialGoal
+    from app.models.goal import Goal
+    from app.models.habit import Habit, HabitCheckin
+    from app.models.health_log import HealthLog
+    from app.models.investment import Investment
+    from app.models.investment_entry import InvestmentEntry
+    from app.models.journal import JournalDay, JournalEntry
+    from app.models.split import Split
+    from app.models.sms_transaction import SmsTransaction
+    from app.models.subscription import Subscription
+
+    models = [
+        Account, Budget, Contact, Debt, DebtPayment, Transaction,
+        FinancialGoal, Goal, Habit, HabitCheckin, HealthLog, Investment,
+        InvestmentEntry, JournalDay, JournalEntry, Split, Subscription,
+        SmsTransaction,
+    ]
+
+    @event.listens_for(SessionLocal, "do_orm_execute")
+    def _exclude_soft_deleted(state):  # noqa: ANN001
+        if not state.is_select:
+            return
+        if state.execution_options.get("include_deleted", False):
+            return
+        for model in models:
+            state.statement = state.statement.options(
+                with_loader_criteria(
+                    model,
+                    lambda cls: cls.deleted_at.is_(None),
+                    include_aliases=True,
+                )
+            )
+
+    _soft_delete_filter_installed = True
+    log.info("Soft-delete query filter installed for %d synced models", len(models))
+
+
 def init_db() -> None:
     """Create tables from registered models + seed reference data.
 
@@ -507,6 +635,9 @@ def init_db() -> None:
     from app.models.split import Split  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+    # Phase 12a — install the global soft-delete read filter once models exist.
+    _install_soft_delete_filter()
 
     # Vector table + seed data.
     from app.services.seed import seed_all  # local import to avoid circulars
@@ -536,6 +667,30 @@ def init_db() -> None:
         ]
         for t in _tables_needing_user_id:
             _dev_migrate_add_user_id(conn, t)
+
+        # Phase 12a — sync foundation. Every synced (user-data) table gets a
+        # deleted_at tombstone column; the 6 that lack updated_at get one
+        # (backfilled to created_at) so last-write-wins has a baseline.
+        # NOTE: `settings` is intentionally EXCLUDED — it holds device-local AI
+        # provider config that must never sync (see PHASE_12_SPEC.md).
+        _synced_tables = [
+            "accounts", "budgets", "contacts", "debt_payments", "debts",
+            "financial_goals", "goals", "habit_checkins", "habits",
+            "health_logs", "investment_entries", "investments",
+            "journal_days", "journal_entries", "splits", "subscriptions",
+            "transactions", "sms_transactions",
+        ]
+        _tables_needing_updated_at = [
+            "contacts", "debt_payments", "habit_checkins",
+            "investment_entries", "splits", "sms_transactions",
+        ]
+        for t in _tables_needing_updated_at:
+            _dev_migrate_add_updated_at(conn, t)
+        for t in _synced_tables:
+            _dev_migrate_add_deleted_at(conn, t)
+
+        _dev_migrate_health_logs_per_user_unique(conn)
+        _dev_migrate_splits_share_count(conn)
 
     with SessionLocal() as session:
         seed_all(session)

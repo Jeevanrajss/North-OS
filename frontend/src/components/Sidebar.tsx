@@ -49,24 +49,15 @@ export function Sidebar({ collapsed, onToggle }: Props) {
           collapsed ? 'px-3 py-5 justify-center' : 'px-3.5 py-5',
         )}
       >
-        {/* Logo mark */}
-        <div
-          className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{
-            background: 'var(--grad-primary)',
-            boxShadow: 'var(--elev-glow)',
-          }}
-        >
-          {/* North star / polygon icon */}
-          <svg
-            width="13" height="13"
-            viewBox="0 0 24 24" fill="none"
-            stroke="white" strokeWidth="2.2"
-            strokeLinecap="round" strokeLinejoin="round"
-          >
-            <polygon points="12 2 19 21 12 17 5 21 12 2" />
-          </svg>
-        </div>
+        {/* Logo mark — the app icon */}
+        <img
+          src="/app-icon.png"
+          alt=""
+          width={28}
+          height={28}
+          className="shrink-0 rounded-lg"
+          style={{ boxShadow: 'var(--elev-glow)' }}
+        />
 
         {!collapsed && (
           <>
@@ -136,8 +127,8 @@ export function Sidebar({ collapsed, onToggle }: Props) {
               'flex items-center gap-3 rounded-[10px] text-sm font-medium transition-all relative',
               collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-[9px]',
               isActive
-                ? 'nav-link-active text-white'
-                : 'text-[#A0A9BC] hover:text-white',
+                ? 'nav-link-active text-fg-1'
+                : 'text-fg-3 hover:text-fg-1',
             )}
             style={({ isActive }) => isActive ? { background: 'var(--surface)' } : undefined}
           >
@@ -159,8 +150,8 @@ export function Sidebar({ collapsed, onToggle }: Props) {
             'flex items-center gap-3 rounded-[10px] text-sm font-medium transition-all relative',
             collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-[9px]',
             isActive
-              ? 'nav-link-active text-white'
-              : 'text-[#A0A9BC] hover:text-white',
+              ? 'nav-link-active text-fg-1'
+              : 'text-fg-3 hover:text-fg-1',
           )}
           style={({ isActive }) => isActive ? { background: 'var(--surface)' } : undefined}
         >

@@ -1,3 +1,4 @@
+import { todayISO } from '@/lib/date';
 import { useState } from 'react';
 import { RightDrawer } from '@/components/ui/RightDrawer';
 import { api } from '@/lib/api';
@@ -11,7 +12,7 @@ type Props = {
   onSuccess: () => void;
 };
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = todayISO();
 
 export function RecordPaymentDrawer({ open, onClose, debt, onSuccess }: Props) {
   const [amount,  setAmount]  = useState('');

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/subscription.dart';
+import '../../../core/format.dart';
+import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/stat_tile.dart';
 import '../../../core/theme.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../widgets/subscription_card.dart';
@@ -34,10 +36,34 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     }
   }
 
+  bool _dueSoon(Subscription s) {
+    final due = DateTime.tryParse(s.nextBillingDate);
+    if (s.paused || due == null) return false;
+    final now = DateTime.now();
+    return DateTime(due.year, due.month, due.day).difference(DateTime(now.year, now.month, now.day)).inDays <= 7;
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthlyTotal = _subs.fold<double>(0, (s, sub) => s + sub.monthlyEquivalent);
-    final fmt = NumberFormat('#,##0', 'en_IN');
+    final soon = _subs.where(_dueSoon).toList();
+    final later = _subs.where((s) => !_dueSoon(s)).toList();
+
+    Widget group(String title, List<Subscription> items) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: NorthSpace.lg, bottom: NorthSpace.sm),
+          child: Text(title.toUpperCase(), style: NorthText.overline),
+        ),
+        ...items.map(
+          (s) => Padding(
+            padding: const EdgeInsets.only(bottom: NorthSpace.sm),
+            child: SubscriptionCard(sub: s),
+          ),
+        ),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Subscriptions')),
@@ -45,41 +71,40 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         onRefresh: _load,
         color: NorthColors.accent,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: NorthColors.accent))
+            ? Center(child: CircularProgressIndicator(color: NorthColors.accent))
             : ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(NorthSpace.lg, NorthSpace.sm, NorthSpace.lg, NorthSpace.xxl),
                 children: [
-                  if (_subs.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text('Monthly total: ₹${fmt.format(monthlyTotal)}',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: NorthColors.fg1)),
-                    ),
                   if (_subs.isEmpty)
                     const EmptyState(
                       message: 'No active subscriptions',
+                      detail: 'Add them on the desktop app and they will show up here.',
                       icon: Icons.repeat,
                     )
-                  else
-                    ..._subs.map((s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SubscriptionCard(sub: s),
-                    )),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: NorthColors.bg3,
-                      borderRadius: BorderRadius.circular(10),
+                  else ...[
+                    AppCard(
+                      child: StatRow(
+                        tiles: [
+                          StatTile(label: 'Per month', value: inr(monthlyTotal)),
+                          StatTile(label: 'Per year', value: inrCompact(monthlyTotal * 12)),
+                          StatTile(
+                            label: 'Due in 7d',
+                            value: '${soon.length}',
+                            valueColor: soon.isEmpty ? NorthColors.fg1 : NorthColors.amber,
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(children: [
-                      const Icon(Icons.info_outline, size: 14, color: NorthColors.fg5),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text(
-                        'Add or edit subscriptions on desktop.',
-                        style: TextStyle(fontSize: 12, color: NorthColors.fg5),
-                      )),
-                    ]),
+                    if (soon.isNotEmpty) group('Due this week', soon),
+                    if (later.isNotEmpty) group('Later', later),
+                  ],
+                  const SizedBox(height: NorthSpace.lg),
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: NorthColors.fg5),
+                      const SizedBox(width: NorthSpace.sm),
+                      Expanded(child: Text('Add or edit subscriptions on desktop.', style: NorthText.caption)),
+                    ],
                   ),
                 ],
               ),

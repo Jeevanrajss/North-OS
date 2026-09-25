@@ -43,7 +43,7 @@ function InsightCard({
   const badgeColor = {
     green:   { bg: 'rgba(61,255,152,0.12)',  border: 'rgba(61,255,152,0.25)',  text: 'var(--accent-green)' },
     red:     { bg: 'rgba(255,91,110,0.12)',  border: 'rgba(255,91,110,0.25)',  text: 'var(--accent-red)' },
-    neutral: { bg: 'rgba(255,255,255,0.05)', border: 'var(--border-default)',  text: 'var(--fg-3)' },
+    neutral: { bg: 'rgb(var(--overlay-rgb) / 0.05)', border: 'var(--border-default)',  text: 'var(--fg-3)' },
   }[insightColor];
 
   return (

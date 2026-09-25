@@ -17,15 +17,22 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: color ?? (isDark ? NorthColors.card : Colors.white),
+        color: color ?? NorthColors.card,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: isDark
+        // Light mode separates cards from the page with a soft shadow;
+        // dark mode can't show shadows, so it uses a hairline border.
+        boxShadow: NorthColors.isDark
             ? null
-            : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
-        border: isDark ? Border.all(color: NorthColors.border1) : null,
+            : [
+                BoxShadow(
+                  color: const Color(0xFF0F1320).withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+        border: Border.all(color: NorthColors.border1),
       ),
       padding: padding,
       child: child,

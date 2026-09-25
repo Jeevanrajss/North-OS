@@ -36,7 +36,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        // E2E tests point this at an isolated backend with a throwaway DB.
+        target: process.env.NORTHOS_API_PROXY ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },

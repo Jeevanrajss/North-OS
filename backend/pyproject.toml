@@ -45,6 +45,10 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

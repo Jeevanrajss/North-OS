@@ -74,10 +74,10 @@ function Bubble({ msg }: { msg: Message }) {
           ) : (
             <div className="prose prose-sm prose-invert max-w-none
               prose-p:my-1 prose-p:leading-relaxed
-              prose-headings:text-white prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1
+              prose-headings:text-fg-1 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1
               prose-ul:my-1 prose-ul:pl-4 prose-li:my-0.5
               prose-ol:my-1 prose-ol:pl-4
-              prose-strong:text-white prose-strong:font-semibold
+              prose-strong:text-fg-1 prose-strong:font-semibold
               prose-code:text-accent prose-code:bg-ink-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
               prose-pre:bg-ink-800 prose-pre:border prose-pre:border-ink-700">
               <ReactMarkdown>{msg.content}</ReactMarkdown>

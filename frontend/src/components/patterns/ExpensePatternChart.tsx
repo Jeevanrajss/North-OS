@@ -1,10 +1,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from 'recharts';
+import { chartAxis, chartGrid, chartTooltip } from '@/lib/chart';
 import type { AnalyticsSnapshot } from '@/lib/api';
 
 type Props = { data: AnalyticsSnapshot[] };
 
 function moodColor(mood: number | null): string {
-  if (mood == null) return 'rgba(255,255,255,0.10)';
+  if (mood == null) return 'rgb(var(--overlay-rgb) / 0.10)';
   if (mood >= 3.5) return 'rgba(61,255,152,0.65)';   // green — high mood
   if (mood >= 2.5) return 'rgba(255,184,107,0.65)';  // amber — neutral
   return 'rgba(255,91,110,0.65)';                     // red   — low mood
@@ -31,7 +32,7 @@ export function ExpensePatternChart({ data }: Props) {
           { color: 'rgba(61,255,152,0.65)', label: 'High mood (≥3.5)' },
           { color: 'rgba(255,184,107,0.65)', label: 'Neutral (2.5–3.5)' },
           { color: 'rgba(255,91,110,0.65)', label: 'Low mood (<2.5)' },
-          { color: 'rgba(255,255,255,0.10)', label: 'No mood data' },
+          { color: 'rgb(var(--overlay-rgb) / 0.10)', label: 'No mood data' },
         ].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--fg-4)' }}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: 'inline-block' }} />
@@ -41,28 +42,18 @@ export function ExpensePatternChart({ data }: Props) {
       </div>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <CartesianGrid {...chartGrid} />
           <XAxis
             dataKey="date"
-            tick={{ fill: 'var(--fg-4)', fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
+            {...chartAxis}
             interval={Math.floor(chartData.length / 6)}
           />
           <YAxis
-            tick={{ fill: 'var(--fg-4)', fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
+            {...chartAxis}
             tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
           />
           <Tooltip
-            contentStyle={{
-              background: 'var(--surface-elev)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 10,
-              fontSize: 12,
-              color: 'var(--fg-1)',
-            }}
+            {...chartTooltip}
             formatter={(value, _name, props) => [
               `₹${Number(value).toLocaleString('en-IN')}`,
               `Spend (mood: ${(props.payload as { mood?: number })?.mood?.toFixed(1) ?? 'n/a'})`,

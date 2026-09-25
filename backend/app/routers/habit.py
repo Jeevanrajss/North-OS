@@ -662,9 +662,13 @@ def upsert_checkin(
     _get_habit_or_404(db, habit_id, current_user.id)
     body = payload or HabitCheckinIn()
 
+    # Look up INCLUDING soft-deleted rows: the UNIQUE(habit_id, day_date)
+    # constraint means a previously un-checked (soft-deleted) checkin still
+    # occupies this slot. Re-checking must revive it, not insert a duplicate.
     existing = (
         db.query(HabitCheckin)
         .filter(HabitCheckin.habit_id == habit_id, HabitCheckin.day_date == d)
+        .execution_options(include_deleted=True)
         .first()
     )
     if existing is None:
@@ -678,6 +682,7 @@ def upsert_checkin(
         db.add(existing)
     else:
         existing.value = body.value
+        existing.deleted_at = None  # Phase 12a — revive if it was un-checked
         if body.note is not None:
             existing.note = body.note
     db.commit()
@@ -694,8 +699,8 @@ def delete_checkin(habit_id: str, d: date_cls, db: Session = Depends(get_db), cu
         .first()
     )
     if row is None:
-        # Idempotent: no-op if already absent.
+        # Idempotent: no-op if already absent (or already soft-deleted).
         return None
-    db.delete(row)
+    row.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
     db.commit()
     return None

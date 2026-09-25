@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
-import '../theme/app_theme.dart';
 
 /// Renders an amount colored by transaction direction.
 ///
@@ -29,20 +28,24 @@ class AmountText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isCredit = _creditLike.contains(direction);
     final isNeutral = _neutralLike.contains(direction);
     final color = isCredit
-        ? (isDark ? NorthColors.green : AppTheme.success)
+        ? NorthColors.green
         : isNeutral
-            ? (isDark ? NorthColors.fg4 : AppTheme.textSecondary)
-            : (isDark ? NorthColors.red : AppTheme.danger);
-    final sign = isCredit ? '+' : isNeutral ? '' : '−';
-    final fmt = NumberFormat('#,##0.00', 'en_IN');
+        ? NorthColors.fg4
+        : NorthColors.red;
+    final sign = isCredit
+        ? '+'
+        : isNeutral
+        ? ''
+        : '−';
+    // Paise only when there are any — "₹321" reads faster than "₹321.00".
+    final fmt = NumberFormat(amount == amount.roundToDouble() ? '#,##,##0' : '#,##,##0.00', 'en_IN');
 
     return Text(
       '$sign$currencySymbol${fmt.format(amount)}',
-      style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: size),
+      style: NorthText.amount.copyWith(color: color, fontSize: size),
     );
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-/// Shown when a list is empty.
+/// Shown when a list is empty. Always offer a next step when there is one.
 class EmptyState extends StatelessWidget {
   final String message;
+  final String? detail;
   final String? actionLabel;
   final VoidCallback? onAction;
   final IconData icon;
@@ -11,27 +12,47 @@ class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
     required this.message,
+    this.detail,
     this.actionLabel,
     this.onAction,
     this.icon = Icons.inbox_outlined,
   });
 
+  /// Network failure — says what happened and how to recover, instead of a
+  /// silent "No data".
+  const EmptyState.offline({super.key, required VoidCallback onRetry})
+    : message = "Can't reach the server",
+      detail = 'Check your connection, then try again.',
+      actionLabel = 'Retry',
+      onAction = onRetry,
+      icon = Icons.cloud_off_outlined;
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? NorthColors.fg5 : const Color(0xFF64748B);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(NorthSpace.xxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: textColor),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 14)),
+            Container(
+              padding: const EdgeInsets.all(NorthSpace.lg),
+              decoration: BoxDecoration(color: NorthColors.accentMuted, shape: BoxShape.circle),
+              child: Icon(icon, size: 28, color: NorthColors.accent),
+            ),
+            const SizedBox(height: NorthSpace.lg),
+            Text(message, textAlign: TextAlign.center, style: NorthText.section),
+            if (detail != null) ...[
+              const SizedBox(height: NorthSpace.xs),
+              Text(
+                detail!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: NorthColors.fg4, fontSize: 13),
+              ),
+            ],
             if (actionLabel != null) ...[
-              const SizedBox(height: 16),
-              OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+              const SizedBox(height: NorthSpace.lg),
+              FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ],
         ),

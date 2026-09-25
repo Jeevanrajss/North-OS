@@ -8,8 +8,19 @@ const { spawn } = require('child_process');
 const { machineIdSync } = require('node-machine-id');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+// Licence check is off for the owner's own copy. Turn it back on (and host
+// the licence server) before sharing builds with friends. Only licence
+// verification ever talks to this server — app data never leaves the Mac.
+const LICENSE_REQUIRED = false;
 const LICENSE_SERVER  = 'https://north-os-production.up.railway.app';
-const APP_PORT        = 9847;
+// Release channel, stamped into package.json at build time
+// (electron-builder -c.extraMetadata.northosChannel=uat). A UAT build is a
+// separate app — own name, data folder and port — so it can be tested side by
+// side with production without touching real data.
+const CHANNEL         = require('./package.json').northosChannel === 'uat' ? 'uat' : 'prod';
+const IS_UAT          = CHANNEL === 'uat';
+const APP_NAME        = IS_UAT ? 'North OS UAT' : 'Personal OS'; // prod name kept: it's the data folder
+const APP_PORT        = IS_UAT ? 9848 : 9847;
 const GRACE_DAYS      = 7;
 const HEALTH_URL      = `http://127.0.0.1:${APP_PORT}/api/v1/ping`;
 const APP_URL         = `http://127.0.0.1:${APP_PORT}`;
@@ -85,7 +96,11 @@ function startBackend() {
       env: {
         ...process.env,
         APP_PORT:               String(APP_PORT),
-        APP_HOST:               '127.0.0.1',
+        APP_CHANNEL:            CHANNEL,
+        // All interfaces so a paired phone can reach it over Tailscale/LAN.
+        // The backend rejects any non-loopback request without a current
+        // device token (see guard_remote in backend/app/main.py).
+        APP_HOST:               '0.0.0.0',
         // Distinct from cloud "production": still serves the static
         // frontend build, but also allows the no-token local-user auth
         // fallback (see auth_service.get_current_user) since this is a
@@ -197,6 +212,7 @@ async function activateWithServer(key) {
  * Handles: valid key, grace period, revoked.
  */
 async function checkLicense() {
+  if (!LICENSE_REQUIRED) return true;
   const stored = readActivation();
   if (!stored?.key) return false; // never activated
 
@@ -247,6 +263,7 @@ function createMainWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
+    title: APP_NAME,
     titleBarStyle: IS_MAC ? 'hiddenInset' : 'default',
     webPreferences: {
       contextIsolation: true,
@@ -347,14 +364,34 @@ function getActiveWindow() {
 }
 
 /** Returns true if semver a > b  e.g. semverGt('1.0.10', '1.0.9') === true */
+// "1.7.0" / "1.7.0-uat.2": compare x.y.z, then the UAT build number. A final
+// release outranks any UAT build of the same version (semver rules).
 function semverGt(a, b) {
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
+  const split = (v) => {
+    const [core, pre] = v.split('-');
+    const n = pre ? Number((pre.match(/(\d+)$/) || [0, 0])[1]) : Infinity;
+    return [...core.split('.').map(Number), n];
+  };
+  const pa = split(a);
+  const pb = split(b);
+  for (let i = 0; i < 4; i++) {
     if ((pa[i] || 0) > (pb[i] || 0)) return true;
     if ((pa[i] || 0) < (pb[i] || 0)) return false;
   }
   return false;
+}
+
+/** The newest release for this channel: latest stable for prod, newest UAT pre-release for UAT. */
+async function fetchChannelRelease() {
+  const base = 'https://api.github.com/repos/Jeevanrajss/North-OS/releases';
+  const opts = { headers: { 'User-Agent': 'PersonalOS-Updater' }, signal: AbortSignal.timeout(10_000) };
+  if (!IS_UAT) {
+    const res = await fetch(`${base}/latest`, opts); // GitHub never returns a pre-release here
+    return res.ok ? res.json() : null;
+  }
+  const res = await fetch(`${base}?per_page=30`, opts);
+  if (!res.ok) return null;
+  return (await res.json()).find((r) => r.prerelease && /-uat\./.test(r.tag_name ?? '')) ?? null;
 }
 
 // ── macOS updater — downloads & installs the DMG internally ──────────────────
@@ -499,13 +536,8 @@ async function installMacUpdate(dmgUrl, version) {
 async function checkForUpdatesMac() {
   updaterLog('info', `[mac] Checking GitHub releases (current: ${app.getVersion()})`);
   try {
-    const res = await fetch(
-      'https://api.github.com/repos/Jeevanrajss/North-OS/releases/latest',
-      { headers: { 'User-Agent': 'PersonalOS-Updater' }, signal: AbortSignal.timeout(10_000) },
-    );
-    if (!res.ok) { updaterLog('error', `[mac] GitHub API ${res.status}`); return; }
-
-    const release = await res.json();
+    const release = await fetchChannelRelease();
+    if (!release) { updaterLog('error', `[mac] No ${CHANNEL} release found`); return; }
     const latest  = (release.tag_name ?? '').replace(/^v/, '');
     const current = app.getVersion();
     updaterLog('info', `[mac] latest=${latest} current=${current}`);
@@ -516,8 +548,9 @@ async function checkForUpdatesMac() {
 
     const arch   = process.arch;
     const assets = release.assets ?? [];
-    const dmg    = assets.find((a) => a.name.endsWith('.dmg') && a.name.includes(arch))
-                ?? assets.find((a) => a.name.endsWith('.dmg'));
+    // Never cross channels: UAT installs UAT DMGs, production never does.
+    const ours   = assets.filter((a) => a.name.endsWith('.dmg') && a.name.includes('UAT') === IS_UAT);
+    const dmg    = ours.find((a) => a.name.includes(arch)) ?? ours[0];
 
     if (!dmg) { updaterLog('error', '[mac] No DMG asset found'); return; }
 
@@ -633,6 +666,13 @@ function checkForUpdates() {
   }
 }
 
+// IPC: start-at-login toggle (Settings → Phone). Off unless the user turns it on.
+ipcMain.handle('login-item:get', () => app.getLoginItemSettings().openAtLogin);
+ipcMain.handle('login-item:set', (_e, on) => {
+  app.setLoginItemSettings({ openAtLogin: !!on });
+  return app.getLoginItemSettings().openAtLogin;
+});
+
 // IPC: allow the Settings page to trigger a manual update check
 ipcMain.handle('check-for-updates', () => {
   updaterLog('info', 'Manual update check requested from renderer');
@@ -642,7 +682,7 @@ ipcMain.handle('check-for-updates', () => {
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
-app.setName('Personal OS');
+app.setName(APP_NAME);
 
 app.whenReady().then(async () => {
   // Get stable machine fingerprint
@@ -667,17 +707,21 @@ app.whenReady().then(async () => {
   // 2. Check license
   const licensed = await checkLicense();
 
+  // Launched by the login item: run quietly (backend up for the phone),
+  // open the window only when the user clicks the Dock icon.
+  const startedAtLogin = IS_MAC && app.getLoginItemSettings().wasOpenedAtLogin;
+
   if (!licensed) {
     createActivationWindow();
   } else {
-    createMainWindow();
+    if (!startedAtLogin) createMainWindow();
     checkForUpdates();
   }
 
   app.on('activate', () => {
     // macOS: re-create window when clicking dock icon with no windows open
     if (BrowserWindow.getAllWindows().length === 0) {
-      if (readActivation()) createMainWindow();
+      if (!LICENSE_REQUIRED || readActivation()) createMainWindow();
       else createActivationWindow();
     }
   });

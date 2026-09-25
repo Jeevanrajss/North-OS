@@ -4,6 +4,7 @@ import '../../../core/notifications/notification_ids.dart';
 import '../../../core/notifications/notification_prefs.dart';
 import '../../../core/notifications/notification_scheduler.dart';
 import '../../../core/notifications/notification_service.dart';
+import '../../../core/api/api_client.dart';
 import 'bank_sms_parser.dart';
 
 class SmsImportResult {
@@ -43,17 +44,21 @@ class SmsImportService {
       try {
         // PRIVACY RULE (PHASE_10_SPEC.md §2.5): only already-parsed fields are
         // sent — never the raw SMS body. The backend must not receive it.
-        final response = await _dio.post('/sms/import', data: {
-          'sms_id': (sms.id ?? ts).toString(),
-          'sender': sender,
-          'timestamp': ts,
-          'amount': parsed.amount,
-          'direction': parsed.direction,
-          'merchant': parsed.merchant,
-          'account_last4': parsed.accountLast4,
-          'balance_after': parsed.balanceAfter,
-          'category': parsed.category,
-        });
+        final response = await _dio.post(
+          '/sms/import',
+          data: {
+            'sms_id': (sms.id ?? ts).toString(),
+            'sender': sender,
+            'timestamp': ts,
+            'amount': parsed.amount,
+            'direction': parsed.direction,
+            'merchant': parsed.merchant,
+            'account_last4': parsed.accountLast4,
+            'balance_after': parsed.balanceAfter,
+            'category': parsed.category,
+          },
+          options: queueable(optimistic: {'is_duplicate': false, 'queued': true}),
+        );
         final data = response.data as Map<String, dynamic>;
         if (data['is_duplicate'] == true) {
           duplicates++;

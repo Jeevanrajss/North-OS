@@ -225,8 +225,8 @@ export function MonthlyReportView({ year, month }: Props) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-              background: 'rgba(139,124,255,0.12)',
-              border: '1px solid rgba(139,124,255,0.35)',
+              background: 'rgb(var(--primary-rgb) / 0.12)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.35)',
               color: 'var(--primary-300)', cursor: 'pointer',
               opacity: exporting ? 0.5 : 1, transition: 'opacity 150ms',
             }}

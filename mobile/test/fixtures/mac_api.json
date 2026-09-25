@@ -1,0 +1,779 @@
+{
+ "captured_on": "2026-09-25",
+ "responses": {
+  "/habits/today": {
+   "date": "2026-09-25",
+   "habits": [
+    {
+     "habit": {
+      "id": "d265dac5-4e1d-4e3f-8846-bc5a492e1566",
+      "name": "Morning walk",
+      "emoji": "🚶",
+      "frequency_kind": "daily",
+      "frequency_target": 1,
+      "weekdays": [],
+      "sort_order": 0,
+      "archived_at": null,
+      "created_at": "2026-09-24T19:23:53",
+      "updated_at": "2026-09-24T19:23:53"
+     },
+     "done": true,
+     "checkin": {
+      "id": "a3f28a8e-bc81-4788-bd3e-1f4d3ec1653d",
+      "habit_id": "d265dac5-4e1d-4e3f-8846-bc5a492e1566",
+      "day_date": "2026-09-25",
+      "value": 1,
+      "note": null,
+      "created_at": "2026-09-24T19:23:53"
+     }
+    },
+    {
+     "habit": {
+      "id": "47e2009a-0445-4d4a-adbf-1dbdacd4ac48",
+      "name": "Read 30 min",
+      "emoji": "📚",
+      "frequency_kind": "daily",
+      "frequency_target": 1,
+      "weekdays": [],
+      "sort_order": 1,
+      "archived_at": null,
+      "created_at": "2026-09-24T19:23:53",
+      "updated_at": "2026-09-24T19:23:53"
+     },
+     "done": true,
+     "checkin": {
+      "id": "a3708061-d7ce-4cf9-9757-71f320b25c83",
+      "habit_id": "47e2009a-0445-4d4a-adbf-1dbdacd4ac48",
+      "day_date": "2026-09-25",
+      "value": 1,
+      "note": null,
+      "created_at": "2026-09-24T19:23:53"
+     }
+    },
+    {
+     "habit": {
+      "id": "8d02ca2d-4897-45f0-93e3-6acdd767ae51",
+      "name": "Meditate",
+      "emoji": "🧘",
+      "frequency_kind": "daily",
+      "frequency_target": 1,
+      "weekdays": [],
+      "sort_order": 2,
+      "archived_at": null,
+      "created_at": "2026-09-24T19:23:53",
+      "updated_at": "2026-09-24T19:23:53"
+     },
+     "done": false,
+     "checkin": null
+    }
+   ]
+  },
+  "/auth/me": {
+   "id": "",
+   "name": "Local User",
+   "email": "local@localhost",
+   "created_at": "2026-09-24T18:54:51"
+  },
+  "/subscriptions": [
+   {
+    "id": "be66e393-8592-4fe7-b065-f20366a0eb40",
+    "name": "Netflix",
+    "emoji": "🎬",
+    "amount": 649.0,
+    "currency": "INR",
+    "billing_cycle": "monthly",
+    "next_billing_date": "2026-09-27",
+    "trial_end_date": null,
+    "post_trial_amount": null,
+    "payment_type": null,
+    "account_name": null,
+    "category": null,
+    "notes": null,
+    "url": null,
+    "is_autopay": false,
+    "last_renewed_at": null,
+    "paused_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "monthly_equivalent": 649.0
+   },
+   {
+    "id": "9ac8c2d4-7f65-4301-a16c-5e9aedba1465",
+    "name": "iCloud",
+    "emoji": "☁️",
+    "amount": 75.0,
+    "currency": "INR",
+    "billing_cycle": "monthly",
+    "next_billing_date": "2026-10-15",
+    "trial_end_date": null,
+    "post_trial_amount": null,
+    "payment_type": null,
+    "account_name": null,
+    "category": null,
+    "notes": null,
+    "url": null,
+    "is_autopay": false,
+    "last_renewed_at": null,
+    "paused_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "monthly_equivalent": 75.0
+   }
+  ],
+  "/notifications/": [],
+  "/notifications/unread-count": {
+   "count": 0
+  },
+  "/insights/daily": {
+   "insight_text": "Log a few more habits and transactions and I'll start surfacing personalized insights here.",
+   "insight_type": "default_empty",
+   "generated_at": "2026-09-25T00:26:02.265610"
+  },
+  "/insights/weekly-summary": {
+   "week_start": "2026-09-21",
+   "week_end": "2026-09-27",
+   "habits_days_done": 5,
+   "habits_days_total": 5,
+   "spent": 4899.0,
+   "saved": -4899.0,
+   "top_category": {
+    "category": "Groceries",
+    "amount": 2400.0
+   },
+   "insights": [
+    "Log a few more habits and transactions and I'll start surfacing personalized insights here."
+   ]
+  },
+  "/finance/meta": {
+   "expense_categories": [
+    "Food & Dining",
+    "Transport",
+    "Shopping",
+    "Healthcare",
+    "Entertainment",
+    "Housing",
+    "Utilities",
+    "Education",
+    "Fitness",
+    "Travel",
+    "Subscriptions",
+    "Splits",
+    "Other"
+   ],
+   "income_categories": [
+    "Splits",
+    "Salary",
+    "Freelance",
+    "Investment",
+    "Gift",
+    "Other Income"
+   ],
+   "account_suggestions": [
+    "Cash",
+    "HDFC Savings",
+    "ICICI Savings",
+    "SBI Savings",
+    "Axis Savings",
+    "IDFC First Bank",
+    "PhonePe",
+    "Google Pay",
+    "Amazon Pay",
+    "Paytm",
+    "Credit Card"
+   ],
+   "credit_card_options": [
+    "HDFC Credit Card",
+    "ICICI Credit Card",
+    "SBI Credit Card",
+    "IDFC First Credit Card",
+    "Axis Credit Card",
+    "Kotak Credit Card",
+    "Yes Bank Credit Card",
+    "AmEx Credit Card",
+    "IndusInd Credit Card"
+   ],
+   "category_emoji": {
+    "Food & Dining": "🍽️",
+    "Transport": "🚗",
+    "Shopping": "🛒",
+    "Healthcare": "🏥",
+    "Entertainment": "🎬",
+    "Housing": "🏠",
+    "Utilities": "💡",
+    "Education": "📚",
+    "Fitness": "💪",
+    "Travel": "✈️",
+    "Subscriptions": "💳",
+    "Splits": "🤝",
+    "Salary": "💼",
+    "Freelance": "💰",
+    "Investment": "📈",
+    "Gift": "🎁",
+    "Other": "💸",
+    "Other Income": "💵"
+   }
+  },
+  "/finance/transactions": [
+   {
+    "id": "2beaca8b-1fd9-4356-afc6-5d16caec9263",
+    "type": "expense",
+    "amount": 2400.0,
+    "currency": "INR",
+    "date": "2026-09-25",
+    "category": "Groceries",
+    "account": null,
+    "payee": "Groceries",
+    "notes": null,
+    "source": "manual",
+    "sms_id": null,
+    "account_last4": null,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53"
+   },
+   {
+    "id": "daeed149-c268-4535-9cb1-a1a8d58f3428",
+    "type": "expense",
+    "amount": 899.0,
+    "currency": "INR",
+    "date": "2026-09-25",
+    "category": "Transport",
+    "account": null,
+    "payee": null,
+    "notes": null,
+    "source": "manual",
+    "sms_id": null,
+    "account_last4": null,
+    "created_at": "2026-09-24T19:12:19",
+    "updated_at": "2026-09-24T19:12:19"
+   },
+   {
+    "id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+    "type": "expense",
+    "amount": 1000.0,
+    "currency": "INR",
+    "date": "2026-09-25",
+    "category": "Food & Dining",
+    "account": null,
+    "payee": "Dinner at Barbeque Nation",
+    "notes": null,
+    "source": "manual",
+    "sms_id": null,
+    "account_last4": null,
+    "created_at": "2026-09-24T18:55:03",
+    "updated_at": "2026-09-24T18:55:03"
+   },
+   {
+    "id": "859b8168-a098-4ad3-91fe-0a43a02d2734",
+    "type": "expense",
+    "amount": 600.0,
+    "currency": "INR",
+    "date": "2026-09-25",
+    "category": "Transport",
+    "account": null,
+    "payee": "Cab to airport",
+    "notes": null,
+    "source": "manual",
+    "sms_id": null,
+    "account_last4": null,
+    "created_at": "2026-09-24T18:55:03",
+    "updated_at": "2026-09-24T18:55:03"
+   },
+   {
+    "id": "bff66f04-df4e-4c0c-a456-8dff10c93663",
+    "type": "income",
+    "amount": 85000.0,
+    "currency": "INR",
+    "date": "2026-09-01",
+    "category": "Salary",
+    "account": null,
+    "payee": "Salary",
+    "notes": null,
+    "source": "manual",
+    "sms_id": null,
+    "account_last4": null,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53"
+   }
+  ],
+  "/finance/summary/{year}/{month}": {
+   "year": 2026,
+   "month": 9,
+   "total_income": 85000.0,
+   "total_expense": 4899.0,
+   "net": 80101.0,
+   "by_category": [
+    {
+     "category": "Groceries",
+     "total": 2400.0,
+     "count": 1
+    },
+    {
+     "category": "Transport",
+     "total": 1499.0,
+     "count": 2
+    },
+    {
+     "category": "Food & Dining",
+     "total": 1000.0,
+     "count": 1
+    }
+   ],
+   "transaction_count": 5,
+   "budget_overall": null,
+   "budget_by_category": []
+  },
+  "/finance/investments": [
+   {
+    "id": "dd564d66-32ea-41f3-b5a6-d0989ce63ecb",
+    "name": "Index fund SIP",
+    "emoji": "📈",
+    "investment_type": "mutual_fund",
+    "total_invested": 0.0,
+    "sip_amount": 5000.0,
+    "sip_date": 10,
+    "target_amount": null,
+    "goal_id": null,
+    "account_number": null,
+    "folio_number": null,
+    "currency": "INR",
+    "status": "active",
+    "notes": null,
+    "sort_order": 0,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "progress_pct": null
+   }
+  ],
+  "/finance/investments/summary": {
+   "total_invested": 0.0,
+   "by_type": {
+    "mutual_fund": 0.0
+   },
+   "sip_this_month": 0.0,
+   "active_count": 1,
+   "investments": [
+    {
+     "id": "dd564d66-32ea-41f3-b5a6-d0989ce63ecb",
+     "name": "Index fund SIP",
+     "emoji": "📈",
+     "investment_type": "mutual_fund",
+     "total_invested": 0.0,
+     "sip_amount": 5000.0,
+     "sip_date": 10,
+     "target_amount": null,
+     "goal_id": null,
+     "account_number": null,
+     "folio_number": null,
+     "currency": "INR",
+     "status": "active",
+     "notes": null,
+     "sort_order": 0,
+     "created_at": "2026-09-24T19:23:53",
+     "updated_at": "2026-09-24T19:23:53",
+     "progress_pct": null
+    }
+   ]
+  },
+  "/finance/goals": [
+   {
+    "id": "e564a262-97b4-4da8-8f9d-381d7fbbf2eb",
+    "title": "Emergency fund",
+    "emoji": "🎯",
+    "goal_type": "purchase",
+    "timeline": "medium",
+    "target_amount": 300000.0,
+    "current_amount": 90000.0,
+    "target_date": null,
+    "priority": 2,
+    "currency": "INR",
+    "linked_investment_ids": [],
+    "notes": null,
+    "status": "active",
+    "sort_order": 0,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "progress_pct": 30.0,
+    "days_remaining": null,
+    "monthly_needed": null,
+    "is_on_track": false
+   }
+  ],
+  "/finance/debt": [
+   {
+    "id": "05b0436b-21ed-431e-a394-4dcf0a79efa3",
+    "name": "Car loan",
+    "emoji": "🚗",
+    "debt_type": "car_loan",
+    "lender": null,
+    "account_last4": null,
+    "principal": 500000.0,
+    "outstanding": 320000.0,
+    "interest_rate": 9.5,
+    "emi_amount": 12500.0,
+    "emi_due_day": 5,
+    "days_to_emi": 10,
+    "start_date": null,
+    "end_date": null,
+    "currency": "INR",
+    "status": "active",
+    "notes": null,
+    "sort_order": 0,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "progress_pct": 36.0,
+    "months_to_payoff": 29,
+    "total_interest_remaining": 42500.0
+   }
+  ],
+  "/finance/debt/summary": {
+   "active_count": 1,
+   "total_outstanding": 320000.0,
+   "total_emi_monthly": 12500.0,
+   "total_principal": 500000.0
+  },
+  "/finance/budgets/status": [],
+  "/goals/": [
+   {
+    "id": "3e0134d1-6524-4ff8-a37b-44fc50a5d1b5",
+    "title": "Read 12 books",
+    "description": null,
+    "emoji": "🎯",
+    "goal_type": "custom",
+    "linked_id": null,
+    "linked_label": null,
+    "target_value": 12.0,
+    "target_period_days": null,
+    "currency": "INR",
+    "current_value": 4.0,
+    "target_date": null,
+    "status": "active",
+    "sort_order": 0,
+    "created_at": "2026-09-24T19:23:53",
+    "updated_at": "2026-09-24T19:23:53",
+    "progress_pct": 33.3,
+    "computed_current": 4.0,
+    "days_remaining": null,
+    "overdue": false,
+    "linked_missing": false
+   }
+  ],
+  "/contacts": [
+   {
+    "id": "ac34e824-ef0d-4ea1-b7c4-ef68ed728d23",
+    "name": "Chitra",
+    "phone": null,
+    "upi_id": null,
+    "notes": null
+   },
+   {
+    "id": "fd9255fc-9e74-4b39-a64b-393d5b0c14b0",
+    "name": "Asha",
+    "phone": null,
+    "upi_id": null,
+    "notes": null
+   },
+   {
+    "id": "fdcb2f00-ca6a-4a70-a9dc-d7bb4842d8b1",
+    "name": "Bala",
+    "phone": null,
+    "upi_id": null,
+    "notes": null
+   },
+   {
+    "id": "e3fbb4cb-9541-4675-94b7-9bccee2a4197",
+    "name": "Dev",
+    "phone": null,
+    "upi_id": null,
+    "notes": null
+   },
+   {
+    "id": "df1aabc7-9c49-4f5c-a118-f488bf745428",
+    "name": "Esha",
+    "phone": null,
+    "upi_id": null,
+    "notes": null
+   }
+  ],
+  "/splits/people": {
+   "total_pending": 1349.5,
+   "people_count": 5,
+   "people": [
+    {
+     "contact_id": "fd9255fc-9e74-4b39-a64b-393d5b0c14b0",
+     "contact_name": "Asha",
+     "total": 449.5,
+     "splits": [
+      {
+       "id": "b1fdcdb0-7b83-4db6-bcb6-35cd1e131c79",
+       "transaction_id": "daeed149-c268-4535-9cb1-a1a8d58f3428",
+       "contact_id": "fd9255fc-9e74-4b39-a64b-393d5b0c14b0",
+       "contact_name": "Asha",
+       "split_amount": 449.5,
+       "share_count": 1,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T19:14:37",
+       "transaction_label": "Transport",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 899.0
+      }
+     ]
+    },
+    {
+     "contact_id": "df1aabc7-9c49-4f5c-a118-f488bf745428",
+     "contact_name": "Esha",
+     "total": 400.0,
+     "splits": [
+      {
+       "id": "062fb35e-d89f-43d3-a7c9-a8b754d6a1dc",
+       "transaction_id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+       "contact_id": "df1aabc7-9c49-4f5c-a118-f488bf745428",
+       "contact_name": "Esha",
+       "split_amount": 200.0,
+       "share_count": 2,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T18:57:39",
+       "transaction_label": "Dinner at Barbeque Nation",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 1000.0
+      },
+      {
+       "id": "730ab8fb-6c9c-4d6e-849d-942f01b537b4",
+       "transaction_id": "859b8168-a098-4ad3-91fe-0a43a02d2734",
+       "contact_id": "df1aabc7-9c49-4f5c-a118-f488bf745428",
+       "contact_name": "Esha",
+       "split_amount": 200.0,
+       "share_count": 1,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T18:55:04",
+       "transaction_label": "Cab to airport",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 600.0
+      }
+     ]
+    },
+    {
+     "contact_id": "e3fbb4cb-9541-4675-94b7-9bccee2a4197",
+     "contact_name": "Dev",
+     "total": 300.0,
+     "splits": [
+      {
+       "id": "76c634a6-012d-4fc4-a74d-0c2df35603fe",
+       "transaction_id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+       "contact_id": "e3fbb4cb-9541-4675-94b7-9bccee2a4197",
+       "contact_name": "Dev",
+       "split_amount": 300.0,
+       "share_count": 3,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T18:57:39",
+       "transaction_label": "Dinner at Barbeque Nation",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 1000.0
+      }
+     ]
+    },
+    {
+     "contact_id": "ac34e824-ef0d-4ea1-b7c4-ef68ed728d23",
+     "contact_name": "Chitra",
+     "total": 100.0,
+     "splits": [
+      {
+       "id": "a5979ed6-fc07-406c-87a0-90c95a7527f9",
+       "transaction_id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+       "contact_id": "ac34e824-ef0d-4ea1-b7c4-ef68ed728d23",
+       "contact_name": "Chitra",
+       "split_amount": 100.0,
+       "share_count": 1,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T18:57:39",
+       "transaction_label": "Dinner at Barbeque Nation",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 1000.0
+      }
+     ]
+    },
+    {
+     "contact_id": "fdcb2f00-ca6a-4a70-a9dc-d7bb4842d8b1",
+     "contact_name": "Bala",
+     "total": 100.0,
+     "splits": [
+      {
+       "id": "ff56fe43-31f4-40db-a06b-29d5672b7595",
+       "transaction_id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+       "contact_id": "fdcb2f00-ca6a-4a70-a9dc-d7bb4842d8b1",
+       "contact_name": "Bala",
+       "split_amount": 100.0,
+       "share_count": 1,
+       "notes": null,
+       "status": "pending",
+       "settled_at": null,
+       "created_at": "2026-09-24T18:57:39",
+       "transaction_label": "Dinner at Barbeque Nation",
+       "transaction_date": "2026-09-25",
+       "transaction_amount": 1000.0
+      }
+     ]
+    }
+   ]
+  },
+  "/splits": [
+   {
+    "id": "d5477069-f7ea-42b7-839e-d317851ea43e",
+    "transaction_id": "2f07fdf2-d402-4956-b16d-993cb6205b40",
+    "contact_id": "fd9255fc-9e74-4b39-a64b-393d5b0c14b0",
+    "contact_name": "Asha",
+    "split_amount": 200.0,
+    "share_count": 2,
+    "notes": null,
+    "status": "settled",
+    "settled_at": "2026-09-24T18:58:08.106321",
+    "created_at": "2026-09-24T18:57:39",
+    "transaction_label": "Dinner at Barbeque Nation",
+    "transaction_date": "2026-09-25",
+    "transaction_amount": 1000.0
+   },
+   {
+    "id": "a7fcf822-ea1b-48d8-926f-736c0a69b3c7",
+    "transaction_id": "859b8168-a098-4ad3-91fe-0a43a02d2734",
+    "contact_id": "fd9255fc-9e74-4b39-a64b-393d5b0c14b0",
+    "contact_name": "Asha",
+    "split_amount": 200.0,
+    "share_count": 1,
+    "notes": null,
+    "status": "settled",
+    "settled_at": "2026-09-24T18:58:08.106321",
+    "created_at": "2026-09-24T18:55:04",
+    "transaction_label": "Cab to airport",
+    "transaction_date": "2026-09-25",
+    "transaction_amount": 600.0
+   }
+  ],
+  "/habits/streak": {
+   "current_streak": 5,
+   "today_complete": false,
+   "habits_due_today": 3
+  },
+  "/habits/stats": {
+   "window_days": 30,
+   "per_habit": [
+    {
+     "habit_id": "d265dac5-4e1d-4e3f-8846-bc5a492e1566",
+     "current_streak": 5,
+     "longest_streak_in_window": 5,
+     "completion_rate": 0.1667,
+     "done_count": 5,
+     "last7": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    {
+     "habit_id": "47e2009a-0445-4d4a-adbf-1dbdacd4ac48",
+     "current_streak": 1,
+     "longest_streak_in_window": 1,
+     "completion_rate": 0.0333,
+     "done_count": 1,
+     "last7": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+     ]
+    },
+    {
+     "habit_id": "8d02ca2d-4897-45f0-93e3-6acdd767ae51",
+     "current_streak": 0,
+     "longest_streak_in_window": 0,
+     "completion_rate": 0.0,
+     "done_count": 0,
+     "last7": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   ],
+   "overall_current_streak": 5,
+   "overall_longest_streak_in_window": 5,
+   "daily_any_done": [
+    {
+     "date": "2026-09-19",
+     "any_done": false,
+     "done_count": 0
+    },
+    {
+     "date": "2026-09-20",
+     "any_done": false,
+     "done_count": 0
+    },
+    {
+     "date": "2026-09-21",
+     "any_done": true,
+     "done_count": 1
+    },
+    {
+     "date": "2026-09-22",
+     "any_done": true,
+     "done_count": 1
+    },
+    {
+     "date": "2026-09-23",
+     "any_done": true,
+     "done_count": 1
+    },
+    {
+     "date": "2026-09-24",
+     "any_done": true,
+     "done_count": 1
+    },
+    {
+     "date": "2026-09-25",
+     "any_done": true,
+     "done_count": 2
+    }
+   ]
+  },
+  "/analytics/daily-summary": {
+   "yesterday_spend": 0,
+   "habits_due_today": 3,
+   "today_complete": false,
+   "current_streak": 5
+  },
+  "/journal/days/{today}": {
+   "date": "2026-09-25",
+   "mood_codes": [],
+   "tags": [],
+   "summary_highlights": null,
+   "summary_wins": null,
+   "summary_learnings": null,
+   "summary_gratitude": null,
+   "has_summary": false,
+   "entries": [],
+   "created_at": "2026-09-24T19:23:53",
+   "updated_at": "2026-09-24T19:23:53"
+  }
+ }
+}

@@ -32,11 +32,11 @@ export function FinanceInsightsCard() {
       borderRadius: 16,
       padding: '18px 20px',
       background: `
-        radial-gradient(360px 200px at 90% 0%, rgba(139,124,255,0.20), transparent 60%),
-        linear-gradient(135deg, rgba(139,124,255,0.06), rgba(139,124,255,0.01)),
+        radial-gradient(360px 200px at 90% 0%, rgb(var(--primary-rgb) / 0.20), transparent 60%),
+        linear-gradient(135deg, rgb(var(--primary-rgb) / 0.06), rgb(var(--primary-rgb) / 0.01)),
         var(--surface)
       `,
-      border: '1px solid rgba(139,124,255,0.24)',
+      border: '1px solid rgb(var(--primary-rgb) / 0.24)',
       overflow: 'hidden',
     }}>
       {/* AI tag */}
@@ -64,13 +64,13 @@ export function FinanceInsightsCard() {
           style={{
             padding: 5, borderRadius: 8,
             color: 'var(--primary-300)',
-            background: 'rgba(139,124,255,0.10)',
-            border: '1px solid rgba(139,124,255,0.22)',
+            background: 'rgb(var(--primary-rgb) / 0.10)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.22)',
             cursor: 'pointer', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.20)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,124,255,0.10)'; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.20)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--primary-rgb) / 0.10)'; }}
         >
           {slot.isPending
             ? <Loader2 style={{ width: 13, height: 13 }} className="animate-spin" />
@@ -83,7 +83,7 @@ export function FinanceInsightsCard() {
       {slot.isPending && !generated && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
           {[90, 75, 60].map((w, i) => (
-            <div key={i} className="animate-pulse" style={{ height: 12, borderRadius: 6, background: 'rgba(139,124,255,0.12)', width: `${w}%` }} />
+            <div key={i} className="animate-pulse" style={{ height: 12, borderRadius: 6, background: 'rgb(var(--primary-rgb) / 0.12)', width: `${w}%` }} />
           ))}
         </div>
       )}
@@ -118,7 +118,7 @@ export function FinanceInsightsCard() {
             <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{
                 flexShrink: 0, width: 20, height: 20, borderRadius: '50%',
-                background: 'rgba(139,124,255,0.15)', border: '1px solid rgba(139,124,255,0.30)',
+                background: 'rgb(var(--primary-rgb) / 0.15)', border: '1px solid rgb(var(--primary-rgb) / 0.30)',
                 color: 'var(--primary-300)',
                 fontSize: 10, fontWeight: 600,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -145,10 +145,10 @@ export function FinanceInsightsCard() {
             onClick={handleGenerate}
             style={{
               height: 32, padding: '0 14px', borderRadius: 8,
-              font: '500 12px/1 var(--font-sans)', color: 'white',
+              font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)',
               background: 'var(--grad-primary)',
               border: 'none', cursor: 'pointer',
-              boxShadow: '0 0 16px rgba(139,124,255,0.30)',
+              boxShadow: '0 0 16px rgb(var(--primary-rgb) / 0.30)',
             }}
           >
             Reflect on finances

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, CreditCard, Eye, EyeOff, FileBarChart2, LayoutDashboard, Plus, Sparkles, TrendingDown, TrendingUp, Upload, Wallet, X, Landmark, BarChart2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CreditCard, Eye, EyeOff, FileBarChart2, LayoutDashboard, Plus, Sparkles, Users, TrendingDown, TrendingUp, Upload, Wallet, X, Landmark, BarChart2 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { RightDrawer } from '@/components/ui/RightDrawer';
 import { AccountsCard } from '@/components/finance/AccountsCard';
@@ -22,6 +22,8 @@ import { InvestmentForm } from '@/components/finance/wealth/InvestmentForm';
 import { FinancialGoalCard } from '@/components/finance/wealth/FinancialGoalCard';
 import { FinancialGoalForm } from '@/components/finance/wealth/FinancialGoalForm';
 import { AddInvestmentEntryDrawer } from '@/components/finance/wealth/AddInvestmentEntryDrawer';
+import { SplitDrawer } from '@/components/finance/splits/SplitDrawer';
+import { SplitsPanel } from '@/components/finance/splits/SplitsPanel';
 import { api, type Account, type FinanceMeta, type MonthlySummary, type Transaction, type TransactionIn } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
@@ -30,10 +32,11 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-type Tab = 'overview' | 'budgets' | 'debt' | 'wealth' | 'advisor' | 'accounts' | 'report';
+type Tab = 'overview' | 'splits' | 'budgets' | 'debt' | 'wealth' | 'advisor' | 'accounts' | 'report';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview',  icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
+  { id: 'splits',   label: 'Splits',    icon: <Users className="w-3.5 h-3.5" /> },
   { id: 'budgets',  label: 'Budget',    icon: <Wallet className="w-3.5 h-3.5" /> },
   { id: 'debt',     label: 'Debt & EMI',icon: <CreditCard className="w-3.5 h-3.5" /> },
   { id: 'wealth',   label: 'My Wealth', icon: <BarChart2 className="w-3.5 h-3.5" /> },
@@ -62,6 +65,7 @@ export function Finance() {
   const [showValues, setShowValues] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
   const [cardTip, setCardTip] = useState<string | null>(null);
+  const [splitTxn, setSplitTxn] = useState<Transaction | null>(null);
 
   // Debt & EMI drawer state
   const [debtDrawerOpen,  setDebtDrawerOpen]  = useState(false);
@@ -285,7 +289,7 @@ export function Finance() {
 
       {/* ── Underline Tab strip ── */}
       <div
-        className="tab-strip flex items-center gap-1.5 mb-6 mt-4"
+        className="tab-strip flex items-center gap-1.5 mb-6 mt-4 overflow-x-auto"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         {TABS.map((t) => (
@@ -294,8 +298,8 @@ export function Finance() {
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              'relative inline-flex items-center gap-2 h-10 px-3.5 text-[13px] font-medium transition-all',
-              tab === t.id ? 'text-white' : 'text-ink-500 hover:text-white',
+              'relative inline-flex items-center gap-2 h-10 px-3.5 text-[13px] font-medium transition-all whitespace-nowrap shrink-0',
+              tab === t.id ? 'text-fg-1' : 'text-ink-500 hover:text-fg-1',
             )}
           >
             {t.icon}
@@ -305,7 +309,7 @@ export function Finance() {
                 className="absolute left-0 right-0 bottom-[-1px] h-0.5 rounded-sm"
                 style={{
                   background: 'var(--grad-primary)',
-                  boxShadow: '0 0 12px rgba(139,124,255,0.4)',
+                  boxShadow: '0 0 12px rgb(var(--primary-rgb) / 0.4)',
                 }}
               />
             )}
@@ -323,6 +327,27 @@ export function Finance() {
         </div>
       )}
 
+      {/* Right-side drawer for adding a transaction */}
+      <RightDrawer
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title="New Transaction"
+      >
+        {meta && (
+          <TransactionForm
+            meta={meta}
+            onSubmit={async (payload, opts) => {
+              const created = await createMut.mutateAsync(payload);
+              if (opts?.split) setSplitTxn(created);
+            }}
+            onCancel={() => setShowForm(false)}
+          />
+        )}
+      </RightDrawer>
+      <SplitDrawer txn={splitTxn} onClose={() => setSplitTxn(null)} />
+
+      {tab === 'splits' && <SplitsPanel />}
+
       {/* ── Overview tab ─────────────────────────────────────── */}
       {tab === 'overview' && (
         <>
@@ -330,68 +355,43 @@ export function Finance() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatChip
               icon={<TrendingUp className="w-3.5 h-3.5" />}
-              iconBg="rgba(61,255,152,0.10)"
+              tone="income"
               label="Total Income"
               value={summary ? fmtMoney(summary.total_income, currency) : '—'}
-              valueGradient="linear-gradient(135deg, #3DFF98, #B4F5CB)"
-              sub={summary?.budget_overall
-                ? `${summary.budget_overall.pct.toFixed(0)}% of budget used`
-                : undefined}
               showValues={showValues}
             />
             <StatChip
               icon={<TrendingDown className="w-3.5 h-3.5" />}
-              iconBg="rgba(255,91,110,0.10)"
+              tone="expense"
               label="Total Expenses"
               value={summary ? fmtMoney(summary.total_expense, currency) : '—'}
-              valueGradient="linear-gradient(135deg, #FF7AD9, #FFB86B)"
+              sub={summary?.budget_overall
+                ? `${summary.budget_overall.pct.toFixed(0)}% of monthly budget`
+                : undefined}
               showValues={showValues}
             />
             <StatChip
               icon={<Wallet className="w-3.5 h-3.5" />}
-              iconBg="rgba(139,124,255,0.12)"
+              tone={summary && summary.net < 0 ? 'negative' : 'primary'}
               label="Net Balance"
               value={summary ? fmtMoney(summary.net, currency) : '—'}
-              valueGradient={summary && summary.net >= 0
-                ? 'linear-gradient(135deg, #8B7CFF, #3EBEFF)'
-                : 'linear-gradient(135deg, #FF5B6E, #FFB86B)'}
-              sub={summary?.budget_overall && summary.budget_overall.pct > 80
-                ? summary.budget_overall.pct > 100
-                  ? '⚠ Over budget'
-                  : `${(100 - summary.budget_overall.pct).toFixed(0)}% budget left`
-                : undefined}
+              sub={summary && summary.net < 0 ? 'Spent more than you earned' : undefined}
               showValues={showValues}
             />
             <StatChip
               icon={<TrendingUp className="w-3.5 h-3.5" />}
-              iconBg="rgba(255,215,106,0.12)"
+              tone="savings"
               label="Savings Rate"
               value={summary && summary.total_income > 0
                 ? `${Math.max(0, Math.round((summary.net / summary.total_income) * 100))}%`
                 : '—'}
-              valueGradient={undefined}
-              sub={summary?.budget_overall
-                ? summary.budget_overall.pct < 40 ? 'Goal 40% · crushing it' : `${(100 - summary.budget_overall.pct).toFixed(0)}% left`
-                : undefined}
-              savingsStyle
+              sub={summary && summary.total_income > 0
+                ? summary.net / summary.total_income >= 0.4 ? 'Above the 40% goal' : 'Goal: save 40% of income'
+                : 'No income recorded this month'}
               showValues={showValues}
             />
           </div>
 
-          {/* Right-side drawer for adding a transaction */}
-          <RightDrawer
-            open={showForm}
-            onClose={() => setShowForm(false)}
-            title="New Transaction"
-          >
-            {meta && (
-              <TransactionForm
-                meta={meta}
-                onSubmit={async (payload) => { await createMut.mutateAsync(payload); }}
-                onCancel={() => setShowForm(false)}
-              />
-            )}
-          </RightDrawer>
 
           {/* Main grid — 1.4fr left (transactions), 1fr right (categories + AI) */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
@@ -419,6 +419,7 @@ export function Finance() {
                     transactions={transactions}
                     meta={meta}
                     queryKey={txnKey}
+                    onSplit={setSplitTxn}
                   />
                 )}
               </div>
@@ -520,7 +521,7 @@ export function Finance() {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 height: 32, padding: '0 14px', borderRadius: 8,
-                font: '500 12px/1 var(--font-sans)', color: 'white',
+                font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)',
                 background: 'var(--grad-primary)', border: 'none', cursor: 'pointer',
               }}
             >
@@ -536,7 +537,7 @@ export function Finance() {
               <div style={{ font: '500 18px/1.3 var(--font-display)', color: 'var(--fg-1)', marginBottom: 8 }}>No active loans</div>
               <p style={{ fontSize: 14, color: 'var(--fg-3)', marginBottom: 20 }}>Track home loans, personal loans, no-cost EMIs — see exactly when each clears.</p>
               <button type="button" onClick={() => { setEditingDebt(null); setDebtFormKey(k => k + 1); setDebtDrawerOpen(true); }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 18px', borderRadius: 10, font: '500 13px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 18px', borderRadius: 10, font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 14, height: 14 }} /> Add your first loan
               </button>
             </div>
@@ -623,7 +624,7 @@ export function Finance() {
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Investments</div>
               <button type="button"
                 onClick={() => { setEditingInv(null); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 13, height: 13 }} /> Add investment
               </button>
             </div>
@@ -635,7 +636,7 @@ export function Finance() {
                 <div style={{ font: '500 15px/1.3 var(--font-display)', color: 'var(--fg-2)', marginBottom: 6 }}>No investments yet</div>
                 <p style={{ fontSize: 13, color: 'var(--fg-4)', marginBottom: 16 }}>Track MFs, FDs, PPF, gold — see your total invested amount at a glance.</p>
                 <button type="button" onClick={() => { setEditingInv(null); setInvFormKey(k => k + 1); setInvDrawerOpen(true); }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                   <Plus style={{ width: 13, height: 13 }} /> Add investment
                 </button>
               </div>
@@ -663,7 +664,7 @@ export function Finance() {
               <div style={{ font: '500 15px/1 var(--font-display)', color: 'var(--fg-1)' }}>Financial Goals</div>
               <button type="button"
                 onClick={() => { setEditingGoal(null); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                 <Plus style={{ width: 13, height: 13 }} /> Add goal
               </button>
             </div>
@@ -675,7 +676,7 @@ export function Finance() {
                 <div style={{ font: '500 15px/1.3 var(--font-display)', color: 'var(--fg-2)', marginBottom: 6 }}>No financial goals yet</div>
                 <p style={{ fontSize: 13, color: 'var(--fg-4)', marginBottom: 16 }}>Set a target, link investments, see how far you are and how much you need per month.</p>
                 <button type="button" onClick={() => { setEditingGoal(null); setGoalFormKey(k => k + 1); setGoalDrawerOpen(true); }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'white', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 34, padding: '0 16px', borderRadius: 8, font: '500 12px/1 var(--font-sans)', color: 'var(--on-primary)', background: 'var(--grad-primary)', border: 'none', cursor: 'pointer' }}>
                   <Plus style={{ width: 13, height: 13 }} /> Add goal
                 </button>
               </div>
@@ -729,7 +730,7 @@ export function Finance() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   height: 36, padding: '0 16px', borderRadius: 10,
-                  font: '500 13px/1 var(--font-sans)', color: 'white',
+                  font: '500 13px/1 var(--font-sans)', color: 'var(--on-primary)',
                   background: advisorLoading ? 'var(--surface-hover)' : 'var(--grad-primary)',
                   border: 'none', cursor: advisorLoading ? 'default' : 'pointer',
                   opacity: advisorLoading ? 0.7 : 1,
@@ -792,28 +793,33 @@ export function Finance() {
 }
 
 /** KPI card — matches HTML reference exactly */
+type ChipTone = 'income' | 'expense' | 'primary' | 'negative' | 'savings';
+
+// Each tone is a theme token; the value gradient runs from the token toward
+// the page's text colour, so it stays readable in light and dark.
+const TONE: Record<ChipTone, string> = {
+  income: 'var(--accent-green)',
+  expense: 'var(--accent-pink)',
+  primary: 'var(--primary-500)',
+  negative: 'var(--accent-red)',
+  savings: 'var(--accent-yellow)',
+};
+
 function StatChip({
-  icon, iconBg, label, value, valueGradient, sub, savingsStyle, showValues = true,
+  icon, tone = 'primary', label, value, sub, showValues = true,
 }: {
   icon: React.ReactNode;
-  iconBg?: string;
+  tone?: ChipTone;
   label: string;
   value: string;
-  valueGradient?: string;
-  valueColor?: string;
   sub?: string;
-  savingsStyle?: boolean;
   showValues?: boolean;
 }) {
-  const haloBg = savingsStyle ? 'var(--accent-yellow)'
-    : valueGradient?.includes('3DFF98') ? 'var(--accent-green)'
-    : valueGradient?.includes('FF7AD9') ? 'var(--accent-red)'
-    : 'var(--primary-500)';
-
-  const iconColor = savingsStyle ? 'var(--accent-yellow)'
-    : valueGradient?.includes('3DFF98') ? '#3DFF98'
-    : valueGradient?.includes('FF7AD9') ? '#FF5B6E'
-    : '#B8A5FF';
+  const color = TONE[tone];
+  const haloBg = color;
+  const iconColor = color;
+  const iconBg = `color-mix(in srgb, ${color} 12%, transparent)`;
+  const valueGradient = `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 55%, var(--fg-1)))`;
 
   return (
     <div

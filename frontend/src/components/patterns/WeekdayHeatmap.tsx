@@ -10,7 +10,7 @@ function completionColor(pct: number | null): string {
   if (pct >= 0.60) return 'rgba(61,255,152,0.40)';
   if (pct >= 0.35) return 'rgba(255,184,107,0.50)';
   if (pct >  0)    return 'rgba(255,91,110,0.40)';
-  return 'rgba(255,255,255,0.06)';
+  return 'rgb(var(--overlay-rgb) / 0.06)';
 }
 
 export function WeekdayHeatmap({ data }: Props) {

@@ -34,7 +34,7 @@ export function RightDrawer({ open, onClose, title, children, width = 480 }: Pro
           inset: 0,
           top: 56, // below the topbar
           zIndex: 49,
-          background: 'rgba(0, 0, 0, 0.45)',
+          background: 'var(--scrim)',
           backdropFilter: 'blur(2px)',
           WebkitBackdropFilter: 'blur(2px)',
           opacity: open ? 1 : 0,
@@ -56,9 +56,13 @@ export function RightDrawer({ open, onClose, title, children, width = 480 }: Pro
           flexDirection: 'column',
           background: 'var(--surface)',
           borderLeft: '1px solid var(--border-default)',
-          boxShadow: '-12px 0 60px rgba(0, 0, 0, 0.55)',
+          // No shadow while parked off-screen — it would bleed in at the edge.
+          boxShadow: open ? 'var(--elev-drawer)' : 'none',
+          visibility: open ? 'visible' : 'hidden',
           transform: open ? 'translateX(0)' : `translateX(${width}px)`,
-          transition: 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
+          transition: open
+            ? 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)'
+            : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s 300ms, box-shadow 0s 300ms',
         }}
       >
         {/* Header */}

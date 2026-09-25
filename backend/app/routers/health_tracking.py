@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -98,10 +98,19 @@ def upsert_log(log_date: date, body: HealthLogIn, db: Session = Depends(get_db),
     if log_date < today - timedelta(days=365):
         raise HTTPException(status_code=422, detail="Date is too far in the past.")
 
-    row = db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date == log_date).first()
+    # Include soft-deleted rows so a re-logged date revives the tombstoned
+    # row instead of colliding with the UNIQUE(log_date) constraint.
+    row = (
+        db.query(HealthLog)
+        .filter(HealthLog.user_id == current_user.id, HealthLog.log_date == log_date)
+        .execution_options(include_deleted=True)
+        .first()
+    )
     if row is None:
-        row = HealthLog(log_date=log_date)
+        row = HealthLog(log_date=log_date, user_id=current_user.id)
         db.add(row)
+    else:
+        row.deleted_at = None  # Phase 12a — revive if it was deleted
 
     # Additive — only overwrite fields that were explicitly provided
     data = body.model_dump(exclude_unset=True)
@@ -125,5 +134,5 @@ def upsert_log(log_date: date, body: HealthLogIn, db: Session = Depends(get_db),
 def delete_log(log_date: date, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     row = db.query(HealthLog).filter(HealthLog.user_id == current_user.id).filter(HealthLog.log_date == log_date).first()
     if row:
-        db.delete(row)
+        row.deleted_at = datetime.utcnow()  # Phase 12a — soft delete for sync
         db.commit()

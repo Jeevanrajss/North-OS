@@ -1,8 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing key (android/key.properties + the .jks it points to). Never
+// committed — CI writes them from repository secrets. Without it, release
+// builds fall back to the debug key (fine locally, but a phone then can't
+// update between builds signed by different machines).
+val keyProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -33,11 +44,39 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keyProps.containsKey("storeFile")) {
+            create("release") {
+                storeFile = file(keyProps.getProperty("storeFile"))
+                storePassword = keyProps.getProperty("storePassword")
+                keyAlias = keyProps.getProperty("keyAlias")
+                keyPassword = keyProps.getProperty("keyPassword")
+            }
+        }
+    }
+
+    // Two installable apps: "North OS" (prod) and "North OS UAT" (uat, its own
+    // app id, so both sit side by side on one phone).
+    //   flutter build apk --flavor prod --dart-define=CHANNEL=prod
+    //   flutter build apk --flavor uat  --dart-define=CHANNEL=uat
+    flavorDimensions += "channel"
+    productFlavors {
+        create("prod") {
+            dimension = "channel"
+            resValue("string", "app_name", "North OS")
+        }
+        create("uat") {
+            dimension = "channel"
+            applicationIdSuffix = ".uat"
+            versionNameSuffix = "-uat"
+            resValue("string", "app_name", "North OS UAT")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keyProps.containsKey("storeFile")) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 }

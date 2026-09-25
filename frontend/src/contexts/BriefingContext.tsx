@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date';
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { api, type Day, type HabitsTodayResponse, type SubscriptionStatsResponse } from '@/lib/api';
 
@@ -108,7 +109,7 @@ interface BriefingContextValue extends BriefingState {
 const BriefingContext = createContext<BriefingContextValue | null>(null);
 
 export function BriefingProvider({ children }: { children: ReactNode }) {
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = toISODate(new Date());
 
   // Seed from localStorage so the result is available immediately on first render
   const [state, setState] = useState<BriefingState>(() => {

@@ -16,24 +16,44 @@ class RecentTransactionsCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(title: 'Recent Transactions', onSeeAll: () => context.go('/finance')),
+        SectionHeader(title: 'Recent transactions', onSeeAll: () => context.go('/finance')),
         const SizedBox(height: 8),
         AppCard(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
-            children: recent.map((t) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              child: Row(children: [
-                Expanded(
-                  child: Text(t.payee ?? t.category ?? t.notes ?? 'Transaction',
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, color: NorthColors.fg1)),
-                ),
-                AmountText(amount: t.amount, direction: t.type, size: 14),
-                const SizedBox(width: 8),
-                Text(t.account ?? '', style: const TextStyle(fontSize: 11, color: NorthColors.fg5)),
-              ]),
-            )).toList(),
+            children: recent
+                .map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.payee ?? t.category ?? t.notes ?? 'Transaction',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 14, color: NorthColors.fg1),
+                              ),
+                              if ((t.account ?? '').isNotEmpty)
+                                Text(
+                                  t.account!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11, color: NorthColors.fg5),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        AmountText(amount: t.amount, direction: t.type, size: 14),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
       ],
