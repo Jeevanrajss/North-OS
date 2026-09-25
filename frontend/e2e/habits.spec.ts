@@ -29,8 +29,11 @@ test('unticking removes the check-in', async ({ page, api }) => {
   await page.goto('/app/habits');
   await page.getByRole('button', { name: `Untick ${name} on ${today()}` }).click();
   await expect(page.getByRole('button', { name: `Tick ${name} on ${today()}` })).toBeVisible();
-  const t = await (await api.get('habits/today')).json();
-  expect(t.habits.find((x: any) => x.habit.id === habit.id).done).toBe(false);
+  // The UI flips optimistically; wait for the untick to reach the server.
+  await expect.poll(async () => {
+    const t = await (await api.get('habits/today')).json();
+    return t.habits.find((x: any) => x.habit.id === habit.id).done;
+  }).toBe(false);
 });
 
 test('habit detail page opens from the list', async ({ page, api }) => {
